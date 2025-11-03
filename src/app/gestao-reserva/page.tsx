@@ -1,6 +1,6 @@
 'use client'
 import { useEffect, useState } from 'react'
-import Link from 'next/link' // <-- IMPORTAR O LINK
+import Link from 'next/link' 
 
 type PlanoItem = {
   etapa: string
@@ -10,6 +10,7 @@ type PlanoItem = {
   groupsPlank?: string[]
   groupsCarnaval?: string[]
 }
+
 type Grupo = { name: string; size: number }
 
 type PlanSummary = {
@@ -29,14 +30,15 @@ export default function GestaoReservaPage() {
   const [progress, setProgress] = useState(0)
   const [plan, setPlan] = useState<PlanoItem[]>([])
   const [groups, setGroups] = useState<Grupo[]>([])
-  const [summary, setSummary] = useState<PlanSummary | null>(null) 
+  const [summary, setSummary] = useState<PlanSummary | null>(null)
   const [showResult, setShowResult] = useState(false)
 
-  const generateHalfHourOptions = () => {
+  const generateFifteenMinuteOptions = () => {
     const out: string[] = []
     for (let h = 10; h <= 20; h++) {
-      out.push(`${String(h).padStart(2, '0')}:00`)
-      if (h < 20) out.push(`${String(h).padStart(2, '0')}:30`)
+      for (let m = 0; m < 60; m += 15) {
+        out.push(`${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`)
+      }
     }
     return out
   }
@@ -45,6 +47,7 @@ export default function GestaoReservaPage() {
     const [hh, mm] = time.split(':').map(Number)
     return hh * 60 + mm
   }
+
   const fromMinutes = (mins: number) => {
     const hh = Math.floor(mins / 60) % 24
     const mm = mins % 60
@@ -82,157 +85,322 @@ export default function GestaoReservaPage() {
     const result: PlanoItem[] = []
     let current = toMinutes(start)
     
-    const TRANSITION_TIME = 5 
+    const TRANSITION_TIME = 6
+    const JOGO_DURATION = 30
+    const PLANK_PER_PERSON = 2
+    const CARNIVAL_DURATION = 10
+    const MAX_JOGO_GROUPS = 3
+    const MAX_PLANK_GROUPS = 2
+    const MAX_CARNIVAL_GROUPS = 3
 
-    // Chegada e explicação + vídeo
-    result.push({ etapa: 'Chegada e explicação rápida', start: fromMinutes(current), durationMin: 5 })
-    current += 5
-    result.push({ etapa: 'Vídeo introdutório', start: fromMinutes(current), durationMin: 3 })
-    current += 3
+    // 1. Chegada e explicação + vídeo (10 min)
+    result.push({ 
+      etapa: 'Chegada e explicação rápida e Vídeo introdutório', 
+      start: fromMinutes(current), 
+      durationMin: 10 
+    })
+    current += 10
 
-    // Estado de cada grupo
-    const state = groups.map(g => ({
+    // Estado para controlar o progresso de cada grupo
+    const groupState = groups.map(g => ({
       name: g.name,
       size: g.size,
-      needsPlay: true,
-      needsPlank: true,
+      played: false,
+      planked: false,
     }))
 
-    // --- FASE 1: Loop de Jogo Principal (e Plank em paralelo) ---
-    while (state.some(s => s.needsPlay)) {
-      // 1. Escolher até 3 para jogar
-      const toPlay = state.filter(s => s.needsPlay).slice(0, 3)
-      if (toPlay.length === 0) break
+    // Estado para controlar quais grupos de Carnaval JÁ FORAM FEITOS
+    let carnivalGroupsDone: number[] = []
+    let nextCarnavalGroup = 1
 
-      // 2. Simular o Plank nas 2 estações durante os 30 min de Jogo
-      const groupsForThisPlankBlock: string[] = []
-      let station1TimeUsed = 0
-      let station2TimeUsed = 0
-      const PLANK_WINDOW = 30 
-      const PLANK_TRANSITION = TRANSITION_TIME 
+    let batchNumber = 1
+    
+    // NOVA LÓGICA OTIMIZADA: Se tiver 4 grupos ou mais
+    if (groups.length >= 4) {
+      const gruposPrincipais = groupState.slice(0, 3) // Grupos 1,2,3
+      const gruposRestantes = groupState.slice(3)     // Grupos 4,5,6,7...
 
-      // Obter lista de candidatos a plank, com prioridade
-      const waitingToPlank = state.filter(s =>
-        s.needsPlank && s.needsPlay && !toPlay.find(p => p.name === s.name)
-      )
-      const finishedPlayToPlank = state.filter(s => s.needsPlank && !s.needsPlay)
-      const plankCandidates = [...waitingToPlank, ...finishedPlayToPlank]
-
-      // Iterar pelos candidatos e tentar encaixá-los nas estações
-      for (const candidate of plankCandidates) {
-        const sessionCost = candidate.size + PLANK_TRANSITION 
-        
-        if (station1TimeUsed + sessionCost <= PLANK_WINDOW) {
-          station1TimeUsed += sessionCost
-          groupsForThisPlankBlock.push(candidate.name)
-          const s = state.find(x => x.name === candidate.name)!
-          s.needsPlank = false
-        }
-        else if (station2TimeUsed + sessionCost <= PLANK_WINDOW) {
-          station2TimeUsed += sessionCost
-          groupsForThisPlankBlock.push(candidate.name)
-          const s = state.find(x => x.name === candidate.name)!
-          s.needsPlank = false
-        }
-      }
-      
+      // FASE 1: Grupos 1-3 jogam, grupos restantes fazem plank em paralelo
       result.push({
-        etapa: `Jogo principal (${toPlay.map(g => g.name).join(', ')})`,
+        etapa: `Jogo principal - Batch ${batchNumber} (${gruposPrincipais.map(g => g.name).join(', ')})`,
         start: fromMinutes(current),
-        durationMin: 30,
-        groupsPlaying: toPlay.map(g => g.name),
-        groupsPlank: groupsForThisPlankBlock, 
+        durationMin: JOGO_DURATION,
+        groupsPlaying: gruposPrincipais.map(g => g.name),
       })
-
-      for (const g of toPlay) {
-        const s = state.find(x => x.name === g.name)!
-        s.needsPlay = false
-      }
-
-      current += 30 
-
-      if (state.some(s => s.needsPlay)) {
-        result.push({ etapa: 'Transição entre grupos', start: fromMinutes(current), durationMin: TRANSITION_TIME }) 
-        current += TRANSITION_TIME 
-      }
-    }
-
-    // --- FASE 2: Plank Cleanup ---
-    while (state.some(s => s.needsPlank)) {
-      if (result.at(-1)?.etapa.includes('Transição') === false) {
-         result.push({ etapa: 'Transição para Plank', start: fromMinutes(current), durationMin: TRANSITION_TIME }) 
-         current += TRANSITION_TIME 
-      }
-
-      const toPlank = state.filter(s => s.needsPlank).slice(0, 2)
-      if (toPlank.length === 0) break
-
-      const plankDur = Math.max(...toPlank.map(g => g.size)) 
-
-      result.push({
-        etapa: `Plank (Restantes) (${toPlank.map(g => g.name).join(', ')})`,
-        start: fromMinutes(current),
-        durationMin: plankDur,
-        groupsPlank: toPlank.map(g => g.name),
-      })
-
-      for (const g of toPlank) {
-        const s = state.find(x => x.name === g.name)!
-        s.needsPlank = false
-      }
-      current += plankDur
-
-      if (state.some(s => s.needsPlank)) {
-         result.push({ etapa: 'Transição Plank', start: fromMinutes(current), durationMin: TRANSITION_TIME }) 
-         current += TRANSITION_TIME 
-      }
-    }
-
-
-    // --- FASE 3: Carnaval (Se aplicável) ---
-    if (carnival) {
-      if (result.at(-1)?.etapa.includes('Transição') === false) {
-         result.push({ etapa: 'Transição para Carnaval', start: fromMinutes(current), durationMin: TRANSITION_TIME }) 
-         current += TRANSITION_TIME 
-      }
+      gruposPrincipais.forEach(g => g.played = true)
       
-      const totalBatches = Math.ceil(nPeople / 4)
-      const numRondasCarnaval = Math.ceil(totalBatches / 3) // 3 estações
-      let batchCounter = 1
-
-      for (let i = 0; i < numRondasCarnaval; i++) {
-        const rondaNum = i + 1
-        const groupsInThisRonda: string[] = []
+      // Grupos restantes fazem plank EM PARALELO com o jogo dos grupos 1-3
+      let plankStartTime = current // Começam ao mesmo tempo que o jogo
+      let plankBatchCount = 1
+      const gruposParaPlank = [...gruposRestantes]
+      
+      while (gruposParaPlank.length > 0) {
+        const plankBatch = gruposParaPlank.splice(0, MAX_PLANK_GROUPS)
+        const plankDuration = Math.max(...plankBatch.map(g => g.size * PLANK_PER_PERSON))
         
-        for (let j = 0; j < 3; j++) {
-          if (batchCounter <= totalBatches) {
-            groupsInThisRonda.push(`Grupo C${batchCounter}`)
-            batchCounter++
+        // Adicionar transição entre batches de plank (exceto o primeiro)
+        if (plankBatchCount > 1) {
+          result.push({
+            etapa: 'Transição entre grupos de Plank',
+            start: fromMinutes(plankStartTime),
+            durationMin: TRANSITION_TIME,
+          })
+          plankStartTime += TRANSITION_TIME
+        }
+
+        result.push({
+          etapa: `Plank - Batch ${plankBatchCount} (${plankBatch.map(g => g.name).join(', ')})`,
+          start: fromMinutes(plankStartTime),
+          durationMin: plankDuration,
+          groupsPlank: plankBatch.map(g => g.name),
+        })
+        
+        plankBatch.forEach(g => g.planked = true)
+        plankStartTime += plankDuration
+        plankBatchCount++
+      }
+
+      // FASE 2: Quando grupos 1-3 terminam de jogar (30min), fazem transição e vão fazer plank
+      // Enquanto isso, grupos que já fizeram plank começam a jogar
+      current += JOGO_DURATION // Grupos 1-3 terminam de jogar
+
+      // Grupos 1-3 fazem transição e vão fazer plank
+      result.push({
+        etapa: 'Transição - Grupos 1-3 para Plank',
+        start: fromMinutes(current),
+        durationMin: TRANSITION_TIME,
+      })
+      current += TRANSITION_TIME
+
+      const plankDurationGrupos1a3 = Math.max(...gruposPrincipais.map(g => g.size * PLANK_PER_PERSON))
+      result.push({
+        etapa: `Plank - Grupos 1-3 (${gruposPrincipais.map(g => g.name).join(', ')})`,
+        start: fromMinutes(current),
+        durationMin: plankDurationGrupos1a3,
+        groupsPlank: gruposPrincipais.map(g => g.name),
+      })
+      gruposPrincipais.forEach(g => g.planked = true)
+
+      // ENQUANTO grupos 1-3 fazem plank, grupos que já fizeram plank começam a jogar
+      let jogoStartTime = current - TRANSITION_TIME // Começam logo após a transição
+      batchNumber++
+      const gruposParaJogar = [...gruposRestantes]
+      
+      while (gruposParaJogar.length > 0) {
+        const jogoBatch = gruposParaJogar.splice(0, MAX_JOGO_GROUPS)
+        
+        // Transição entre batches de jogo (exceto o primeiro)
+        if (batchNumber > 2) { // 2 porque já temos o batch 1 dos grupos 1-3
+          result.push({
+            etapa: 'Transição entre grupos de Jogo',
+            start: fromMinutes(jogoStartTime),
+            durationMin: TRANSITION_TIME,
+          })
+          jogoStartTime += TRANSITION_TIME
+        }
+
+        result.push({
+          etapa: `Jogo principal - Batch ${batchNumber} (${jogoBatch.map(g => g.name).join(', ')})`,
+          start: fromMinutes(jogoStartTime),
+          durationMin: JOGO_DURATION,
+          groupsPlaying: jogoBatch.map(g => g.name),
+        })
+        
+        jogoBatch.forEach(g => g.played = true)
+        jogoStartTime += JOGO_DURATION
+        batchNumber++
+
+        // NOVA LÓGICA CORRIGIDA: Carnaval em paralelo apenas se houver grupos disponíveis
+        if (carnival && jogoBatch.length < MAX_JOGO_GROUPS) {
+          const camposDisponiveis = MAX_JOGO_GROUPS - jogoBatch.length
+          const totalCarnivalGroups = Math.ceil(nPeople / 4)
+          
+          // Só adicionar Carnaval se ainda houver grupos que NÃO fizeram
+          if (nextCarnavalGroup <= totalCarnivalGroups) {
+            const gruposParaCarnaval = Math.min(camposDisponiveis, totalCarnivalGroups - nextCarnavalGroup + 1)
+            
+            if (gruposParaCarnaval > 0) {
+              const carnivalGroups = Array.from(
+                { length: gruposParaCarnaval }, 
+                (_, i) => `Carnaval ${nextCarnavalGroup + i}`
+              )
+              
+              // Marcar estes grupos como FEITOS
+              carnivalGroupsDone.push(...Array.from({ length: gruposParaCarnaval }, (_, i) => nextCarnavalGroup + i))
+              
+              result.push({
+                etapa: `Carnaval (em paralelo com jogo)`,
+                start: fromMinutes(jogoStartTime - JOGO_DURATION),
+                durationMin: CARNIVAL_DURATION,
+                groupsCarnaval: carnivalGroups,
+              })
+              
+              // Atualizar o próximo grupo de Carnaval disponível
+              nextCarnavalGroup += gruposParaCarnaval
+            }
           }
         }
-        
-        result.push({
-          etapa: `Carnaval (Ronda ${rondaNum}/${numRondasCarnaval})`,
-          start: fromMinutes(current),
-          durationMin: 10,
-          groupsCarnaval: groupsInThisRonda, 
-        })
-        current += 10 
+      }
 
-        if (rondaNum < numRondasCarnaval) {
-          result.push({ etapa: 'Transição Carnaval', start: fromMinutes(current), durationMin: TRANSITION_TIME })
+      // Atualizar current para o máximo entre o fim do plank dos grupos 1-3 e o fim do jogo dos últimos grupos
+      current = Math.max(current + plankDurationGrupos1a3, jogoStartTime)
+
+    } else {
+      // FLUXO ORIGINAL: 3 grupos ou menos - todos fazem plank primeiro, depois todos jogam
+      
+      // FASE 1: TODOS fazem PLANK
+      let plankCurrent = current
+      let plankBatchCount = 1
+      const gruposParaPlank = [...groupState]
+      
+      while (gruposParaPlank.length > 0) {
+        const plankBatch = gruposParaPlank.splice(0, MAX_PLANK_GROUPS)
+        const plankDuration = Math.max(...plankBatch.map(g => g.size * PLANK_PER_PERSON))
+        
+        if (plankBatchCount > 1) {
+          result.push({
+            etapa: 'Transição entre grupos de Plank',
+            start: fromMinutes(plankCurrent),
+            durationMin: TRANSITION_TIME,
+          })
+          plankCurrent += TRANSITION_TIME
+        }
+
+        result.push({
+          etapa: `Plank - Batch ${plankBatchCount} (${plankBatch.map(g => g.name).join(', ')})`,
+          start: fromMinutes(plankCurrent),
+          durationMin: plankDuration,
+          groupsPlank: plankBatch.map(g => g.name),
+        })
+        
+        plankBatch.forEach(g => g.planked = true)
+        plankCurrent += plankDuration
+        plankBatchCount++
+      }
+
+      current = plankCurrent
+
+      // Transição entre plank e jogo
+      result.push({
+        etapa: 'Transição para Jogo Principal',
+        start: fromMinutes(current),
+        durationMin: TRANSITION_TIME,
+      })
+      current += TRANSITION_TIME
+
+      // FASE 2: TODOS jogam JOGO PRINCIPAL
+      while (groupState.some(g => !g.played)) {
+        const availableToPlay = groupState.filter(g => !g.played)
+
+        if (batchNumber > 1) {
+          result.push({
+            etapa: 'Transição entre grupos de Jogo',
+            start: fromMinutes(current),
+            durationMin: TRANSITION_TIME,
+          })
           current += TRANSITION_TIME
+        }
+
+        const jogoBatch = availableToPlay.slice(0, MAX_JOGO_GROUPS)
+        
+        if (jogoBatch.length > 0) {
+          result.push({
+            etapa: `Jogo principal - Batch ${batchNumber} (${jogoBatch.map(g => g.name).join(', ')})`,
+            start: fromMinutes(current),
+            durationMin: JOGO_DURATION,
+            groupsPlaying: jogoBatch.map(g => g.name),
+          })
+          
+          jogoBatch.forEach(g => g.played = true)
+          current += JOGO_DURATION
+          batchNumber++
+
+          // Carnaval em paralelo para grupos pequenos também
+          if (carnival && jogoBatch.length < MAX_JOGO_GROUPS) {
+            const camposDisponiveis = MAX_JOGO_GROUPS - jogoBatch.length
+            const totalCarnivalGroups = Math.ceil(nPeople / 4)
+            
+            if (nextCarnavalGroup <= totalCarnivalGroups) {
+              const gruposParaCarnaval = Math.min(camposDisponiveis, totalCarnivalGroups - nextCarnavalGroup + 1)
+              
+              if (gruposParaCarnaval > 0) {
+                const carnivalGroups = Array.from(
+                  { length: gruposParaCarnaval }, 
+                  (_, i) => `Carnaval ${nextCarnavalGroup + i}`
+                )
+                
+                carnivalGroupsDone.push(...Array.from({ length: gruposParaCarnaval }, (_, i) => nextCarnavalGroup + i))
+                
+                result.push({
+                  etapa: `Carnaval (em paralelo com jogo)`,
+                  start: fromMinutes(current - JOGO_DURATION),
+                  durationMin: CARNIVAL_DURATION,
+                  groupsCarnaval: carnivalGroups,
+                })
+                
+                nextCarnavalGroup += gruposParaCarnaval
+              }
+            }
+          }
         }
       }
     }
 
-    // --- FASE 4: Final ---
-    result.push({ etapa: 'Troca final e recolha dos óculos', start: fromMinutes(current), durationMin: 5 })
-    current += 5
+    // FASE 3: CARNAVAL FINAL (apenas para grupos que NÃO fizeram ainda)
+    if (carnival) {
+      const totalCarnivalGroups = Math.ceil(nPeople / 4)
+      
+      // Só fazer Carnaval Final se ainda houver grupos que NÃO fizeram
+      if (nextCarnavalGroup <= totalCarnivalGroups) {
+        result.push({
+          etapa: 'Transição para Carnaval Final',
+          start: fromMinutes(current),
+          durationMin: TRANSITION_TIME,
+        })
+        current += TRANSITION_TIME
+
+        let gruposProcessados = nextCarnavalGroup
+        let carnivalRound = 1
+
+        while (gruposProcessados <= totalCarnivalGroups) {
+          const gruposThisRound = Math.min(MAX_CARNIVAL_GROUPS, totalCarnivalGroups - gruposProcessados + 1)
+          const carnivalGroups = Array.from(
+            { length: gruposThisRound }, 
+            (_, i) => `Carnaval ${gruposProcessados + i}`
+          )
+          
+          result.push({
+            etapa: `Carnaval Final (Rodada ${carnivalRound})`,
+            start: fromMinutes(current),
+            durationMin: CARNIVAL_DURATION,
+            groupsCarnaval: carnivalGroups,
+          })
+          current += CARNIVAL_DURATION
+          gruposProcessados += gruposThisRound
+          carnivalRound++
+
+          if (gruposProcessados <= totalCarnivalGroups) {
+            result.push({
+              etapa: 'Transição Carnaval',
+              start: fromMinutes(current),
+              durationMin: TRANSITION_TIME,
+            })
+            current += TRANSITION_TIME
+          }
+        }
+      }
+    }
+
+    // Final
+    result.push({
+      etapa: 'Troca final e recolha dos óculos',
+      start: fromMinutes(current),
+      durationMin: TRANSITION_TIME,
+    })
+    current += TRANSITION_TIME
 
     return result
   }
-
 
   const handleGenerate = () => {
     if (!people || people <= 0) {
@@ -247,7 +415,7 @@ export default function GestaoReservaPage() {
     setShowResult(false)
     setPlan([])
     setGroups([])
-    setSummary(null) 
+    setSummary(null)
     setProgress(0)
     setLoading(true)
 
@@ -264,7 +432,12 @@ export default function GestaoReservaPage() {
         
         const computedPlan = computePlan(Number(people), startTime, computedGroups, carnival)
         
-        const lastItem = computedPlan[computedPlan.length - 1];
+        const lastItem = computedPlan.at(-1)
+        if (!lastItem) { 
+          setLoading(false);
+          return;
+        }
+        
         const endTimeMin = toMinutes(lastItem.start) + lastItem.durationMin;
         const endTimeStr = fromMinutes(endTimeMin);
         const startTimeMin = toMinutes(startTime);
@@ -285,7 +458,7 @@ export default function GestaoReservaPage() {
         setTimeout(() => {
           setPlan(computedPlan)
           setGroups(computedGroups)
-          setSummary(summaryData) 
+          setSummary(summaryData)
           setLoading(false)
           setShowResult(true)
           setProgress(0)
@@ -298,24 +471,21 @@ export default function GestaoReservaPage() {
 
   useEffect(() => {
     setShowResult(false)
-    setSummary(null) 
-  }, [people, startTime, carnival]) 
+    setSummary(null)
+  }, [people, startTime, carnival])
 
   return (
     <div className="min-h-screen p-8 bg-gradient-to-b from-white via-gray-50 to-gray-100 text-gray-900">
       <div className="max-w-6xl mx-auto">
-        <header className="mb-8"> {/* <-- MUDANÇA AQUI: Removido flex e justify-between */}
-          
-          {/* --- BOTÃO DE VOLTAR ADICIONADO --- */}
+        <header className="mb-8"> 
           <div className="mb-4">
-            <Link href="/" className="inline-flex items-center text-sm text-indigo-600 hover:text-indigo-800 group">
+            <Link href="/portal" className="inline-flex items-center text-sm text-indigo-600 hover:text-indigo-800 group">
               <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-1 transition-transform group-hover:-translate-x-1" viewBox="0 0 20 20" fill="currentColor">
                 <path fillRule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clipRule="evenodd" />
               </svg>
-              Voltar à página principal
+              Voltar ao Portal
             </Link>
           </div>
-          {/* --- FIM DO BOTÃO DE VOLTAR --- */}
 
           <div>
             <h1 className="text-3xl font-semibold">Gestão da Reserva</h1>
@@ -345,7 +515,7 @@ export default function GestaoReservaPage() {
                 onChange={(e) => setStartTime(e.target.value)}
                 className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-indigo-400 outline-none"
               >
-                {generateHalfHourOptions().map(h => (
+                {generateFifteenMinuteOptions().map(h => (
                   <option key={h} value={h}>{h}</option>
                 ))}
               </select>
@@ -355,7 +525,7 @@ export default function GestaoReservaPage() {
               <label className="block text-sm font-medium text-gray-700 mb-2">Vão fazer carnaval?</label>
               <select
                 value={carnival ? 'sim' : 'nao'}
-                onChange={(e) => setCarnival(e.target.value === 'sim')} 
+                onChange={(e) => setCarnival(e.target.value === 'sim')}
                 className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-indigo-400 outline-none"
               >
                 <option value="nao">Não</option>
@@ -387,37 +557,31 @@ export default function GestaoReservaPage() {
           )}
         </div>
 
-        {/* --- BLOCO DE SUMÁRIO --- */}
+        {/* Sumário */}
         {showResult && summary && (
           <div className={`bg-white shadow-md rounded-lg p-6 mb-8 transform transition-all duration-500 ${showResult ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
             <h2 className="text-xl font-semibold mb-4 text-indigo-700">Resumo da Experiência</h2>
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-6">
-              {/* Bloco 1: Hora Início */}
               <div>
                 <div className="text-sm font-medium text-gray-500">Início</div>
                 <div className="text-2xl font-bold text-gray-800">{summary.startTime}</div>
               </div>
-              {/* Bloco 2: Hora Fim */}
               <div>
                 <div className="text-sm font-medium text-gray-500">Fim Previsto</div>
                 <div className="text-2xl font-bold text-gray-800">{summary.endTime}</div>
               </div>
-              {/* Bloco 3: Duração Total */}
               <div>
                 <div className="text-sm font-medium text-gray-500">Duração Total</div>
                 <div className="text-2xl font-bold text-gray-800">{formatDuration(summary.totalDurationMin)}</div>
               </div>
-              {/* Bloco 4: Pessoas */}
               <div>
                 <div className="text-sm font-medium text-gray-500">Total Pessoas</div>
                 <div className="text-2xl font-bold text-gray-800">{summary.totalPeople}</div>
               </div>
-              {/* Bloco 5: Grupos G */}
               <div>
                 <div className="text-sm font-medium text-gray-500">Grupos (Jogo/Plank)</div>
                 <div className="text-2xl font-bold text-gray-800">{summary.totalGroups}</div>
               </div>
-              {/* Bloco 6: Grupos C (Condicional) */}
               {summary.totalCarnivalGroups && (
                 <div>
                   <div className="text-sm font-medium text-gray-500">Grupos (Carnaval)</div>
@@ -427,8 +591,6 @@ export default function GestaoReservaPage() {
             </div>
           </div>
         )}
-        {/* --- FIM DO BLOCO DE SUMÁRIO --- */}
-
 
         {/* Resultado */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -452,7 +614,6 @@ export default function GestaoReservaPage() {
                         </div>
                       </div>
 
-                      {/* Grupos a Jogar */}
                       {p.groupsPlaying && p.groupsPlaying.length > 0 && (
                         <div className="mt-3">
                           <div className="text-sm font-medium text-green-700 mb-1">🎮 Grupos a Jogar:</div>
@@ -469,7 +630,6 @@ export default function GestaoReservaPage() {
                         </div>
                       )}
 
-                      {/* Grupos a Fazer Plank */}
                       {p.groupsPlank && p.groupsPlank.length > 0 && (
                         <div className="mt-2">
                           <div className="text-sm font-medium text-orange-700 mb-1">💪 Grupos a Fazer Plank:</div>
@@ -486,7 +646,6 @@ export default function GestaoReservaPage() {
                         </div>
                       )}
 
-                      {/* Grupos em Carnaval */}
                       {p.groupsCarnaval && p.groupsCarnaval.length > 0 && (
                         <div className="mt-2">
                           <div className="text-sm font-medium text-purple-700 mb-1">🎉 Grupos em Carnaval:</div>
@@ -502,7 +661,6 @@ export default function GestaoReservaPage() {
                           </div>
                         </div>
                       )}
-
                     </div>
                   ))}
                 </div>
@@ -523,8 +681,21 @@ export default function GestaoReservaPage() {
                       Total de grupos (Jogo/Plank): <span className="text-indigo-600 font-semibold">{groups.length}</span>
                     </p>
                     <p className="text-sm text-gray-600 mt-1">
-                      Cada round: máximo 18 pessoas • Plank: 1 min por pessoa • Transição: 5 min
+                      Cada jogo: 3 grupos • Plank: 2 grupos • Carnaval: 3 grupos • Duração: 30min jogo, 2min/pessoa plank, 10min carnaval
                     </p>
+                    <p className="text-sm text-gray-600 mt-1">
+                      Transições: 6min • Troca final: 6min
+                    </p>
+                    {groups.length >= 4 && (
+                      <p className="text-sm text-green-600 mt-1 font-medium">
+                        ⚡ Modo 4+ grupos: Grupos 1-3 jogam primeiro, resto faz plank EM PARALELO
+                      </p>
+                    )}
+                    {carnival && (
+                      <p className="text-sm text-purple-600 mt-1 font-medium">
+                        🎉 Carnaval inteligente: Usa campos vazios EM PARALELO sem repetir grupos
+                      </p>
+                    )}
                   </div>
                   <div className="space-y-3">
                     {groups.map((g, idx) => (

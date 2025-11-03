@@ -278,20 +278,7 @@ export default function SchedulerPrototype(): JSX.Element {
             </p>
           </div>
           <div className="flex gap-3">
-  <Link
-    href="/funcionarios"
-    className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
-  >
-    Gerir Funcionários
-  </Link>
-
-  <Link
-    href="/gestao-reserva"
-    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-  >
-    Gestão da Reserva
-  </Link>
-</div>
+  </div>
         </div>
 
         {/* Formulário de Agendamento */}
@@ -568,4 +555,4 @@ export default function SchedulerPrototype(): JSX.Element {
       </div>
     </div>
   )
-} 
+}

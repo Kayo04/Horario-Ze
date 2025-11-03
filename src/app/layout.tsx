@@ -1,15 +1,18 @@
-'use client'
-
+// app/layout.tsx
 import './globals.css'
-import { FuncionariosProvider } from '@/context/FuncionariosContext'
+import Providers from '@/app/providers' // <-- IMPORTAR
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode
+}) {
   return (
     <html lang="pt">
       <body>
-        <FuncionariosProvider>
+        <Providers> {/* <-- ENVOLVER */}
           {children}
-        </FuncionariosProvider>
+        </Providers>
       </body>
     </html>
   )
