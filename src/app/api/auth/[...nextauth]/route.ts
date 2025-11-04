@@ -3,7 +3,6 @@ import NextAuth, { NextAuthOptions } from 'next-auth'
 import CredentialsProvider from 'next-auth/providers/credentials'
 import { getEmployeeByNameForAuth } from '@/lib/employeeService' 
 import bcrypt from 'bcryptjs'
-import { Employee } from '@/types/employee' 
 
 export const authOptions: NextAuthOptions = {
   providers: [
@@ -39,27 +38,23 @@ export const authOptions: NextAuthOptions = {
     strategy: 'jwt', 
   },
   callbacks: {
-    async jwt({ token, user }) {
+    async jwt({ token, user }: any) {
       if (user) {
         token.id = user.id
-        token.role = user.role as 'admin' | 'employee'
-        token.name = user.name
+        token.role = user.role
       }
       return token
     },
-    async session({ session, token }) {
-      if (session.user) {
+    async session({ session, token }: any) {
+      if (token) {
         session.user.id = token.id
         session.user.role = token.role
-        session.user.name = token.name
       }
       return session
     }
   },
   pages: {
-    // <-- MUDANÇA IMPORTANTE AQUI
-    signIn: '/', // AVISAR O NEXT-AUTH QUE A PÁGINA DE LOGIN É A RAIZ
-    // <-- FIM DA MUDANÇA
+    signIn: '/',
   },
   secret: process.env.NEXTAUTH_SECRET, 
 }

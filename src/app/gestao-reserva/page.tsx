@@ -1,5 +1,6 @@
 'use client'
 import { useEffect, useState } from 'react'
+// import Link from 'next/link' // Removido na correção anterior
 
 type PlanoItem = {
   etapa: string
@@ -84,7 +85,10 @@ export default function GestaoReservaPage() {
     const result: PlanoItem[] = []
     let current = toMinutes(start)
     
-    const TRANSITION_TIME = 6
+    // --- ALTERAÇÃO AQUI ---
+    const TRANSITION_TIME = 5 // Alterado de 6 para 5
+    // --- FIM DA ALTERAÇÃO ---
+
     const JOGO_DURATION = 30
     const PLANK_PER_PERSON = 2
     const CARNIVAL_DURATION = 10
@@ -528,11 +532,13 @@ export default function GestaoReservaPage() {
       <div className="max-w-6xl mx-auto">
         <header className="mb-8">
           <div className="mb-4">
+            {/* <Link href="/portal" className="inline-flex items-center text-sm text-indigo-600 hover:text-indigo-800 group"> */}
             <a href="/portal" className="inline-flex items-center text-sm text-indigo-600 hover:text-indigo-800 group">
               <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-1 transition-transform group-hover:-translate-x-1" viewBox="0 0 20 20" fill="currentColor">
                 <path fillRule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clipRule="evenodd" />
               </svg>
               Voltar ao Portal
+            {/* </Link> */}
             </a>
           </div>
 
@@ -725,27 +731,15 @@ export default function GestaoReservaPage() {
                 <p className="text-gray-500">Os grupos serão mostrados aqui quando o plano for gerado.</p>
               ) : (
                 <>
+                  {/* --- ALTERAÇÃO AQUI --- */}
                   <div className="mb-4 p-3 bg-indigo-50 rounded-lg">
                     <p className="text-gray-700 font-medium">
                       Total de grupos (Jogo/Plank): <span className="text-indigo-600 font-semibold">{groups.length}</span>
                     </p>
-                    <p className="text-sm text-gray-600 mt-1">
-                      Cada jogo: 3 grupos • Plank: 2 grupos • Carnaval: 3 grupos • Duração: 30min jogo, 2min/pessoa plank, 10min carnaval
-                    </p>
-                    <p className="text-sm text-gray-600 mt-1">
-                      Transições: 6min • Troca final: 6min
-                    </p>
-                    {groups.length >= 4 && (
-                      <p className="text-sm text-green-600 mt-1 font-medium">
-                        ⚡ Modo 4+ grupos: Grupos 1-3 jogam primeiro, resto faz plank EM PARALELO
-                      </p>
-                    )}
-                    {carnival && (
-                      <p className="text-sm text-purple-600 mt-1 font-medium">
-                        🎉 Carnaval inteligente: Usa campos vazios EM PARALELO sem repetir grupos
-                      </p>
-                    )}
+                    {/* Texto removido conforme solicitado */}
                   </div>
+                  {/* --- FIM DA ALTERAÇÃO --- */}
+                  
                   <div className="space-y-3">
                     {groups.map((g, idx) => (
                       <div key={g.name} className="border border-gray-100 rounded-md p-3 hover:shadow-sm transition">
@@ -788,4 +782,3 @@ export default function GestaoReservaPage() {
     </div>
   )
 }
-
