@@ -16,16 +16,21 @@ type Reservation = {
 }
 
 type UnavailableWeekday = { day: number; start: string; end: string }
+
+// O tipo foi alterado para permitir a propriedade 'allDay'
+// e tornar 'startTime'/'endTime' condicionais.
 type UnavailableSlot = {
   date: string
-  startTime: string
-  endTime: string
   type: 'unavailable'
-}
+} & (
+  | { allDay: true }
+  | { allDay: false; startTime: string; endTime: string }
+)
 
 type Employee = {
   id: string
   name: string
+  code?: string // A SUA "SIGLA"
   email: string
   telefone?: string
   role: 'admin' | 'employee'
@@ -37,7 +42,7 @@ type Employee = {
   updatedAt?: Date
 }
 
-type Assigned = { id: string; name: string }
+type Assigned = { id: string; name: string; code?: string }
 
 type Slot = {
   reservation: Reservation
@@ -190,89 +195,102 @@ export default function SchedulerPrototype(): JSX.Element {
   }
 
   const generateSchedule = () => {
-  const bySlot: Record<string, Slot> = {}
+    const bySlot: Record<string, Slot> = {}
 
-  for (const r of reservations) {
-    const slotKey = `${r.date}T${r.startTime}`
-    
-    // Calcular staff necessário baseado no número de pessoas
-    let required = Math.ceil(r.people / 8) // 1 staff para cada 8 pessoas
-    if (required < 1) required = 1
-    if (r.eventType === 'teambuilding') required += 1 // Team building precisa de mais staff
+    for (const r of reservations) {
+      const slotKey = `${r.date}T${r.startTime}`
+      
+      // Calcular staff necessário baseado no número de pessoas
+      let required = Math.ceil(r.people / 8) // 1 staff para cada 8 pessoas
+      if (required < 1) required = 1
+      if (r.eventType === 'teambuilding') required += 1 // Team building precisa de mais staff
 
-    // Encontrar funcionários disponíveis - CORREÇÃO COMPLETA
-    const available = employees.filter(emp => {
-      try {
-        // Se não houver informação de unavailable, considerar disponível
-        if (!emp.unavailable) return true
-        
-        const slotDate = new Date(r.date)
-        const slotDay = slotDate.getDay()
-        
-        // 1. Verificar indisponibilidade por datas específicas (specificDates)
-        const specificDates = emp.unavailable.specificDates || []
-        const isUnavailableOnDate = specificDates.some((slot: UnavailableSlot) => {
-          // Se for dia todo, está indisponível
-          if (slot.allDay && slot.date === r.date) return true
+      // Encontrar funcionários disponíveis
+      const available = employees.filter(emp => {
+        try {
+          if (!emp.unavailable || typeof emp.unavailable !== 'object') return true
           
-          // Se for horário específico, verificar sobreposição
-          if (slot.date === r.date && !slot.allDay) {
-            const slotStart = convertTimeToMinutes(slot.startTime)
-            const slotEnd = convertTimeToMinutes(slot.endTime)
+          const slotDate = new Date(r.date)
+          const slotDay = slotDate.getDay()
+          
+          // 1. Verificar indisponibilidade por datas específicas (specificDates)
+          const specificDates = (emp.unavailable.specificDates || []) as UnavailableSlot[]
+          const isUnavailableOnDate = specificDates.some((slot: UnavailableSlot) => {
+            if (slot.allDay && slot.date === r.date) return true
+            
+            if (slot.date === r.date && !slot.allDay) {
+              const slotStart = convertTimeToMinutes(slot.startTime)
+              const slotEnd = convertTimeToMinutes(slot.endTime)
+              const eventStart = convertTimeToMinutes(r.startTime)
+              const eventEnd = convertTimeToMinutes(r.endTime)
+              return (eventStart < slotEnd && eventEnd > slotStart)
+            }
+            return false
+          })
+          
+          if (isUnavailableOnDate) return false
+
+          // 2. Verificar indisponibilidade por dias da semana (weekdays)
+          const unavailableWeekdays = (emp.unavailable.weekdays || []) as UnavailableWeekday[]
+          const isUnavailableOnWeekday = unavailableWeekdays.some((weekday: UnavailableWeekday) => {
+            if (weekday.day !== slotDay) return false
+            
+            const weekdayStart = convertTimeToMinutes(weekday.start)
+            const weekdayEnd = convertTimeToMinutes(weekday.end)
             const eventStart = convertTimeToMinutes(r.startTime)
             const eventEnd = convertTimeToMinutes(r.endTime)
             
-            // Verificar se há sobreposição de horários
-            return (eventStart < slotEnd && eventEnd > slotStart)
-          }
-          
-          return false
-        })
-        
-        if (isUnavailableOnDate) return false
+            return (eventStart < weekdayEnd && eventEnd > weekdayStart)
+          })
 
-        // 2. Verificar indisponibilidade por dias da semana (weekdays)
-        const unavailableWeekdays = emp.unavailable.weekdays || []
-        const isUnavailableOnWeekday = unavailableWeekdays.some((weekday: UnavailableWeekday) => {
-          if (weekday.day !== slotDay) return false
-          
-          const weekdayStart = convertTimeToMinutes(weekday.start)
-          const weekdayEnd = convertTimeToMinutes(weekday.end)
-          const eventStart = convertTimeToMinutes(r.startTime)
-          const eventEnd = convertTimeToMinutes(r.endTime)
-          
-          // Verificar sobreposição de horários
-          return (eventStart < weekdayEnd && eventEnd > weekdayStart)
-        })
+          return !isUnavailableOnWeekday
+        } catch (error) {
+          console.error('Erro ao verificar disponibilidade do funcionário:', emp.name, error)
+          return true
+        }
+      })
 
-        return !isUnavailableOnWeekday
-      } catch (error) {
-        console.error('Erro ao verificar disponibilidade do funcionário:', emp.name, error)
-        return true // Em caso de erro, considerar disponível
+      console.log(`📊 Evento ${r.eventType} - ${r.date} ${r.startTime}: ${available.length} funcionários disponíveis de ${employees.length} total`)
+
+      // Guardar o 'code' (sigla) do funcionário
+      const assigned = available.slice(0, required).map(e => ({ id: e.id, name: e.name, code: e.code }))
+
+      bySlot[slotKey] = {
+        reservation: r,
+        required,
+        assigned,
+        note: assigned.length < required ? 'Staff insuficiente' : 'OK',
       }
-    })
-
-    console.log(`📊 Evento ${r.eventType} - ${r.date} ${r.startTime}: ${available.length} funcionários disponíveis de ${employees.length} total`)
-
-    const assigned = available.slice(0, required).map(e => ({ id: e.id, name: e.name }))
-
-    bySlot[slotKey] = {
-      reservation: r,
-      required,
-      assigned,
-      note: assigned.length < required ? 'Staff insuficiente' : 'OK',
     }
+
+    setSchedule(bySlot)
+    toast.success('Horário gerado com sucesso!')
   }
 
-  setSchedule(bySlot)
-  toast.success('Horário gerado com sucesso!')
-}
+  // Função auxiliar para converter tempo em minutos
+  const convertTimeToMinutes = (timeString: string): number => {
+    const [hours, minutes] = timeString.split(':').map(Number)
+    return hours * 60 + minutes
+  }
 
-// Função auxiliar para converter tempo em minutos
-const convertTimeToMinutes = (timeString: string): number => {
-  const [hours, minutes] = timeString.split(':').map(Number)
-  return hours * 60 + minutes
-}
+  // Função auxiliar para gerar blocos de 30 min
+  const generate30MinTimeSlots = (startHour: number, endHour: number): string[] => {
+    const slots: string[] = []
+    for (let h = startHour; h <= endHour; h++) {
+      for (let m = 0; m < 60; m += 30) {
+        if (h === endHour && m > 0) break // Não ultrapassar a hora final
+        
+        const hourString = String(h).padStart(2, '0')
+        const minString = String(m).padStart(2, '0')
+        slots.push(`${hourString}:${minString}:00`)
+      }
+    }
+    // Remove o último slot se for 21:00:00 (queremos parar às 20:30)
+    if (endHour === 20) {
+       slots.pop() 
+    }
+    return slots
+  }
 
   /* ---------- Utilitários ---------- */
   function formatDateInput(d: Date) {
@@ -286,7 +304,7 @@ const convertTimeToMinutes = (timeString: string): number => {
     return type === 'teambuilding' ? 'Team Building' : 'Aniversário'
   }
 
-  // NOVO: Função para exportar os dados do horário para Excel
+  // Função para exportar os dados do horário para Excel (FORMATO GRELHA)
   const exportScheduleToExcel = () => {
     // 1. Verificar se existem dados no horário
     if (Object.keys(schedule).length === 0) {
@@ -294,31 +312,103 @@ const convertTimeToMinutes = (timeString: string): number => {
       return
     }
 
-    // 2. Transformar os dados do estado 'schedule' para um formato de tabela
-    const scheduleList = Object.values(schedule).map(data => ({
-      Data: new Date(data.reservation.date).toLocaleDateString('pt-PT'),
-      Início: data.reservation.startTime,
-      Fim: data.reservation.endTime,
-      Evento: formatEventType(data.reservation.eventType),
-      Pessoas: data.reservation.people,
-      'Staff Necessário': data.required,
-      'Staff Atribuído': data.assigned.length > 0
-                          ? data.assigned.map(a => a.name).join(', ')
-                          : 'Nenhum',
-      Nota: data.note,
-    }))
+    try {
+      // 2. Definir os intervalos de tempo (linhas da grelha), ex: 09:30 a 20:30
+      const timeSlots = generate30MinTimeSlots(9, 20) // 09:00:00 até 20:30:00
 
-    // 3. Criar a "folha de cálculo" (worksheet) a partir da lista
-    const ws = XLSX.utils.json_to_sheet(scheduleList)
+      // 3. Obter todas as datas únicas dos eventos (colunas da grelha)
+      // ⬇️ CORREÇÃO 1: Usar Array.from() em vez de [...new Set()] ⬇️
+      const allDates = Array.from(new Set(Object.values(schedule).map(s => s.reservation.date))).sort()
 
-    // 4. Criar um novo "livro" (workbook)
-    const wb = XLSX.utils.book_new()
+      // 4. Criar a estrutura da grelha: grid[data][horario] = [lista de siglas]
+      const grid: Record<string, Record<string, string[]>> = {}
 
-    // 5. Adicionar a folha ao livro
-    XLSX.utils.book_append_sheet(wb, ws, 'Horário Staff')
+      for (const date of allDates) {
+        grid[date] = {}
+        for (const time of timeSlots) {
+          grid[date][time] = []
+        }
+      }
 
-    // 6. Gerar o ficheiro e iniciar o download
-    XLSX.writeFile(wb, 'horario_staff.xlsx')
+      // 5. Preencher a grelha com os dados do "schedule"
+      for (const data of Object.values(schedule)) {
+        const event = data.reservation
+        const eventStart = convertTimeToMinutes(event.startTime)
+        const eventEnd = convertTimeToMinutes(event.endTime)
+        
+        const siglas = data.assigned.map(a => a.code).filter(Boolean) as string[]
+        if (siglas.length === 0) continue
+
+        // Verificar cada bloco de 30 minutos da grelha
+        for (const slotTime of timeSlots) {
+          const slotStartStr = slotTime.substring(0, 5) 
+          const slotStart = convertTimeToMinutes(slotStartStr)
+          const slotEnd = slotStart + 30
+
+          // Lógica de sobreposição:
+          const isOverlapping = eventStart < slotEnd && eventEnd > slotStart
+
+          if (isOverlapping) {
+            // Adicionar siglas, garantindo que não há duplicados
+            const currentSiglas = grid[event.date][slotTime]
+            
+            // ⬇️ CORREÇÃO 2: Usar Array.from() em vez de [...new Set()] ⬇️
+            const newSiglas = Array.from(new Set([...currentSiglas, ...siglas]))
+            
+            grid[event.date][slotTime] = newSiglas
+          }
+        }
+      }
+
+      // 6. Transformar a grelha no formato que o XLSX espera (Array de Objetos)
+      const excelData = timeSlots.map(time => {
+        const row: Record<string, string> = {
+          Horário: time,
+        }
+
+        for (const date of allDates) {
+          const formattedDate = new Date(date).toLocaleDateString('pt-PT')
+          row[formattedDate] = grid[date][time].sort().join('+')
+        }
+        return row
+      })
+
+      // 7. Criar a folha de cálculo (worksheet)
+      const ws_schedule = XLSX.utils.json_to_sheet(excelData)
+
+      // (Opcional) Ajustar a largura das colunas
+      const columnWidths = [
+        { wch: 12 }, // Horário
+        ...allDates.map(() => ({ wch: 15 })), // Colunas das datas
+      ]
+      ws_schedule['!cols'] = columnWidths
+
+      // 8. Criar a folha da LEGENDA (usando 'code')
+      const legendData = employees
+        .filter(emp => emp.code) // Apenas funcionários que TÊM um 'code'
+        .map(emp => ({
+          Sigla: emp.code,
+          Nome: emp.name,
+        }))
+        .sort((a, b) => (a.Sigla || '').localeCompare(b.Sigla || '')) // Ordenar por sigla
+
+      const ws_legend = XLSX.utils.json_to_sheet(legendData)
+      ws_legend['!cols'] = [{ wch: 10 }, { wch: 40 }]
+
+      // 9. Criar um novo "livro" (workbook)
+      const wb = XLSX.utils.book_new()
+
+      // 10. Adicionar as duas folhas ao livro
+      XLSX.utils.book_append_sheet(wb, ws_schedule, 'Horário Grelha')
+      XLSX.utils.book_append_sheet(wb, ws_legend, 'Legenda')
+
+      // 11. Gerar o ficheiro e iniciar o download
+      XLSX.writeFile(wb, 'horario_staff_grelha.xlsx')
+
+    } catch (error) {
+      console.error('Erro ao gerar o Excel:', error)
+      toast.error('Erro ao gerar o ficheiro Excel.')
+    }
   }
 
   // Gerar opções de horário em formato 24h de 15 em 15 minutos
