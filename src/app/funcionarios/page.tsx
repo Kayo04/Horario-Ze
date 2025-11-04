@@ -1,7 +1,7 @@
-// app/(admin)/funcionarios/page.tsx
 'use client'
 import React, { useState, useEffect } from 'react'
 import { Employee } from '@/types/employee'
+import Link from 'next/link' // ⬅️ IMPORT ADICIONADO (estava em falta)
 
 export default function FuncionariosPage(): JSX.Element {
   const [employees, setEmployees] = useState<Employee[]>([])
@@ -159,14 +159,20 @@ export default function FuncionariosPage(): JSX.Element {
   return (
     <div className="min-h-screen bg-gray-50 p-6 font-sans">
       <div className="max-w-4xl mx-auto">
-        <div className="flex justify-between items-center mb-6">
+      
+        <div className="mb-6">
+          <Link href="/portal" passHref legacyBehavior>
+            <a className="inline-flex items-center text-sm text-indigo-600 hover:text-indigo-800 group">
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-1 transition-transform group-hover:-translate-x-1" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clipRule="evenodd" />
+              </svg>
+              Voltar ao Portal
+            </a>
+          </Link>
+        </div>
+
+        <div className="mb-6">
           <h1 className="text-3xl font-bold text-gray-900">Gestão de Funcionários</h1>
-          <a
-            href="/"
-            className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors shadow-sm"
-          >
-            ← Voltar para Principal
-          </a>
         </div>
 
         {/* Formulário (mantido igual) */}
@@ -320,11 +326,14 @@ export default function FuncionariosPage(): JSX.Element {
                   key={employee.id} 
                   className="border border-gray-200 rounded-xl p-4 transition-colors duration-150 hover:bg-gray-50"
                 >
-                  <div className="flex justify-between items-start">
+                  {/* ⬇️ ALTERAÇÃO: Layout agora é vertical em mobile (flex-col) e horizontal em desktop (sm:flex-row) ⬇️ */}
+                  <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-4">
+                    
                     {/* Informações do funcionário - LADO ESQUERDO */}
                     <div className="flex-1">
-                      {/* Primeira linha: Nome, Tag e Role */}
-                      <div className="flex items-center gap-3 mb-2">
+                      
+                      {/* ⬇️ ALTERAÇÃO: Adicionado 'flex-wrap' para nomes compridos ⬇️ */}
+                      <div className="flex items-center flex-wrap gap-2 sm:gap-3 mb-2">
                         <h3 className="font-semibold text-lg text-gray-900">{employee.name}</h3>
                         {employee.code && (
                           <span className="text-xs bg-blue-100 text-blue-800 px-2 py-0.5 rounded-full font-medium">
@@ -340,21 +349,17 @@ export default function FuncionariosPage(): JSX.Element {
                         </span>
                       </div>
                       
-                      {/* Segunda linha: TAG, Email e Telemóvel */}
                       <div className="space-y-1">
-                        {/* TAG - se existir */}
                         {employee.code && (
                           <div className="flex items-center gap-2 text-sm text-gray-600">
                             <span className="text-gray-400">🏷️</span>
                             <span className="font-medium">Tag: {employee.code}</span>
                           </div>
                         )}
-                        {/* Email - sempre visível */}
                         <div className="flex items-center gap-2 text-sm text-gray-600">
                           <span className="text-gray-400">📧</span>
                           <span>{employee.email}</span>
                         </div>
-                        {/* Telemóvel - apenas se existir */}
                         {employee.telefone && (
                           <div className="flex items-center gap-2 text-sm text-gray-600">
                             <span className="text-gray-400">📱</span>
@@ -365,7 +370,8 @@ export default function FuncionariosPage(): JSX.Element {
                     </div>
 
                     {/* Botões - LADO DIREITO */}
-                    <div className="flex gap-2 ml-4">
+                    {/* ⬇️ ALTERAÇÃO: Botões em grelha no mobile (grid), e flex em desktop (sm:flex) ⬇️ */}
+                    <div className="grid grid-cols-2 gap-2 w-full sm:flex sm:w-auto sm:ml-4">
                       <button
                         onClick={() => editEmployee(employee)}
                         className="px-3 py-1 bg-indigo-100 text-indigo-700 rounded-md text-sm font-medium hover:bg-indigo-200 transition-colors"

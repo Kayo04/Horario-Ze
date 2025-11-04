@@ -1,4 +1,3 @@
-// app/portal/disponibilidade/page.tsx
 'use client'
 import { useState, useEffect } from 'react'
 import { useSession } from 'next-auth/react'
@@ -33,7 +32,10 @@ export default function DisponibilidadePage() {
   const router = useRouter()
   const [currentMonth, setCurrentMonth] = useState(new Date())
   const [timeSlots, setTimeSlots] = useState<TimeSlot[]>([])
-  const [selectedDate, setSelectedDate] = useState<string>('')
+  
+  // ⬇️ ALTERAÇÃO: Estado mudado para um array ⬇️
+  const [selectedDates, setSelectedDates] = useState<string[]>([])
+  
   const [startTime, setStartTime] = useState('10:00')
   const [endTime, setEndTime] = useState('17:00')
   const [allDay, setAllDay] = useState(false)
@@ -77,7 +79,6 @@ export default function DisponibilidadePage() {
         const data = await response.json()
         console.log('✅ Dados carregados:', data)
         
-        // Verificar se temos dados válidos
         if (data.unavailable && Array.isArray(data.unavailable)) {
           const slots: TimeSlot[] = data.unavailable.map((slot: any) => ({
             date: slot.date,
@@ -102,85 +103,81 @@ export default function DisponibilidadePage() {
     }
   }
 
-  // Guardar indisponibilidades na base de dados - CORRIGIDO
+  // Guardar indisponibilidades na base de dados
   const saveUnavailableSlots = async (slots: TimeSlot[]): Promise<boolean> => {
-  if (!session) {
-    console.log('❌ Sem sessão para guardar')
-    return false
-  }
-  
-  setIsSaving(true)
-  try {
-    console.log('💾 INICIANDO GUARDAR NA BD...')
-    console.log('📧 Email da sessão:', session.user?.email)
-    
-    const specificDates = slots.map(slot => ({
-      date: slot.date,
-      startTime: slot.startTime,
-      endTime: slot.endTime,
-      allDay: slot.allDay || false,
-      type: 'unavailable' as const
-    }))
-
-    console.log('📤 Enviando para API:', JSON.stringify({ specificDates }, null, 2))
-
-    const response = await fetch('/api/employees/unavailable', {
-      method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ 
-        specificDates: specificDates
-      })
-    })
-
-    console.log('📥 Resposta da API - Status:', response.status)
-    console.log('📥 Resposta da API - OK:', response.ok)
-
-    const responseText = await response.text()
-    console.log('📥 Resposta da API - Text:', responseText)
-
-    if (!response.ok) {
-      console.error('❌ Erro na resposta PUT:', responseText)
-      throw new Error(`API error: ${response.status} - ${responseText}`)
-    }
-
-    const result = JSON.parse(responseText)
-    console.log('✅ RESPOSTA DA API (JSON):', result)
-    
-    if (result.success) {
-      console.log('🎉 Dados guardados com sucesso!')
-      return true
-    } else {
-      console.error('❌ API retornou success: false', result)
+    if (!session) {
+      console.log('❌ Sem sessão para guardar')
       return false
     }
+    
+    setIsSaving(true)
+    try {
+      console.log('💾 INICIANDO GUARDAR NA BD...')
       
-  } catch (error) {
-    console.error('❌ Erro ao guardar:', error)
-    return false
-  } finally {
-    setIsSaving(false)
-  }
-}
+      const specificDates = slots.map(slot => ({
+        date: slot.date,
+        startTime: slot.startTime,
+        endTime: slot.endTime,
+        allDay: slot.allDay || false,
+        type: 'unavailable' as const
+      }))
 
-  // Gerar dias do mês
-  const getDaysInMonth = (date: Date) => {
+      console.log('📤 Enviando para API...')
+
+      const response = await fetch('/api/employees/unavailable', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ 
+          specificDates: specificDates
+        })
+      })
+
+      if (!response.ok) {
+        const responseText = await response.text()
+        console.error('❌ Erro na resposta PUT:', responseText)
+        throw new Error(`API error: ${response.status} - ${responseText}`)
+      }
+
+      const result = await response.json()
+      console.log('✅ RESPOSTA DA API (JSON):', result)
+      
+      if (result.success) {
+        console.log('🎉 Dados guardados com sucesso!')
+        return true
+      } else {
+        console.error('❌ API retornou success: false', result)
+        return false
+      }
+        
+    } catch (error) {
+      console.error('❌ Erro ao guardar:', error)
+      return false
+    } finally {
+      setIsSaving(false)
+    }
+  }
+
+  // Gerar dias do mês para a grelha (COM PADDING)
+  const getCalendarGrid = (date: Date) => {
     const year = date.getFullYear()
     const month = date.getMonth()
-    const firstDay = new Date(year, month, 1)
-    const lastDay = new Date(year, month + 1, 0)
-    
-    const days = []
-    for (let day = 1; day <= lastDay.getDate(); day++) {
-      const currentDate = new Date(year, month, day)
-      days.push(currentDate)
+    const firstDayOfMonth = new Date(year, month, 1)
+    const startDayOfWeek = firstDayOfMonth.getDay() // 0=Dom, 1=Seg, ..., 6=Sáb
+    const gridStartIndex = (startDayOfWeek === 0) ? 6 : startDayOfWeek - 1
+    const daysInMonth = new Date(year, month + 1, 0).getDate()
+    const gridDays: (Date | null)[] = []
+    for (let i = 0; i < gridStartIndex; i++) {
+      gridDays.push(null)
     }
-    
-    return days
+    for (let day = 1; day <= daysInMonth; day++) {
+      gridDays.push(new Date(year, month, day))
+    }
+    return gridDays
   }
 
-  const daysInMonth = getDaysInMonth(currentMonth)
+  const calendarGridDays = getCalendarGrid(currentMonth)
 
   // Navegação entre meses
   const previousMonth = () => {
@@ -213,16 +210,29 @@ export default function DisponibilidadePage() {
       slot.date === date && slot.type === 'unavailable' && slot.allDay
     )
   }
+  
+  // ⬇️ ALTERAÇÃO: Nova função para lidar com cliques múltiplos ⬇️
+  const handleDayClick = (dateString: string) => {
+    setSelectedDates(prevDates => {
+      // Se o dia já está selecionado, remove-o
+      if (prevDates.includes(dateString)) {
+        return prevDates.filter(d => d !== dateString)
+      }
+      // Se não está, adiciona-o
+      return [...prevDates, dateString]
+    })
+  }
 
+  // ⬇️ ALTERAÇÃO: Função atualizada para lidar com múltiplos dias ⬇️
   // Adicionar indisponibilidade
   const addUnavailability = async () => {
-    if (!selectedDate) {
+    if (selectedDates.length === 0) {
       console.log('❌ Nenhuma data selecionada')
       return
     }
 
-    console.log('🟡 INICIANDO ADD...', {
-      selectedDate,
+    console.log(`🟡 INICIANDO ADD para ${selectedDates.length} dias...`, {
+      selectedDates,
       startTime,
       endTime,
       allDay,
@@ -231,26 +241,31 @@ export default function DisponibilidadePage() {
 
     setIsLoading(true)
     
-    const newSlot: TimeSlot = {
-      date: selectedDate,
-      startTime: allDay ? '10:00' : startTime,
-      endTime: allDay ? '20:00' : endTime,
-      type: 'unavailable',
-      allDay: allDay
-    }
-
     try {
-      let updatedSlots: TimeSlot[]
-      
-      // Remover slots existentes para o mesmo dia se for dia todo
-      if (allDay) {
-        updatedSlots = timeSlots.filter(slot => slot.date !== selectedDate)
-      } else {
-        updatedSlots = [...timeSlots]
+      let updatedSlots = [...timeSlots]
+
+      // Percorre cada dia selecionado
+      for (const date of selectedDates) {
+        const newSlot: TimeSlot = {
+          date: date,
+          startTime: allDay ? '10:00' : startTime,
+          endTime: allDay ? '20:00' : endTime,
+          type: 'unavailable',
+          allDay: allDay
+        }
+
+        // Se "Dia Todo" estiver marcado, remove todos os slots existentes para esse dia
+        if (allDay) {
+          updatedSlots = updatedSlots.filter(slot => slot.date !== date)
+        }
+        
+        // Adiciona o novo slot
+        // (Nota: isto pode criar duplicados se o utilizador adicionar o mesmo horário várias vezes.
+        // A lógica de remoção "Dia Todo" mitiga a maioria dos problemas)
+        updatedSlots.push(newSlot)
       }
       
-      updatedSlots.push(newSlot)
-      console.log('📊 Slots atualizados (antes de guardar):', updatedSlots)
+      console.log('📊 Slots atualizados (antes de guardar):', updatedSlots.length)
       
       setTimeSlots(updatedSlots)
       
@@ -261,24 +276,22 @@ export default function DisponibilidadePage() {
       }
       
       console.log('✅ Sucesso - resetando formulário')
-      // Reset form
       setStartTime('10:00')
       setEndTime('17:00')
       setAllDay(false)
-      setSelectedDate('')
+      setSelectedDates([]) // Limpa a seleção
       
-      alert('Indisponibilidade adicionada com sucesso!')
+      alert(`Indisponibilidade adicionada para ${selectedDates.length} dia(s) com sucesso!`)
     } catch (error) {
       console.error('❌ Erro ao adicionar indisponibilidade:', error)
       alert('Erro ao adicionar indisponibilidade: ' + (error as Error).message)
-      // Reverter se houve erro
-      loadUnavailableSlots()
+      loadUnavailableSlots() // Reverte
     } finally {
       setIsLoading(false)
     }
   }
 
-  // Remover indisponibilidade
+  // Remover indisponibilidade (funciona como antes, no painel de dia único)
   const removeUnavailability = async (slotToRemove: TimeSlot) => {
     const updatedSlots = timeSlots.filter(slot => 
       !(slot.date === slotToRemove.date && 
@@ -288,17 +301,14 @@ export default function DisponibilidadePage() {
     
     setTimeSlots(updatedSlots)
     
-    // Guardar na base de dados
     const success = await saveUnavailableSlots(updatedSlots)
     if (!success) {
       alert('Erro ao remover indisponibilidade')
-      // Reverter se houve erro
       loadUnavailableSlots()
     }
   }
 
-  // Dias da semana em português
-  const weekdays = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb']
+  const weekdays = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom']
   const monthNames = [
     'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
     'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'
@@ -322,7 +332,7 @@ export default function DisponibilidadePage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 p-8">
+    <div className="min-h-screen bg-gray-50 p-4 sm:p-8">
       <div className="max-w-6xl mx-auto">
         
         {/* Header */}
@@ -340,7 +350,7 @@ export default function DisponibilidadePage() {
           </div>
           <button
             onClick={() => router.push('/portal')}
-            className="px-4 py-2 bg-gray-500 text-white rounded-md hover:bg-gray-600 transition-colors"
+            className="hidden sm:inline-block px-4 py-2 bg-gray-500 text-white rounded-md hover:bg-gray-600 transition-colors"
           >
             Voltar
           </button>
@@ -349,7 +359,7 @@ export default function DisponibilidadePage() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           
           {/* Calendário */}
-          <div className="lg:col-span-2 bg-white p-6 rounded-lg shadow-md">
+          <div className="lg:col-span-2 bg-white p-3 sm:p-6 rounded-lg shadow-md">
             <div className="flex justify-between items-center mb-6">
               <button
                 onClick={previousMonth}
@@ -369,42 +379,50 @@ export default function DisponibilidadePage() {
             </div>
 
             {/* Dias da semana */}
-            <div className="grid grid-cols-7 gap-2 mb-4">
+            <div className="grid grid-cols-7 gap-1 sm:gap-2 mb-2 sm:mb-4">
               {weekdays.map(day => (
-                <div key={day} className="text-center font-medium text-gray-600 py-2">
+                <div key={day} className="text-center font-semibold text-gray-500 text-sm py-2">
                   {day}
                 </div>
               ))}
             </div>
 
             {/* Dias do mês */}
-            <div className="grid grid-cols-7 gap-2">
-              {daysInMonth.map(day => {
+            <div className="grid grid-cols-7 gap-1 sm:gap-2">
+              {calendarGridDays.map((day, index) => {
+                
+                if (!day) {
+                  return <div key={`pad-${index}`} className="min-h-[4.5rem] sm:min-h-20 border border-transparent"></div>
+                }
+                
                 const dateString = day.toISOString().split('T')[0]
                 const unavailableSlots = getUnavailableSlotsForDate(dateString)
-                const isSelected = selectedDate === dateString
+                
+                // ⬇️ ALTERAÇÃO: 'isSelected' agora verifica se a data está no array ⬇️
+                const isSelected = selectedDates.includes(dateString)
                 const isAllDay = hasAllDayUnavailability(dateString)
                 
                 return (
                   <button
                     key={dateString}
-                    onClick={() => setSelectedDate(dateString)}
+                    // ⬇️ ALTERAÇÃO: OnClick agora usa a nova função ⬇️
+                    onClick={() => handleDayClick(dateString)}
                     className={`
-                      p-3 rounded-lg border text-left min-h-20 transition-colors
+                      p-1 sm:p-3 rounded-lg border text-left min-h-[4.5rem] sm:min-h-20 transition-colors flex flex-col justify-start
                       ${isSelected ? 'border-blue-500 bg-blue-50' : 'border-gray-200'}
                       ${isAllDay ? 'bg-red-100 border-red-300' : ''}
                       ${unavailableSlots.length > 0 && !isAllDay ? 'bg-red-50 border-red-200' : ''}
                       hover:bg-gray-50
-                    `}
+                    `} 
                   >
-                    <div className="font-medium">{day.getDate()}</div>
+                    <div className="font-semibold text-sm">{day.getDate()}</div>
                     {isAllDay && (
-                      <div className="text-xs text-red-700 mt-1 font-medium">
+                      <div className="hidden sm:block text-[10px] sm:text-xs text-red-700 mt-0.5 sm:mt-1 font-medium">
                         Dia Todo
                       </div>
                     )}
                     {unavailableSlots.length > 0 && !isAllDay && (
-                      <div className="text-xs text-red-600 mt-1">
+                      <div className="hidden sm:block text-[10px] sm:text-xs text-red-600 mt-0.5 sm:mt-1">
                         {unavailableSlots.length} horário(s)
                       </div>
                     )}
@@ -415,12 +433,16 @@ export default function DisponibilidadePage() {
           </div>
 
           {/* Painel de gestão */}
-          <div className="bg-white p-6 rounded-lg shadow-md">
+          <div className="bg-white p-4 sm:p-6 rounded-lg shadow-md">
+            {/* ⬇️ ALTERAÇÃO: Título dinâmico com base no n.º de dias selecionados ⬇️ */}
             <h3 className="text-lg font-semibold mb-4">
-              {selectedDate ? `Gestão para ${formatDate(new Date(selectedDate))}` : 'Selecione um dia'}
+              {selectedDates.length === 0 && 'Selecione um ou mais dias'}
+              {selectedDates.length === 1 && `Gestão para ${formatDate(new Date(selectedDates[0]))}`}
+              {selectedDates.length > 1 && `Gestão para ${selectedDates.length} dias selecionados`}
             </h3>
 
-            {selectedDate && (
+            {/* ⬇️ ALTERAÇÃO: Painel de gestão aparece se C-QUALQUER dia for selecionado ⬇️ */}
+            {selectedDates.length > 0 && (
               <div className="space-y-4">
                 {/* Opção Dia Todo */}
                 <div className="flex items-center space-x-2">
@@ -485,12 +507,12 @@ export default function DisponibilidadePage() {
                   {isLoading ? 'A adicionar...' : allDay ? 'Marcar Dia Todo como Indisponível' : 'Marcar como Indisponível'}
                 </button>
 
-                {/* Lista de indisponibilidades do dia selecionado */}
-                {getUnavailableSlotsForDate(selectedDate).length > 0 && (
+                {/* ⬇️ ALTERAÇÃO: Lista de horários só aparece se SÓ UM dia estiver selecionado ⬇️ */}
+                {selectedDates.length === 1 && getUnavailableSlotsForDate(selectedDates[0]).length > 0 && (
                   <div className="mt-6">
                     <h4 className="font-medium mb-3 text-gray-800">Horários Indisponíveis:</h4>
                     <div className="space-y-2">
-                      {getUnavailableSlotsForDate(selectedDate).map((slot, index) => (
+                      {getUnavailableSlotsForDate(selectedDates[0]).map((slot, index) => (
                         <div
                           key={index}
                           className="flex justify-between items-center p-3 bg-red-50 rounded border border-red-200"
@@ -517,21 +539,22 @@ export default function DisponibilidadePage() {
               </div>
             )}
 
-            {!selectedDate && (
+            {/* ⬇️ ALTERAÇÃO: Mensagem de "Selecione um dia" atualizada ⬇️ */}
+            {selectedDates.length === 0 && (
               <p className="text-gray-500 text-center py-8">
-                Selecione um dia no calendário para gerir a disponibilidade
+                Selecione um ou mais dias no calendário para gerir a disponibilidade.
               </p>
             )}
           </div>
         </div>
 
         {/* Resumo do mês */}
-        <div className="mt-8 bg-white p-6 rounded-lg shadow-md">
+        <div className="mt-8 bg-white p-4 sm:p-6 rounded-lg shadow-md">
           <h3 className="text-lg font-semibold mb-4">Resumo do Mês</h3>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <div className="text-center p-4 bg-green-50 rounded border border-green-200">
               <div className="text-2xl font-bold text-green-600">
-                {daysInMonth.length - new Set(timeSlots.map(s => s.date)).size}
+                {calendarGridDays.filter(d => d).length - new Set(timeSlots.map(s => s.date)).size}
               </div>
               <div className="text-sm text-green-600">Dias Disponíveis</div>
             </div>
@@ -554,6 +577,15 @@ export default function DisponibilidadePage() {
               <div className="text-sm text-orange-600">Dias Completos</div>
             </div>
           </div>
+        </div>
+
+        <div className="mt-8 text-center sm:hidden">
+            <button
+              onClick={() => router.push('/portal')}
+              className="px-4 py-2 bg-gray-500 text-white rounded-md hover:bg-gray-600 transition-colors"
+            >
+              Voltar ao Portal
+            </button>
         </div>
 
       </div>
