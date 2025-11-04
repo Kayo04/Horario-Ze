@@ -1,6 +1,6 @@
 'use client'
 import { useState, useEffect } from 'react'
-import { useSession } from 'next-auth/react'
+import { useSession } from 'next-auth/react' // ⬅️ Nenhuma alteração aqui
 import { useRouter } from 'next/navigation'
 
 interface TimeSlot {
@@ -28,12 +28,12 @@ const generateTimeOptions = () => {
 const timeOptions = generateTimeOptions()
 
 export default function DisponibilidadePage() {
-  const { data: session } = useSession()
+  // ⬇️ ALTERAÇÃO 1: Adicionado "status" ⬇️
+  const { data: session, status } = useSession()
   const router = useRouter()
   const [currentMonth, setCurrentMonth] = useState(new Date())
   const [timeSlots, setTimeSlots] = useState<TimeSlot[]>([])
   
-  // ⬇️ ALTERAÇÃO: Estado mudado para um array ⬇️
   const [selectedDates, setSelectedDates] = useState<string[]>([])
   
   const [startTime, setStartTime] = useState('10:00')
@@ -53,19 +53,29 @@ export default function DisponibilidadePage() {
     })
   }, [session])
 
-  // Redirecionar se não for funcionário
-  useEffect(() => {
-    if (session?.user?.role === 'admin') {
-      router.push('/portal')
-    }
-  }, [session, router])
 
-  // Carregar indisponibilidades
+  // ⬇️ ALTERAÇÃO 2: Lógica de autenticação e carregamento de dados ⬇️
   useEffect(() => {
-    if (session) {
+    // 1. Espera que a sessão seja verificada
+    if (status === 'loading') {
+      return
+    }
+    
+    // 2. Se não estiver logado, redireciona para o login
+    if (status === 'unauthenticated') {
+      router.replace('/')
+      return
+    }
+
+    // 3. Se estiver autenticado (seja admin ou funcionário), carrega os dados
+    if (status === 'authenticated') {
       loadUnavailableSlots()
     }
-  }, [session])
+    
+  }, [status, session, router]) // ⬅️ Removemos a lógica que bloqueava o admin
+
+  // ⬆️ FIM DA ALTERAÇÃO 2 ⬆️
+
 
   // Carregar slots da base de dados
   const loadUnavailableSlots = async () => {
@@ -211,20 +221,17 @@ export default function DisponibilidadePage() {
     )
   }
   
-  // ⬇️ ALTERAÇÃO: Nova função para lidar com cliques múltiplos ⬇️
+  // Lidar com cliques múltiplos
   const handleDayClick = (dateString: string) => {
     setSelectedDates(prevDates => {
-      // Se o dia já está selecionado, remove-o
       if (prevDates.includes(dateString)) {
         return prevDates.filter(d => d !== dateString)
       }
-      // Se não está, adiciona-o
       return [...prevDates, dateString]
     })
   }
 
-  // ⬇️ ALTERAÇÃO: Função atualizada para lidar com múltiplos dias ⬇️
-  // Adicionar indisponibilidade
+  // Adicionar indisponibilidade (para múltiplos dias)
   const addUnavailability = async () => {
     if (selectedDates.length === 0) {
       console.log('❌ Nenhuma data selecionada')
@@ -244,7 +251,6 @@ export default function DisponibilidadePage() {
     try {
       let updatedSlots = [...timeSlots]
 
-      // Percorre cada dia selecionado
       for (const date of selectedDates) {
         const newSlot: TimeSlot = {
           date: date,
@@ -254,14 +260,10 @@ export default function DisponibilidadePage() {
           allDay: allDay
         }
 
-        // Se "Dia Todo" estiver marcado, remove todos os slots existentes para esse dia
         if (allDay) {
           updatedSlots = updatedSlots.filter(slot => slot.date !== date)
         }
         
-        // Adiciona o novo slot
-        // (Nota: isto pode criar duplicados se o utilizador adicionar o mesmo horário várias vezes.
-        // A lógica de remoção "Dia Todo" mitiga a maioria dos problemas)
         updatedSlots.push(newSlot)
       }
       
@@ -269,7 +271,6 @@ export default function DisponibilidadePage() {
       
       setTimeSlots(updatedSlots)
       
-      // Guardar na base de dados
       const success = await saveUnavailableSlots(updatedSlots)
       if (!success) {
         throw new Error('Erro ao guardar na base de dados')
@@ -279,19 +280,19 @@ export default function DisponibilidadePage() {
       setStartTime('10:00')
       setEndTime('17:00')
       setAllDay(false)
-      setSelectedDates([]) // Limpa a seleção
+      setSelectedDates([])
       
       alert(`Indisponibilidade adicionada para ${selectedDates.length} dia(s) com sucesso!`)
     } catch (error) {
       console.error('❌ Erro ao adicionar indisponibilidade:', error)
       alert('Erro ao adicionar indisponibilidade: ' + (error as Error).message)
-      loadUnavailableSlots() // Reverte
+      loadUnavailableSlots()
     } finally {
       setIsLoading(false)
     }
   }
 
-  // Remover indisponibilidade (funciona como antes, no painel de dia único)
+  // Remover indisponibilidade
   const removeUnavailability = async (slotToRemove: TimeSlot) => {
     const updatedSlots = timeSlots.filter(slot => 
       !(slot.date === slotToRemove.date && 
@@ -314,23 +315,19 @@ export default function DisponibilidadePage() {
     'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'
   ]
 
-  if (session?.user?.role === 'admin') {
+  // ⬇️ ALTERAÇÃO 3: Ecrã de loading enquanto a sessão é verificada ⬇️
+  if (status === 'loading' || !session) {
     return (
       <div className="min-h-screen bg-gray-50 p-8 flex items-center justify-center">
         <div className="text-center">
-          <h1 className="text-2xl font-bold text-gray-800 mb-4">Acesso Restrito</h1>
-          <p className="text-gray-600">Esta página é apenas para funcionários.</p>
-          <button
-            onClick={() => router.push('/portal')}
-            className="mt-4 px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600"
-          >
-            Voltar ao Portal
-          </button>
+            <div className="w-10 h-10 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin mx-auto"></div>
+            <p className="mt-4 text-gray-600">A verificar sessão...</p>
         </div>
       </div>
     )
   }
 
+  // ⬇️ ALTERAÇÃO 3: Renderiza a página principal SE estiver autenticado (qualquer role) ⬇️
   return (
     <div className="min-h-screen bg-gray-50 p-4 sm:p-8">
       <div className="max-w-6xl mx-auto">
@@ -397,15 +394,12 @@ export default function DisponibilidadePage() {
                 
                 const dateString = day.toISOString().split('T')[0]
                 const unavailableSlots = getUnavailableSlotsForDate(dateString)
-                
-                // ⬇️ ALTERAÇÃO: 'isSelected' agora verifica se a data está no array ⬇️
                 const isSelected = selectedDates.includes(dateString)
                 const isAllDay = hasAllDayUnavailability(dateString)
                 
                 return (
                   <button
                     key={dateString}
-                    // ⬇️ ALTERAÇÃO: OnClick agora usa a nova função ⬇️
                     onClick={() => handleDayClick(dateString)}
                     className={`
                       p-1 sm:p-3 rounded-lg border text-left min-h-[4.5rem] sm:min-h-20 transition-colors flex flex-col justify-start
@@ -434,14 +428,12 @@ export default function DisponibilidadePage() {
 
           {/* Painel de gestão */}
           <div className="bg-white p-4 sm:p-6 rounded-lg shadow-md">
-            {/* ⬇️ ALTERAÇÃO: Título dinâmico com base no n.º de dias selecionados ⬇️ */}
             <h3 className="text-lg font-semibold mb-4">
               {selectedDates.length === 0 && 'Selecione um ou mais dias'}
               {selectedDates.length === 1 && `Gestão para ${formatDate(new Date(selectedDates[0]))}`}
               {selectedDates.length > 1 && `Gestão para ${selectedDates.length} dias selecionados`}
             </h3>
 
-            {/* ⬇️ ALTERAÇÃO: Painel de gestão aparece se C-QUALQUER dia for selecionado ⬇️ */}
             {selectedDates.length > 0 && (
               <div className="space-y-4">
                 {/* Opção Dia Todo */}
@@ -507,7 +499,6 @@ export default function DisponibilidadePage() {
                   {isLoading ? 'A adicionar...' : allDay ? 'Marcar Dia Todo como Indisponível' : 'Marcar como Indisponível'}
                 </button>
 
-                {/* ⬇️ ALTERAÇÃO: Lista de horários só aparece se SÓ UM dia estiver selecionado ⬇️ */}
                 {selectedDates.length === 1 && getUnavailableSlotsForDate(selectedDates[0]).length > 0 && (
                   <div className="mt-6">
                     <h4 className="font-medium mb-3 text-gray-800">Horários Indisponíveis:</h4>
@@ -539,7 +530,6 @@ export default function DisponibilidadePage() {
               </div>
             )}
 
-            {/* ⬇️ ALTERAÇÃO: Mensagem de "Selecione um dia" atualizada ⬇️ */}
             {selectedDates.length === 0 && (
               <p className="text-gray-500 text-center py-8">
                 Selecione um ou mais dias no calendário para gerir a disponibilidade.

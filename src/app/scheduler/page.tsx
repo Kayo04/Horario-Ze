@@ -45,7 +45,6 @@ type Employee = {
 
 type Assigned = { id: string; name: string; code?: string }
 
-// ⬇️ ALTERAÇÃO: Mudei o 'type Slot' para guardar todos os disponíveis ⬇️
 type Slot = {
   reservation: Reservation
   required: number
@@ -53,7 +52,6 @@ type Slot = {
   assignedCount: number // O número de funcionários que serão atribuídos
   note: string
 }
-// ⬆️ FIM DA ALTERAÇÃO ⬆️
 
 /* ---------- Component ---------- */
 export default function SchedulerPrototype(): JSX.Element {
@@ -228,6 +226,12 @@ export default function SchedulerPrototype(): JSX.Element {
       // Encontrar funcionários disponíveis
       const available = employees.filter(emp => {
         try {
+          // ⬇️ ALTERAÇÃO: Adicionada verificação para excluir admins ⬇️
+          if (emp.role === 'admin') {
+            return false
+          }
+          // ⬆️ FIM DA ALTERAÇÃO ⬆️
+          
           if (!emp.unavailable || typeof emp.unavailable !== 'object') return true
           
           const slotDate = new Date(r.date)
@@ -272,18 +276,16 @@ export default function SchedulerPrototype(): JSX.Element {
 
       console.log(`📊 Evento ${r.eventType} - ${r.date} ${r.startTime}: ${available.length} funcionários disponíveis de ${employees.length} total`)
 
-      // ⬇️ ALTERAÇÃO: Guardar TODOS os disponíveis e a contagem de atribuídos ⬇️
       const allAvailableStaff = available.map(e => ({ id: e.id, name: e.name, code: e.code }))
-      const assignedCount = Math.min(available.length, required) // Quantos serão realmente atribuídos
+      const assignedCount = Math.min(available.length, required)
 
       bySlot[slotKey] = {
         reservation: r,
         required,
-        available: allAvailableStaff, // Guarda a lista completa
-        assignedCount: assignedCount,  // Guarda o número de quantos são precisos (limitado por quantos podem)
-        note: available.length < required ? 'Staff insuficiente' : 'OK', // Nota baseia-se em (disponíveis < necessários)
+        available: allAvailableStaff,
+        assignedCount: assignedCount,
+        note: available.length < required ? 'Staff insuficiente' : 'OK',
       }
-      // ⬆️ FIM DA ALTERAÇÃO ⬆️
     }
 
     setSchedule(bySlot)
@@ -647,7 +649,6 @@ export default function SchedulerPrototype(): JSX.Element {
                       </span>
                     </div>
                     
-                    {/* ⬇️ ALTERAÇÃO: Renderização atualizada para mostrar a lista completa ⬇️ */}
                     <div className="text-sm">
                       <div className="mb-2">
                         <span className="font-medium">Staff necessário:</span> {data.required}
@@ -660,7 +661,6 @@ export default function SchedulerPrototype(): JSX.Element {
                         }
                       </div>
                     </div>
-                    {/* ⬆️ FIM DA ALTERAÇÃO ⬆️ */}
 
                   </div>
                 ))
