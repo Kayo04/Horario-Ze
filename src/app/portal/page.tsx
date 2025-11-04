@@ -12,7 +12,7 @@ export default function PortalPage() {
         
         <header className="flex justify-between items-center mb-10">
           <h1 className="text-3xl font-bold text-gray-800">
-            Olá, {session?.user?.name}!
+            Olllllllá, {session?.user?.name}!
           </h1>
           <button
             onClick={() => signOut({ callbackUrl: '/' })}
