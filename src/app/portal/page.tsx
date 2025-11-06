@@ -7,6 +7,7 @@ import {
   UserGroupIcon,
   ClockIcon,
   ArrowRightOnRectangleIcon, // Ícone para Sair
+  ChartBarSquareIcon, // ⬅️ 1. ADICIONAR O ÍCONE NOVO
 } from '@heroicons/react/24/outline' // Ícones de exemplo
 
 export default function PortalPage() {
@@ -36,6 +37,7 @@ export default function PortalPage() {
         <div className="bg-white p-8 rounded-xl shadow-lg">
           <h2 className="text-2xl font-bold text-gray-800 mb-8 border-b pb-4">Ações Rápidas</h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+            
             {/* Botão 1 - Gerir Horários (SÓ PARA ADMINS) */}
             {session?.user?.role === 'admin' && (
               <Link
@@ -72,6 +74,21 @@ export default function PortalPage() {
                 <span className="text-lg font-semibold">Gerir Funcionários</span>
                 <span className="text-sm text-indigo-100 group-hover:text-indigo-50 mt-1">
                   Dados e gestão de equipa
+                </span>
+              </Link>
+            )}
+
+            {/* ⬅️ 2. ADICIONAR O NOVO BOTÃO AQUI */}
+            {/* Botão 5 - Painel de Admin (SÓ PARA ADMINS) */}
+            {session?.user?.role === 'admin' && (
+              <Link
+                href="/adminpanel"
+                className="flex flex-col items-center justify-center p-6 bg-gradient-to-br from-orange-500 to-orange-700 text-white rounded-xl shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-300 ease-in-out group"
+              >
+                <ChartBarSquareIcon className="h-12 w-12 mb-3 text-orange-200 group-hover:text-white transition-colors duration-300" />
+                <span className="text-lg font-semibold">Painel de Admin</span>
+                <span className="text-sm text-orange-100 group-hover:text-orange-50 mt-1">
+                  Ver calendário da equipa
                 </span>
               </Link>
             )}

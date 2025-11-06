@@ -1,6 +1,6 @@
 'use client'
 import { useState, useEffect } from 'react'
-import { useSession } from 'next-auth/react' // ⬅️ Nenhuma alteração aqui
+import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 
 interface TimeSlot {
@@ -28,7 +28,6 @@ const generateTimeOptions = () => {
 const timeOptions = generateTimeOptions()
 
 export default function DisponibilidadePage() {
-  // ⬇️ ALTERAÇÃO 1: Adicionado "status" ⬇️
   const { data: session, status } = useSession()
   const router = useRouter()
   const [currentMonth, setCurrentMonth] = useState(new Date())
@@ -54,27 +53,19 @@ export default function DisponibilidadePage() {
   }, [session])
 
 
-  // ⬇️ ALTERAÇÃO 2: Lógica de autenticação e carregamento de dados ⬇️
+  // Lógica de autenticação e carregamento de dados
   useEffect(() => {
-    // 1. Espera que a sessão seja verificada
     if (status === 'loading') {
       return
     }
-    
-    // 2. Se não estiver logado, redireciona para o login
     if (status === 'unauthenticated') {
       router.replace('/')
       return
     }
-
-    // 3. Se estiver autenticado (seja admin ou funcionário), carrega os dados
     if (status === 'authenticated') {
       loadUnavailableSlots()
     }
-    
-  }, [status, session, router]) // ⬅️ Removemos a lógica que bloqueava o admin
-
-  // ⬆️ FIM DA ALTERAÇÃO 2 ⬆️
+  }, [status, session, router])
 
 
   // Carregar slots da base de dados
@@ -200,11 +191,14 @@ export default function DisponibilidadePage() {
 
   // Formatar data para exibição
   const formatDate = (date: Date) => {
-    return date.toLocaleDateString('pt-PT', { 
+    // Adiciona T12:00:00 para garantir que a data seja interpretada localmente
+    // e evitar problemas de fuso horário que mudem o dia.
+    const stableDate = new Date(date.getFullYear(), date.getMonth(), date.getDate(), 12, 0, 0);
+    return stableDate.toLocaleDateString('pt-PT', { 
       weekday: 'long', 
       day: 'numeric', 
       month: 'long' 
-    })
+    });
   }
 
   // Verificar se um dia tem indisponibilidade
@@ -261,17 +255,26 @@ export default function DisponibilidadePage() {
         }
 
         if (allDay) {
+          // Remove slots parciais se o dia todo for marcado
           updatedSlots = updatedSlots.filter(slot => slot.date !== date)
+        } else {
+          // Remove o "dia todo" se um slot parcial for adicionado
+          updatedSlots = updatedSlots.filter(slot => !(slot.date === date && slot.allDay));
         }
         
         updatedSlots.push(newSlot)
       }
       
-      console.log('📊 Slots atualizados (antes de guardar):', updatedSlots.length)
+      // Remover duplicados (embora a lógica acima deva prevenir a maioria)
+      const uniqueSlots = Array.from(new Map(updatedSlots.map(slot => 
+        [`${slot.date}-${slot.startTime}-${slot.endTime}-${slot.allDay}`, slot]
+      )).values());
+
+      console.log('📊 Slots atualizados (antes de guardar):', uniqueSlots.length)
       
-      setTimeSlots(updatedSlots)
+      setTimeSlots(uniqueSlots)
       
-      const success = await saveUnavailableSlots(updatedSlots)
+      const success = await saveUnavailableSlots(uniqueSlots)
       if (!success) {
         throw new Error('Erro ao guardar na base de dados')
       }
@@ -286,7 +289,7 @@ export default function DisponibilidadePage() {
     } catch (error) {
       console.error('❌ Erro ao adicionar indisponibilidade:', error)
       alert('Erro ao adicionar indisponibilidade: ' + (error as Error).message)
-      loadUnavailableSlots()
+      loadUnavailableSlots() // Recarregar dados para garantir consistência
     } finally {
       setIsLoading(false)
     }
@@ -305,7 +308,7 @@ export default function DisponibilidadePage() {
     const success = await saveUnavailableSlots(updatedSlots)
     if (!success) {
       alert('Erro ao remover indisponibilidade')
-      loadUnavailableSlots()
+      loadUnavailableSlots() // Recarregar se falhar
     }
   }
 
@@ -315,7 +318,21 @@ export default function DisponibilidadePage() {
     'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'
   ]
 
-  // ⬇️ ALTERAÇÃO 3: Ecrã de loading enquanto a sessão é verificada ⬇️
+  // ⬇️ ALTERAÇÃO: Filtrar os slots apenas para o mês atual ⬇️
+  const currentYear = currentMonth.getFullYear();
+  const currentMonthIndex = currentMonth.getMonth(); // 0 (Jan) - 11 (Dez)
+
+  const slotsForThisMonth = timeSlots.filter(slot => {
+    // Adiciona T12:00 (meio-dia local) para evitar que o fuso horário
+    // mude a data para o dia anterior ou seguinte.
+    const slotDate = new Date(slot.date + 'T12:00:00'); 
+    
+    return slotDate.getFullYear() === currentYear && slotDate.getMonth() === currentMonthIndex;
+  });
+  // ⬆️ FIM DA ALTERAÇÃO ⬆️
+
+
+  // Ecrã de loading enquanto a sessão é verificada
   if (status === 'loading' || !session) {
     return (
       <div className="min-h-screen bg-gray-50 p-8 flex items-center justify-center">
@@ -327,7 +344,7 @@ export default function DisponibilidadePage() {
     )
   }
 
-  // ⬇️ ALTERAÇÃO 3: Renderiza a página principal SE estiver autenticado (qualquer role) ⬇️
+  // Renderiza a página principal SE estiver autenticado
   return (
     <div className="min-h-screen bg-gray-50 p-4 sm:p-8">
       <div className="max-w-6xl mx-auto">
@@ -430,7 +447,7 @@ export default function DisponibilidadePage() {
           <div className="bg-white p-4 sm:p-6 rounded-lg shadow-md">
             <h3 className="text-lg font-semibold mb-4">
               {selectedDates.length === 0 && 'Selecione um ou mais dias'}
-              {selectedDates.length === 1 && `Gestão para ${formatDate(new Date(selectedDates[0]))}`}
+              {selectedDates.length === 1 && `Gestão para ${formatDate(new Date(selectedDates[0] + 'T12:00:00'))}`}
               {selectedDates.length > 1 && `Gestão para ${selectedDates.length} dias selecionados`}
             </h3>
 
@@ -544,25 +561,29 @@ export default function DisponibilidadePage() {
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <div className="text-center p-4 bg-green-50 rounded border border-green-200">
               <div className="text-2xl font-bold text-green-600">
-                {calendarGridDays.filter(d => d).length - new Set(timeSlots.map(s => s.date)).size}
+                {/* ⬇️ ALTERAÇÃO: Usar 'slotsForThisMonth' ⬇️ */}
+                {calendarGridDays.filter(d => d).length - new Set(slotsForThisMonth.map(s => s.date)).size}
               </div>
               <div className="text-sm text-green-600">Dias Disponíveis</div>
             </div>
             <div className="text-center p-4 bg-red-50 rounded border border-red-200">
               <div className="text-2xl font-bold text-red-600">
-                {new Set(timeSlots.map(s => s.date)).size}
+                {/* ⬇️ ALTERAÇÃO: Usar 'slotsForThisMonth' ⬇️ */}
+                {new Set(slotsForThisMonth.map(s => s.date)).size}
               </div>
               <div className="text-sm text-red-600">Dias com Indisponibilidade</div>
             </div>
             <div className="text-center p-4 bg-blue-50 rounded border border-blue-200">
               <div className="text-2xl font-bold text-blue-600">
-                {timeSlots.filter(slot => !slot.allDay).length}
+                {/* ⬇️ ALTERAÇÃO: Usar 'slotsForThisMonth' ⬇️ */}
+                {slotsForThisMonth.filter(slot => !slot.allDay).length}
               </div>
               <div className="text-sm text-blue-600">Horários Indisponíveis</div>
             </div>
             <div className="text-center p-4 bg-orange-50 rounded border border-orange-200">
               <div className="text-2xl font-bold text-orange-600">
-                {timeSlots.filter(slot => slot.allDay).length}
+                {/* ⬇️ ALTERAÇÃO: Usar 'slotsForThisMonth' ⬇️ */}
+                {slotsForThisMonth.filter(slot => slot.allDay).length}
               </div>
               <div className="text-sm text-orange-600">Dias Completos</div>
             </div>
