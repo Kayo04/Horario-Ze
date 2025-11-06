@@ -1,13 +1,12 @@
 'use client'
 import React, { useEffect, useState } from 'react'
 import toast from 'react-hot-toast'
-// import * as XLSX from 'xlsx' // REMOVIDO
-import Link from 'next/link' // Import do Link (necessário para o botão "Voltar")
+import Link from 'next/link'
 import { useSession } from 'next-auth/react'
-import { useRouter } from 'next/navigation'
+import { useRouter } from 'next/navigation' 
 
 /* ---------- Tipos ---------- */
-type EventType = 'teambuilding' | 'birthday'
+type EventType = 'teambuilding' | 'birthday' | 'vrlocal'
 
 type Reservation = {
   id: string
@@ -31,7 +30,7 @@ type UnavailableSlot = {
 type Employee = {
   id: string
   name: string
-  code?: string // A SUA "SIGLA"
+  code?: string
   email: string
   telefone?: string
   role: 'admin' | 'employee'
@@ -48,8 +47,8 @@ type Assigned = { id: string; name: string; code?: string }
 type Slot = {
   reservation: Reservation
   required: number
-  available: Assigned[] // Lista de TODOS os funcionários disponíveis
-  assignedCount: number // O número de funcionários que serão atribuídos
+  available: Assigned[]
+  assignedCount: number
   note: string
 }
 
@@ -61,7 +60,6 @@ export default function SchedulerPrototype(): JSX.Element {
   // Estados principais
   const [reservations, setReservations] = useState<Reservation[]>([])
   const [employees, setEmployees] = useState<Employee[]>([])
-  
   const [loading, setLoading] = useState(true) 
 
   // Estados do formulário
@@ -219,18 +217,16 @@ export default function SchedulerPrototype(): JSX.Element {
           required = 3;
       } else if (r.people <= 30) {
           required = 5;
-      } else { // 31 ou mais
+      } else {
           required = 7;
       }
 
       // Encontrar funcionários disponíveis
       const available = employees.filter(emp => {
         try {
-          // ⬇️ ALTERAÇÃO: Adicionada verificação para excluir admins ⬇️
           if (emp.role === 'admin') {
             return false
           }
-          // ⬆️ FIM DA ALTERAÇÃO ⬆️
           
           if (!emp.unavailable || typeof emp.unavailable !== 'object') return true
           
@@ -307,7 +303,16 @@ export default function SchedulerPrototype(): JSX.Element {
   }
 
   const formatEventType = (type: EventType) => {
-    return type === 'teambuilding' ? 'Team Building' : 'Aniversário'
+    switch (type) {
+      case 'teambuilding':
+        return 'Team Building'
+      case 'birthday':
+        return 'Aniversário'
+      case 'vrlocal':
+        return 'VR Local'
+      default:
+        return type
+    }
   }
 
   // Gerar opções de horário em formato 24h de 15 em 15 minutos
@@ -325,9 +330,9 @@ export default function SchedulerPrototype(): JSX.Element {
   const generateBirthdayTimeOptions = () => {
     const options = []
     for (let hour = 0; hour < 24; hour++) {
-      if (hour > 20) break; // Para loop às 20:xx
+      if (hour > 20) break;
       for (let minute = 0; minute < 60; minute += 15) {
-        if (hour === 20 && minute > 0) break; // Para exatamente às 20:00
+        if (hour === 20 && minute > 0) break;
         const timeString = `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`
         options.push(timeString)
       }
@@ -337,7 +342,6 @@ export default function SchedulerPrototype(): JSX.Element {
 
   const allTimeOptions = generateTimeOptions()
   const birthdayTimeOptions = generateBirthdayTimeOptions()
-
 
   // Calcular duração em horas
   const calculateDuration = (start: string, end: string) => {
@@ -380,13 +384,11 @@ export default function SchedulerPrototype(): JSX.Element {
         <div className="max-w-4xl mx-auto">
 
           <div className="mb-6">
-            <Link href="/portal" passHref legacyBehavior>
-              <a className="inline-flex items-center text-sm text-indigo-600 hover:text-indigo-800 group">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-1 transition-transform group-hover:-translate-x-1" viewBox="0 0 20 20" fill="currentColor">
-                  <path fillRule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clipRule="evenodd" />
-                </svg>
-                Voltar ao Portal
-              </a>
+            <Link href="/portal" className="inline-flex items-center text-sm text-indigo-600 hover:text-indigo-800 group">
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-1 transition-transform group-hover:-translate-x-1" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clipRule="evenodd" />
+              </svg>
+              Voltar ao Portal
             </Link>
           </div>
 
@@ -410,7 +412,7 @@ export default function SchedulerPrototype(): JSX.Element {
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Tipo de Evento *
                 </label>
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-3 gap-4">
                   <button
                     type="button"
                     onClick={() => setEventType('teambuilding')}
@@ -435,6 +437,19 @@ export default function SchedulerPrototype(): JSX.Element {
                   >
                     <div className="font-medium">Aniversário</div>
                     <div className="text-sm text-gray-500 mt-1">Celebrações</div>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setEventType('vrlocal')}
+                    className={`p-4 border-2 rounded-lg text-center transition-colors ${
+                      eventType === 'vrlocal'
+                        ? 'border-purple-500 bg-purple-50 text-purple-700'
+                        : 'border-gray-200 bg-white text-gray-700 hover:border-gray-300'
+                    }`}
+                  >
+                    <div className="font-medium">VR Local</div>
+                    <div className="text-sm text-gray-500 mt-1">Realidade Virtual</div>
                   </button>
                 </div>
               </div>
@@ -570,7 +585,9 @@ export default function SchedulerPrototype(): JSX.Element {
                           <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
                             reservation.eventType === 'teambuilding' 
                               ? 'bg-blue-100 text-blue-800'
-                              : 'bg-green-100 text-green-800'
+                              : reservation.eventType === 'birthday'
+                                ? 'bg-green-100 text-green-800'
+                                : 'bg-purple-100 text-purple-800'
                           }`}>
                             {formatEventType(reservation.eventType)}
                           </span>
@@ -661,7 +678,6 @@ export default function SchedulerPrototype(): JSX.Element {
                         }
                       </div>
                     </div>
-
                   </div>
                 ))
               )}
