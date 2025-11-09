@@ -304,6 +304,7 @@ export default function DisponibilidadePage() {
     )
     
     setTimeSlots(updatedSlots)
+      setSelectedDates(prev => prev.filter(date => date !== slotToRemove.date))
     
     const success = await saveUnavailableSlots(updatedSlots)
     if (!success) {
@@ -392,6 +393,26 @@ export default function DisponibilidadePage() {
               </button>
             </div>
 
+            {/* Contador de dias selecionados - NOVO */}
+            {selectedDates.length > 0 && (
+              <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-2">
+                    <div className="w-3 h-3 bg-blue-500 rounded-full"></div>
+                    <span className="text-blue-800 font-medium">
+                      {selectedDates.length} {selectedDates.length === 1 ? 'dia selecionado' : 'dias selecionados'}
+                    </span>
+                  </div>
+                  <button
+                    onClick={() => setSelectedDates([])}
+                    className="text-blue-600 hover:text-blue-800 text-sm font-medium"
+                  >
+                    Limpar seleção
+                  </button>
+                </div>
+              </div>
+            )}
+
             {/* Dias da semana */}
             <div className="grid grid-cols-7 gap-1 sm:gap-2 mb-2 sm:mb-4">
               {weekdays.map(day => (
@@ -419,14 +440,26 @@ export default function DisponibilidadePage() {
                     key={dateString}
                     onClick={() => handleDayClick(dateString)}
                     className={`
-                      p-1 sm:p-3 rounded-lg border text-left min-h-[4.5rem] sm:min-h-20 transition-colors flex flex-col justify-start
-                      ${isSelected ? 'border-blue-500 bg-blue-50' : 'border-gray-200'}
+                      p-1 sm:p-3 rounded-lg border text-left min-h-[4.5rem] sm:min-h-20 transition-all duration-200 flex flex-col justify-start relative
+                      ${isSelected 
+                        ? 'border-blue-500 bg-blue-100 shadow-md ring-2 ring-blue-300 transform scale-105' 
+                        : 'border-gray-200 hover:bg-gray-50'
+                      }
                       ${isAllDay ? 'bg-red-100 border-red-300' : ''}
                       ${unavailableSlots.length > 0 && !isAllDay ? 'bg-red-50 border-red-200' : ''}
-                      hover:bg-gray-50
+                      ${isSelected && isAllDay ? 'border-blue-500 bg-gradient-to-br from-blue-100 to-red-100' : ''}
+                      ${isSelected && unavailableSlots.length > 0 && !isAllDay ? 'border-blue-500 bg-gradient-to-br from-blue-100 to-red-50' : ''}
                     `} 
                   >
-                    <div className="font-semibold text-sm">{day.getDate()}</div>
+                    {/* Indicador de seleção - NOVO */}
+                    {isSelected && (
+                      <div className="absolute top-1 right-1 w-3 h-3 bg-blue-500 rounded-full"></div>
+                    )}
+                    
+                    <div className={`font-semibold text-sm ${isSelected ? 'text-blue-800' : ''}`}>
+                      {day.getDate()}
+                    </div>
+                    
                     {isAllDay && (
                       <div className="hidden sm:block text-[10px] sm:text-xs text-red-700 mt-0.5 sm:mt-1 font-medium">
                         Dia Todo
@@ -437,9 +470,24 @@ export default function DisponibilidadePage() {
                         {unavailableSlots.length} horário(s)
                       </div>
                     )}
+                    
+                    {/* Indicador mobile para dias selecionados - NOVO */}
+                    
                   </button>
                 )
               })}
+            </div>
+
+            {/* Legenda - NOVO */}
+            <div className="mt-6 grid grid-cols-2 gap-4 text-xs">
+              <div className="flex items-center space-x-2">
+                <div className="w-3 h-3 bg-blue-100 border-2 border-blue-500 rounded"></div>
+                <span>Dia selecionado</span>
+              </div>
+              <div className="flex items-center space-x-2">
+                <div className="w-3 h-3 bg-red-100 border-2 border-red-300 rounded"></div>
+                <span>Indisponível</span>
+              </div>
             </div>
           </div>
 
@@ -453,6 +501,26 @@ export default function DisponibilidadePage() {
 
             {selectedDates.length > 0 && (
               <div className="space-y-4">
+                {/* Lista de dias selecionados - NOVO */}
+                {selectedDates.length > 1 && (
+                  <div className="bg-blue-50 p-3 rounded border border-blue-200">
+                    <h4 className="font-medium text-blue-800 mb-2 text-sm">Dias selecionados:</h4>
+                    <div className="max-h-32 overflow-y-auto">
+                      {selectedDates.map(date => (
+                        <div key={date} className="flex items-center justify-between py-1 text-sm">
+                          <span>{new Date(date + 'T12:00:00').toLocaleDateString('pt-PT')}</span>
+                          <button
+                            onClick={() => setSelectedDates(prev => prev.filter(d => d !== date))}
+                            className="text-blue-600 hover:text-blue-800 text-xs"
+                          >
+                            Remover
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
                 {/* Opção Dia Todo */}
                 <div className="flex items-center space-x-2">
                   <input
