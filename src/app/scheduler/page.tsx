@@ -4,10 +4,8 @@ import toast from 'react-hot-toast'
 import Link from 'next/link'
 import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
-// Não precisamos do PapaParse, vamos usar a biblioteca SheetJS carregada da web
 
 /* ---------- Tipos ---------- */
-// ⬅️ MUDANÇA: Adicionado 'experiencia'
 type EventType = 'teambuilding' | 'birthday' | 'vrlocal' | 'experiencia'
 
 type Reservation = {
@@ -19,7 +17,6 @@ type Reservation = {
   people: number
 }
 
-// ... (O resto das tuas interfaces não muda)
 type UnavailableWeekday = { day: number; start: string; end: string }
 
 type UnavailableSlot = {
@@ -60,7 +57,7 @@ const generateWorkingTimeOptions = () => {
   const options = []
   for (let hour = 10; hour <= 20; hour++) {
     for (let minute = 0; minute < 60; minute += 15) {
-      if (hour < 20 || (hour === 20 && minute === 0)) { // Inclui 20:00
+      if (hour < 20 || (hour === 20 && minute === 0)) {
         const timeString = `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`
         options.push(timeString)
       }
@@ -71,13 +68,11 @@ const generateWorkingTimeOptions = () => {
 
 const workingTimeOptions = generateWorkingTimeOptions()
 
-
 /* ---------- Component ---------- */
 export default function SchedulerPage(): JSX.Element {
   const { data: session, status } = useSession()
   const router = useRouter()
 
-  // ... (Estados) ...
   const [reservations, setReservations] = useState<Reservation[]>([])
   const [employees, setEmployees] = useState<Employee[]>([])
   const [loading, setLoading] = useState(true) 
@@ -92,7 +87,6 @@ export default function SchedulerPage(): JSX.Element {
   const [isUploading, setIsUploading] = useState(false)
   const [isSheetJSLoaded, setIsSheetJSLoaded] = useState(false)
   const [editingReservationId, setEditingReservationId] = useState<string | null>(null)
-
 
   /* ---------- Carregamento da Biblioteca de Excel (SheetJS) ---------- */
   useEffect(() => {
@@ -115,7 +109,6 @@ export default function SchedulerPage(): JSX.Element {
     document.head.appendChild(script);
   }, []);
 
-
   /* ---------- Controlo de Acesso e Carregamento de Dados ---------- */
   useEffect(() => {
     if (status === 'loading') return
@@ -123,10 +116,10 @@ export default function SchedulerPage(): JSX.Element {
       router.replace('/')
       return
     }
-    if (status === 'authenticated' && session.user.role !== 'admin') {
+    if (status === 'authenticated' && session?.user?.role !== 'admin') {
       toast.error('Acesso negado. Apenas admins.')
       router.replace('/portal')
-    } else if (status === 'authenticated' && session.user.role === 'admin') {
+    } else if (status === 'authenticated' && session?.user?.role === 'admin') {
       loadData()
     }
   }, [status, session, router])
@@ -176,7 +169,7 @@ export default function SchedulerPage(): JSX.Element {
         await createReservation()
       }
     } catch (error) {
-      // Erros já tratados
+      console.error('Erro no formulário:', error)
     } finally {
       setSaving(false)
       clearForm()
@@ -305,13 +298,13 @@ export default function SchedulerPage(): JSX.Element {
         setIsUploading(false);
       }
     };
-    reader.onerror = (error) => {
+    reader.onerror = () => {
        toast.dismiss(toastId);
        toast.error('Não foi possível ler o ficheiro.');
        setIsUploading(false);
     };
     reader.readAsArrayBuffer(file);
-    e.target.value = '';
+    if (e.target) e.target.value = '';
   }
 
   const processParsedData = (data: string[][]) => {
@@ -346,7 +339,7 @@ export default function SchedulerPage(): JSX.Element {
     for (const row of dataRows) {
       if (!row || row.length < headerRow.length) continue; 
       const email = row[colMap.email]
-      if (email && email.includes('@')) { 
+      if (email && typeof email === 'string' && email.includes('@')) { 
         const dateStr = row[colMap.date]
         if (dateStr) { 
           const parsedDate = parseDateFromExcel(dateStr)
@@ -362,7 +355,7 @@ export default function SchedulerPage(): JSX.Element {
         const notes = row[colMap.notes]
         const finalEndTime = parseEndTimeFromCSV(startTime, endTime)
         const eventType = parseEventTypeFromCSV(description, notes) 
-        const people = parsePeopleFromCSV(description, notes) // ⬅️ Lógica atualizada
+        const people = parsePeopleFromCSV(description, notes)
         if (currentDate && startTime && finalEndTime && people > 0) {
           reservationsToUpload.push({
             eventType,
@@ -424,9 +417,7 @@ export default function SchedulerPage(): JSX.Element {
     }
   }
 
-
-  // 5. Funções Auxiliares de parsing (ATUALIZADAS)
-  
+  // Funções Auxiliares de parsing
   const parseDateFromExcel = (dateInput: string | number): string => {
     try {
       if (typeof dateInput === 'number') {
@@ -464,19 +455,19 @@ export default function SchedulerPage(): JSX.Element {
     return '';
   }
 
-  // ⬅️ MUDANÇA: Lógica de "15+1px" adicionada
   const parsePeopleFromCSV = (description: string, notes: string): number => {
     const lowerNotes = (notes || '').toLowerCase()
     const lowerDesc = (description || '').toLowerCase()
+    const combinedText = lowerNotes + ' ' + lowerDesc
 
     // Regra 1: Procurar por "15+1px" ou "15 + 1px"
-    let match = lowerNotes.match(/(\d+)\s*\+\s*(\d+)\s*(pax|px)/i);
+    let match = combinedText.match(/(\d+)\s*\+\s*(\d+)\s*(pax|px)/i);
     if (match) {
-      return parseInt(match[1]); // 15 + 1 = 16
+      return parseInt(match[1]) + parseInt(match[2]); // 15 + 1 = 16
     }
     
     // Regra 2: Procurar por "30px" ou "12pax" (lógica antiga)
-    match = lowerNotes.match(/(\d+)\s*(pax|px)/i);
+    match = combinedText.match(/(\d+)\s*(pax|px)/i);
     if (match) {
       return parseInt(match[1]);
     }
@@ -528,10 +519,7 @@ export default function SchedulerPage(): JSX.Element {
     }
   }
 
-  /* ------------------------------------------------ */
-
   const generateSchedule = () => {
-    // ... (função generateSchedule não muda) ...
     const bySlot: Record<string, Slot> = {}
     for (const r of reservations) {
       const slotKey = `${r.date}T${r.startTime}`
@@ -593,12 +581,13 @@ export default function SchedulerPage(): JSX.Element {
     toast.success('Horário gerado com sucesso!')
   }
 
-  // ... (Resto das funções utilitárias) ...
+  // Funções utilitárias
   const convertTimeToMinutes = (timeString: string): number => {
     if (!timeString || !timeString.includes(':')) return 0;
     const [hours, minutes] = timeString.split(':').map(Number)
     return hours * 60 + minutes
   }
+
   function formatDateInput(d: Date) {
     const y = d.getFullYear()
     const m = String(d.getMonth() + 1).padStart(2, '0')
@@ -613,6 +602,25 @@ export default function SchedulerPage(): JSX.Element {
       case 'vrlocal': return 'VR Local'
       case 'experiencia': return 'Experiência'
       default: return type
+    }
+  }
+
+  const eventTypeDetails: Record<EventType, { subtitle: string }> = {
+    teambuilding: { subtitle: 'Corporativos' },
+    birthday: { subtitle: 'Celebrações' },
+    vrlocal: { subtitle: 'Realidade Virtual' },
+    experiencia: { subtitle: 'Escape Rooms' },
+  }
+
+  const formatDateBlock = (dateStr: string) => {
+    try {
+      const date = new Date(dateStr + 'T12:00:00');
+      const day = date.getDate().toString();
+      const month = date.toLocaleString('pt-PT', { month: 'short' }).toUpperCase().replace('.', '');
+      const year = date.getFullYear();
+      return { day, month, year };
+    } catch (e) {
+      return { day: '??', month: '???', year: '????' };
     }
   }
 
@@ -643,7 +651,7 @@ export default function SchedulerPage(): JSX.Element {
   }
 
   /* ---------- Render (Loading de Dados) ---------- */
-  if (loading && status === 'authenticated' && session.user.role === 'admin') {
+  if (loading && status === 'authenticated' && session?.user?.role === 'admin') {
     return (
       <div className="min-h-screen bg-gray-50 p-6 flex items-center justify-center">
         <div className="text-center">
@@ -654,7 +662,7 @@ export default function SchedulerPage(): JSX.Element {
   }
 
   /* ---------- Render (Conteúdo da Página - SÓ ADMIN) ---------- */
-  if (status === 'authenticated' && session.user.role === 'admin' && !loading) {
+  if (status === 'authenticated' && session?.user?.role === 'admin' && !loading) {
     return (
       <div className="min-h-screen bg-gray-50 p-6">
         <input
@@ -698,19 +706,15 @@ export default function SchedulerPage(): JSX.Element {
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                   <button type="button" onClick={() => setEventType('teambuilding')} className={`p-4 border-2 rounded-lg text-center transition-colors ${eventType === 'teambuilding' ? 'border-blue-500 bg-blue-50 text-blue-700' : 'border-gray-200 bg-white text-gray-700 hover:border-gray-300'}`}>
                     <div className="font-medium">Team Building</div>
-                    <div className="text-sm text-gray-500 mt-1">Corporativos</div>
                   </button>
                   <button type="button" onClick={() => setEventType('birthday')} className={`p-4 border-2 rounded-lg text-center transition-colors ${eventType === 'birthday' ? 'border-green-500 bg-green-50 text-green-700' : 'border-gray-200 bg-white text-gray-700 hover:border-gray-300'}`}>
                     <div className="font-medium">Aniversário</div>
-                    <div className="text-sm text-gray-500 mt-1">Celebrações</div>
                   </button>
                   <button type="button" onClick={() => setEventType('vrlocal')} className={`p-4 border-2 rounded-lg text-center transition-colors ${eventType === 'vrlocal' ? 'border-purple-500 bg-purple-50 text-purple-700' : 'border-gray-200 bg-white text-gray-700 hover:border-gray-300'}`}>
                     <div className="font-medium">VR Local</div>
-                    <div className="text-sm text-gray-500 mt-1">Realidade Virtual</div>
                   </button>
                   <button type="button" onClick={() => setEventType('experiencia')} className={`p-4 border-2 rounded-lg text-center transition-colors ${eventType === 'experiencia' ? 'border-cyan-500 bg-cyan-50 text-cyan-700' : 'border-gray-200 bg-white text-gray-700 hover:border-gray-300'}`}>
                     <div className="font-medium">Experiência</div>
-                    <div className="text-sm text-gray-500 mt-1">Escape Rooms</div>
                   </button>
                 </div>
               </div>
@@ -782,48 +786,73 @@ export default function SchedulerPage(): JSX.Element {
                     const dateA = new Date(a.date).getTime();
                     const dateB = new Date(b.date).getTime();
                     if (dateA !== dateB) return dateA - dateB;
-                    // Se as datas forem iguais, ordena pela hora de início
                     return convertTimeToMinutes(a.startTime) - convertTimeToMinutes(b.startTime);
-                 }).map(reservation => (
-                  <div key={reservation.id} className="border border-gray-200 rounded-lg p-4 hover:bg-gray-50">
-                    <div className="flex justify-between items-start">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-3 mb-2">
-                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                            reservation.eventType === 'teambuilding' ? 'bg-blue-100 text-blue-800'
-                            : reservation.eventType === 'birthday' ? 'bg-green-100 text-green-800'
-                            : reservation.eventType === 'vrlocal' ? 'bg-purple-100 text-purple-800'
-                            : 'bg-cyan-100 text-cyan-800'
-                          }`}>
-                            {formatEventType(reservation.eventType)}
-                          </span>
-                          <span className="text-sm text-gray-500">{new Date(reservation.date + 'T12:00:00').toLocaleDateString('pt-PT')}</span>
-                        </div>
-                        <div className="text-sm text-gray-600 space-y-1">
-                          <div><span className="font-medium">Horário:</span> {reservation.startTime} - {reservation.endTime} <span className="text-gray-500 ml-2">({calculateDuration(reservation.startTime, reservation.endTime)} horas)</span></div>
-                          <div><span className="font-medium">Pessoas:</span> {reservation.people}</div>
+                 }).map(reservation => {
+                    const { day, month, year } = formatDateBlock(reservation.date);
+                    const subtitle = eventTypeDetails[reservation.eventType]?.subtitle || '';
+
+                    return (
+                      <div key={reservation.id} className="border border-gray-200 rounded-lg p-4 hover:bg-gray-50">
+                        <div className="flex gap-4 items-start">
+                          
+                          {/* Bloco da Data */}
+                          <div className="flex-shrink-0 w-16 text-center border-r border-gray-200 pr-4 pt-1">
+                            <div className="text-3xl font-bold text-blue-600 leading-none">{day}</div>
+                            <div className="text-sm font-medium text-gray-700 mt-1">{month}</div>
+                            <div className="text-xs text-gray-500">{year}</div>
+                          </div>
+
+                          {/* Bloco de Informação Principal */}
+                          <div className="flex-1">
+                            <div className="flex justify-between items-start">
+                              
+                              {/* Informação do Evento */}
+                              <div className="flex-1">
+                                <div className="flex items-center gap-3 mb-1">
+                                  <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                                    reservation.eventType === 'teambuilding' ? 'bg-blue-100 text-blue-800'
+                                    : reservation.eventType === 'birthday' ? 'bg-green-100 text-green-800'
+                                    : reservation.eventType === 'vrlocal' ? 'bg-purple-100 text-purple-800'
+                                    : 'bg-cyan-100 text-cyan-800'
+                                  }`}>
+                                    {formatEventType(reservation.eventType)}
+                                  </span>
+                                </div>
+                                
+                                {/* Subtítulo */}
+                                <div className="text-sm text-gray-500 mb-2">
+                                  {subtitle}
+                                </div>
+
+                                <div className="text-sm text-gray-600 space-y-1">
+                                  <div><span className="font-medium">Horário:</span> {reservation.startTime} - {reservation.endTime} <span className="text-gray-500 ml-2">({calculateDuration(reservation.startTime, reservation.endTime)} horas)</span></div>
+                                  <div><span className="font-medium">Pessoas:</span> {reservation.people}</div>
+                                </div>
+                              </div>
+
+                              {/* Botões */}
+                              <div className="flex-shrink-0 ml-4">
+                                <button
+                                  onClick={() => handleEditClick(reservation)}
+                                  className="px-3 py-1 bg-blue-500 text-white rounded text-sm hover:bg-blue-600 mr-2"
+                                  disabled={saving || isUploading}
+                                >
+                                  Editar
+                                </button>
+                                <button
+                                  onClick={() => deleteReservation(reservation.id)}
+                                  className="px-3 py-1 bg-red-500 text-white rounded text-sm hover:bg-red-600"
+                                  disabled={saving || isUploading}
+                                >
+                                  Cancelar
+                                </button>
+                              </div>
+                            </div>
+                          </div>
                         </div>
                       </div>
-                      
-                      <div className="flex-shrink-0 ml-4">
-                        <button
-                          onClick={() => handleEditClick(reservation)}
-                          className="px-3 py-1 bg-blue-500 text-white rounded text-sm hover:bg-blue-600 mr-2"
-                          disabled={saving || isUploading}
-                        >
-                          Editar
-                        </button>
-                        <button
-                          onClick={() => deleteReservation(reservation.id)}
-                          className="px-3 py-1 bg-red-500 text-white rounded text-sm hover:bg-red-600"
-                          disabled={saving || isUploading}
-                        >
-                          Cancelar
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                ))}
+                    )
+                  })}
               </div>
             )}
           </section>
