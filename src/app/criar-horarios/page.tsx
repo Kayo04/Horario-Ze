@@ -11,7 +11,8 @@ import {
   XMarkIcon,
   PlusIcon,
   Squares2X2Icon,
-  ShieldExclamationIcon
+  ShieldExclamationIcon,
+  CloudArrowUpIcon // 🆕 ADICIONADO AQUI
 } from '@heroicons/react/24/outline';
 
 // ✅ MOCK DO LINK
@@ -85,6 +86,9 @@ export default function GeradorHorariosPage() {
   const [schedule, setSchedule] = useState<Record<string, Record<string, string[]>> | null>(null);
   const [stats, setStats] = useState<Record<string, number>>({});
   const [weekDates, setWeekDates] = useState<string[]>([]);
+
+  // 🆕 ESTADO DE SALVAR
+  const [isSaving, setIsSaving] = useState(false);
 
   // Estados para o Modal de Edição Multipla
   const [editingCells, setEditingCells] = useState<{slot: string, day: string}[]>([]);
@@ -382,6 +386,82 @@ export default function GeradorHorariosPage() {
     XLSX.writeFile(workbook, fileName);
   };
 
+  // 🆕 FUNÇÃO PARA GUARDAR NA BASE DE DADOS (NOVA LÓGICA)
+  const handleSaveToDatabase = async () => {
+    if (!schedule) return;
+    setIsSaving(true);
+
+    try {
+        const shiftsToSave: any[] = [];
+        const allStaffCodes = new Set<string>();
+        
+        // Coletar todos os funcionários na escala
+        Object.values(schedule).forEach(daySlots => {
+            Object.values(daySlots).forEach(staffList => {
+                staffList.forEach(code => allStaffCodes.add(code));
+            });
+        });
+
+        // Converter datas (Formato que o useState guarda pode precisar de ajuste)
+        // weekDates já deve estar em YYYY-MM-DD se o selectedDate estiver correto
+        
+        allStaffCodes.forEach(code => {
+            // Iterar dias
+            WEEK_DAYS.forEach((dayName, dayIndex) => {
+                // selectedDate é Segunda. Somar dias.
+                const d = new Date(selectedDate);
+                d.setDate(d.getDate() + dayIndex);
+                const dateStr = d.toISOString().split('T')[0];
+                
+                // Encontrar slots onde trabalha
+                const workedSlotsIndices: number[] = [];
+                TIME_SLOTS.forEach((slot, slotIndex) => {
+                    if (schedule[slot][dayName].includes(code)) {
+                        workedSlotsIndices.push(slotIndex);
+                    }
+                });
+
+                if (workedSlotsIndices.length === 0) return;
+
+                // Calcular Início, Fim e Total
+                workedSlotsIndices.sort((a, b) => a - b);
+                const startSlotIndex = workedSlotsIndices[0];
+                const endSlotIndex = workedSlotsIndices[workedSlotsIndices.length - 1];
+                
+                const startTime = TIME_SLOTS[startSlotIndex].split(' - ')[0]; 
+                const endTime = TIME_SLOTS[endSlotIndex].split(' - ')[1];     
+                const totalHours = workedSlotsIndices.length * 0.5;
+
+                shiftsToSave.push({
+                    employeeCode: code,
+                    date: dateStr,
+                    startTime: startTime,
+                    endTime: endTime,
+                    totalHours: totalHours
+                });
+            });
+        });
+
+        // Enviar para API
+        const response = await fetch('/api/admin/save-schedule', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ shifts: shiftsToSave })
+        });
+
+        if (response.ok) {
+            alert('✅ Horário guardado na Base de Dados com sucesso!');
+        } else {
+            alert('❌ Erro ao guardar. Verifique a consola.');
+        }
+    } catch (error) {
+        console.error("Erro ao guardar:", error);
+        alert('Erro de conexão.');
+    } finally {
+        setIsSaving(false);
+    }
+  };
+
   // --- ALGORITMO JUSTO ---
   const handleGenerate = () => {
     if (employees.length === 0) return alert("Sem funcionários válidos.");
@@ -520,7 +600,7 @@ export default function GeradorHorariosPage() {
                     currentStart = Math.max(0, currentStart - Math.floor(missing / 2));
                     currentEnd = Math.min(TIME_SLOTS.length, currentStart + MIN_SHIFT_SLOTS);
                     if (currentEnd - currentStart < MIN_SHIFT_SLOTS) {
-                         currentStart = Math.max(0, currentEnd - MIN_SHIFT_SLOTS);
+                          currentStart = Math.max(0, currentEnd - MIN_SHIFT_SLOTS);
                     }
                     duration = currentEnd - currentStart;
                 }
@@ -644,13 +724,29 @@ export default function GeradorHorariosPage() {
         </div>
         <div className="flex items-center gap-3">
           {schedule && !isMultiSelectMode && (
-            <button 
-              onClick={startMultiSelect}
-              className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors shadow-sm"
-            >
-              <Squares2X2Icon className="w-4 h-4" /> 
-              <span className="hidden sm:inline">Seleção Múltipla</span>
-            </button>
+            <>
+                {/* 🆕 BOTÃO DE GUARDAR NA BD */}
+                <button 
+                    onClick={handleSaveToDatabase}
+                    disabled={isSaving}
+                    className="flex items-center gap-2 bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-indigo-700 transition-colors shadow-sm disabled:opacity-50"
+                >
+                    {isSaving ? (
+                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                    ) : (
+                        <CloudArrowUpIcon className="w-4 h-4" />
+                    )}
+                    <span className="hidden sm:inline">Guardar Oficial</span>
+                </button>
+
+                <button 
+                  onClick={startMultiSelect}
+                  className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors shadow-sm"
+                >
+                  <Squares2X2Icon className="w-4 h-4" /> 
+                  <span className="hidden sm:inline">Seleção Múltipla</span>
+                </button>
+            </>
           )}
           {schedule && isMultiSelectMode && (
             <div className="flex items-center gap-2">
@@ -828,10 +924,10 @@ export default function GeradorHorariosPage() {
                                     </div>
                                   ) : (
                                     <div className="flex items-center justify-center h-full w-full">
-                                       <span className="text-gray-300 text-xs">-</span>
-                                       {!isMultiSelectMode && (
-                                         <PlusIcon className="w-3 h-3 text-green-400 opacity-0 group-hover:opacity-100 absolute" />
-                                       )}
+                                        <span className="text-gray-300 text-xs">-</span>
+                                        {!isMultiSelectMode && (
+                                          <PlusIcon className="w-3 h-3 text-green-400 opacity-0 group-hover:opacity-100 absolute" />
+                                        )}
                                     </div>
                                   )}
                                   {isSelected && (
