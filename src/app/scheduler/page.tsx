@@ -55,12 +55,16 @@ type Slot = {
 /* ---------- Função de Horas (10:00 - 20:00) ---------- */
 const generateWorkingTimeOptions = () => {
   const options = []
-  for (let hour = 10; hour <= 20; hour++) {
+  for (let hour = 9; hour <= 20; hour++) {
     for (let minute = 0; minute < 60; minute += 15) {
-      if (hour < 20 || (hour === 20 && minute === 0)) {
-        const timeString = `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`
-        options.push(timeString)
-      }
+      // Para a primeira hora (9:00), só queremos 9:30
+      if (hour === 9 && minute < 30) continue;
+      
+      // Para a última hora (20:00), só queremos 20:00
+      if (hour === 20 && minute > 0) continue;
+      
+      const timeString = `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`
+      options.push(timeString)
     }
   }
   return options
@@ -460,19 +464,25 @@ export default function SchedulerPage(): JSX.Element {
     const lowerDesc = (description || '').toLowerCase()
     const combinedText = lowerNotes + ' ' + lowerDesc
 
-    // Regra 1: Procurar por "15+1px" ou "15 + 1px"
+    // Regra 1: Procurar por "15+1px" ou "15 + 1px" ou "15+1pax" ou "15 + 1pax"
     let match = combinedText.match(/(\d+)\s*\+\s*(\d+)\s*(pax|px)/i);
     if (match) {
       return parseInt(match[1]) + parseInt(match[2]); // 15 + 1 = 16
     }
     
-    // Regra 2: Procurar por "30px" ou "12pax" (lógica antiga)
+    // Regra 2: Procurar por "30px" ou "12pax" ou "30 pax" ou "12 px"
     match = combinedText.match(/(\d+)\s*(pax|px)/i);
     if (match) {
       return parseInt(match[1]);
     }
     
-    // Regra 3 (Fallback): Procurar "16x Noob" na descrição
+    // Regra 3: Procurar por "30 Pax" ou "12 Px" (com espaço e maiúsculas)
+    match = combinedText.match(/(\d+)\s+(pax|px)/i);
+    if (match) {
+      return parseInt(match[1]);
+    }
+
+    // Regra 4 (Fallback): Procurar "16x Noob" na descrição
     match = lowerDesc.match(/(\d+)\s*x/i);
     if (match) {
       return parseInt(match[1]);

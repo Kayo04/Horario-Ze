@@ -7,7 +7,8 @@ import {
   UserGroupIcon,
   ClockIcon,
   ArrowRightOnRectangleIcon, // Ícone para Sair
-  ChartBarSquareIcon, // ⬅️ 1. ADICIONAR O ÍCONE NOVO
+  ChartBarSquareIcon,
+  PlusCircleIcon, // ⬅️ 1. ADICIONAR O ÍCONE NOVO
 } from '@heroicons/react/24/outline' // Ícones de exemplo
 
 export default function PortalPage() {
@@ -104,6 +105,20 @@ export default function PortalPage() {
                 Definir horários de trabalho
               </span>
             </Link>
+            {/* Botão - Criar Horários (SÓ PARA ADMINS) */}
+{session?.user?.role === 'admin' && (
+  <Link
+    href="/criar-horarios"
+    className="flex flex-col items-center justify-center p-6 bg-gradient-to-br from-pink-500 to-pink-700 text-white rounded-xl shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-300 ease-in-out group"
+  >
+    <PlusCircleIcon className="h-12 w-12 mb-3 text-pink-200 group-hover:text-white transition-colors duration-300" />
+    <span className="text-lg font-semibold">Criar Horários</span>
+    <span className="text-sm text-pink-100 group-hover:text-pink-50 mt-1">
+      Criar horários personalizados
+    </span>
+  </Link>
+)}
+
           </div>
         </div>
       </div>
