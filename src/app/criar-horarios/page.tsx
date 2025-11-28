@@ -818,6 +818,12 @@ export default function GeradorHorariosPage() {
                     });
 
                     candidates.sort((a, b) => {
+                        // --- PRIORIDADE TOTAL PARA O TIAGO (TR) ---
+                        // Se um dos candidatos for o Tiago, ele passa logo para a frente.
+                        if (a.code === 'TR') return -1; 
+                        if (b.code === 'TR') return 1;
+                        // ----------------------------------------------
+
                         const hoursA = employeeHours[a.id];
                         const hoursB = employeeHours[b.id];
                         if (Math.abs(hoursA - hoursB) > 2) return hoursA - hoursB;
