@@ -12,7 +12,8 @@ import {
   PlusIcon,
   Squares2X2Icon,
   ShieldExclamationIcon,
-  CloudArrowUpIcon // 🆕 ADICIONADO AQUI
+  CloudArrowUpIcon,
+  EyeIcon
 } from '@heroicons/react/24/outline';
 
 // ✅ MOCK DO LINK
@@ -87,8 +88,9 @@ export default function GeradorHorariosPage() {
   const [stats, setStats] = useState<Record<string, number>>({});
   const [weekDates, setWeekDates] = useState<string[]>([]);
 
-  // 🆕 ESTADO DE SALVAR
+  // 🆕 ESTADO DE SALVAR E CARREGAR
   const [isSaving, setIsSaving] = useState(false);
+  const [isLoadingSchedule, setIsLoadingSchedule] = useState(false);
 
   // Estados para o Modal de Edição Multipla
   const [editingCells, setEditingCells] = useState<{slot: string, day: string}[]>([]);
@@ -386,34 +388,160 @@ export default function GeradorHorariosPage() {
     XLSX.writeFile(workbook, fileName);
   };
 
-  // 🆕 FUNÇÃO PARA GUARDAR NA BASE DE DADOS (NOVA LÓGICA)
+  // 🆕 FUNÇÃO PARA CARREGAR HORÁRIO DA BD
+  // 🆕 FUNÇÃO PARA CARREGAR HORÁRIO DA BD - VERSÃO CORRIGIDA
+// 🆕 FUNÇÃO PARA CARREGAR HORÁRIO DA BD - VERSÃO COMPLETAMENTE CORRIGIDA
+const handleLoadSchedule = async () => {
+  if (!selectedDate) return;
+  setIsLoadingSchedule(true);
+  setSchedule(null);
+
+  try {
+    const start = new Date(selectedDate);
+    const end = new Date(selectedDate);
+    end.setDate(end.getDate() + 6);
+    
+    const startDateStr = start.toISOString().split('T')[0];
+    const endDateStr = end.toISOString().split('T')[0];
+
+    const res = await fetch(`/api/admin/get-weekly-schedule?start=${startDateStr}&end=${endDateStr}`);
+    
+    if (!res.ok) throw new Error("Erro ao buscar dados");
+    
+    const data = await res.json();
+    const shifts = data.shifts || [];
+
+    if (shifts.length === 0) {
+      alert("Não existe nenhum horário guardado para esta semana na base de dados.");
+      setIsLoadingSchedule(false);
+      return;
+    }
+
+    // INICIALIZAÇÃO COMPLETA E SEGURA DA ESTRUTURA
+    const newSchedule: Record<string, Record<string, string[]>> = {};
+    
+    // Garantir que todos os slots e dias existem
+    TIME_SLOTS.forEach(slot => {
+      newSchedule[slot] = {};
+      WEEK_DAYS.forEach(day => {
+        newSchedule[slot][day] = [];
+      });
+    });
+
+    const newStats: Record<string, number> = {};
+    employees.forEach(emp => newStats[emp.id] = 0);
+
+    console.log("Shifts carregados:", shifts); // Debug
+
+    // Processar cada turno
+    shifts.forEach((shift: any) => {
+      try {
+        const shiftDate = new Date(shift.date);
+        const dayIndex = shiftDate.getDay(); 
+        const jsDay = dayIndex === 0 ? 6 : dayIndex - 1; 
+        const dayName = WEEK_DAYS[jsDay];
+
+        if (!dayName) {
+          console.warn("Dia não encontrado para a data:", shift.date);
+          return;
+        }
+
+        const startMin = timeToMin(shift.startTime);
+        const endMin = timeToMin(shift.endTime);
+        const empId = employees.find(e => e.code === shift.employeeCode)?.id;
+
+        if (empId) newStats[empId] = (newStats[empId] || 0) + shift.totalHours;
+
+        console.log(`Processando turno: ${shift.employeeCode} em ${dayName} das ${shift.startTime} às ${shift.endTime}`); // Debug
+
+        // Adicionar o funcionário a todos os slots dentro do turno
+        TIME_SLOTS.forEach((slot, slotIndex) => {
+          const [sStart] = slot.split(' - ');
+          const slotMin = timeToMin(sStart);
+          
+          // Verificar se o slot está dentro do turno
+          if (slotMin >= startMin && slotMin < endMin) {
+            // Verificação EXTRA segura
+            if (newSchedule[slot] && newSchedule[slot][dayName] && Array.isArray(newSchedule[slot][dayName])) {
+              newSchedule[slot][dayName].push(shift.employeeCode);
+            } else {
+              console.warn(`Célula não encontrada: ${slot} - ${dayName}`);
+            }
+          }
+        });
+      } catch (error) {
+        console.error("Erro ao processar turno:", shift, error);
+      }
+    });
+
+    // PROCESSAMENTO FINAL - VERIFICAÇÃO EXTRA ROBUSTA
+    TIME_SLOTS.forEach(slot => {
+      if (!newSchedule[slot]) {
+        console.warn(`Slot não encontrado: ${slot}`);
+        newSchedule[slot] = {};
+      }
+      
+      WEEK_DAYS.forEach(day => {
+        // Garantir que a célula existe e é um array
+        if (!newSchedule[slot][day] || !Array.isArray(newSchedule[slot][day])) {
+          console.warn(`Célula inválida: ${slot} - ${day}`);
+          newSchedule[slot][day] = [];
+        }
+        
+        // Remover duplicados e ordenar
+        try {
+newSchedule[slot][day] = Array.from(new Set(newSchedule[slot][day])).sort();        } catch (error) {
+          console.error(`Erro ao processar célula ${slot} - ${day}:`, error);
+          newSchedule[slot][day] = [];
+        }
+      });
+    });
+
+    console.log("Schedule final:", newSchedule); // Debug
+    setSchedule(newSchedule);
+    setStats(newStats);
+    alert("Horário carregado com sucesso!");
+
+  } catch (error) {
+    console.error("Erro ao carregar horário:", error);
+    alert("Erro ao carregar horário.");
+  } finally {
+    setIsLoadingSchedule(false);
+  }
+};
+
+  // 🆕 FUNÇÃO PARA GUARDAR NA BASE DE DADOS
   const handleSaveToDatabase = async () => {
     if (!schedule) return;
+    
+    // Confirmação antes de guardar
+    if (!confirm("⚠️ Atenção: Vai guardar este horário como OFICIAL.\n\nIsto permite ao Zé ver e editar cada turno no Painel de Admin.\nSe já existia um horário para esta semana, ele será substituído por este.")) {
+      return;
+    }
+
     setIsSaving(true);
 
     try {
         const shiftsToSave: any[] = [];
         const allStaffCodes = new Set<string>();
         
-        // Coletar todos os funcionários na escala
+        // 1. Identificar todos os funcionários que estão na escala
         Object.values(schedule).forEach(daySlots => {
             Object.values(daySlots).forEach(staffList => {
                 staffList.forEach(code => allStaffCodes.add(code));
             });
         });
 
-        // Converter datas (Formato que o useState guarda pode precisar de ajuste)
-        // weekDates já deve estar em YYYY-MM-DD se o selectedDate estiver correto
-        
+        // 2. Processar funcionário a funcionário
         allStaffCodes.forEach(code => {
-            // Iterar dias
+            // Para cada dia da semana...
             WEEK_DAYS.forEach((dayName, dayIndex) => {
-                // selectedDate é Segunda. Somar dias.
+                // Calcular a data real baseada na selectedDate
                 const d = new Date(selectedDate);
                 d.setDate(d.getDate() + dayIndex);
                 const dateStr = d.toISOString().split('T')[0];
                 
-                // Encontrar slots onde trabalha
+                // Encontrar em quais slots (índices) este funcionário trabalha neste dia
                 const workedSlotsIndices: number[] = [];
                 TIME_SLOTS.forEach((slot, slotIndex) => {
                     if (schedule[slot][dayName].includes(code)) {
@@ -421,42 +549,64 @@ export default function GeradorHorariosPage() {
                     }
                 });
 
-                if (workedSlotsIndices.length === 0) return;
+                if (workedSlotsIndices.length === 0) return; // Folga neste dia
 
-                // Calcular Início, Fim e Total
+                // 3. Lógica para agrupar slots contínuos num único turno
                 workedSlotsIndices.sort((a, b) => a - b);
-                const startSlotIndex = workedSlotsIndices[0];
-                const endSlotIndex = workedSlotsIndices[workedSlotsIndices.length - 1];
                 
-                const startTime = TIME_SLOTS[startSlotIndex].split(' - ')[0]; 
-                const endTime = TIME_SLOTS[endSlotIndex].split(' - ')[1];     
-                const totalHours = workedSlotsIndices.length * 0.5;
+                let currentBlockStart = workedSlotsIndices[0];
+                let previousSlot = workedSlotsIndices[0];
 
-                shiftsToSave.push({
-                    employeeCode: code,
-                    date: dateStr,
-                    startTime: startTime,
-                    endTime: endTime,
-                    totalHours: totalHours
-                });
+                for (let i = 1; i <= workedSlotsIndices.length; i++) {
+                    const currentSlot = workedSlotsIndices[i];
+
+                    // Se o slot atual não é consecutivo ao anterior (ou se acabaram os slots)
+                    if (currentSlot !== previousSlot + 1 || i === workedSlotsIndices.length) {
+                        
+                        // Fechar o bloco anterior
+                        const startSlotStr = TIME_SLOTS[currentBlockStart].split(' - ')[0]; // Hora inicio
+                        const endSlotStr = TIME_SLOTS[previousSlot].split(' - ')[1];     // Hora fim
+                        
+                        // Calcular horas deste bloco (cada slot = 0.5h)
+                        const slotsCount = (previousSlot - currentBlockStart) + 1;
+                        const totalHours = slotsCount * 0.5;
+
+                        shiftsToSave.push({
+                            employeeCode: code,
+                            date: dateStr,
+                            startTime: startSlotStr,
+                            endTime: endSlotStr,
+                            totalHours: totalHours
+                        });
+
+                        // Iniciar novo bloco (se houver)
+                        if (i < workedSlotsIndices.length) {
+                            currentBlockStart = currentSlot;
+                        }
+                    }
+                    previousSlot = currentSlot;
+                }
             });
         });
 
-        // Enviar para API
+        // 4. Enviar para a API
         const response = await fetch('/api/admin/save-schedule', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ shifts: shiftsToSave })
         });
 
+        const data = await response.json();
+
         if (response.ok) {
-            alert('✅ Horário guardado na Base de Dados com sucesso!');
+            alert(`✅ Horário Oficial Guardado!\n\nForam registados ${shiftsToSave.length} turnos.`);
         } else {
-            alert('❌ Erro ao guardar. Verifique a consola.');
+            alert(`❌ Erro ao guardar: ${data.message || 'Falha ao guardar'}`);
         }
+
     } catch (error) {
         console.error("Erro ao guardar:", error);
-        alert('Erro de conexão.');
+        alert('Erro de conexão ao servidor.');
     } finally {
         setIsSaving(false);
     }
@@ -525,12 +675,16 @@ export default function GeradorHorariosPage() {
         }
 
         daysReservations.forEach(res => {
-            const rawStart = timeToMin(res.startTime) - 60; 
-            const rawEnd = timeToMin(res.endTime) + 60;     
+            // ✅ BUFFER DE 30 MINUTOS
+            const rawStart = timeToMin(res.startTime) - 30; 
+            const rawEnd = timeToMin(res.endTime) + 30;     
+            
             let staffNeeded = 2;
-            if (res.people > 10) staffNeeded = 3;
-            if (res.people > 20) staffNeeded = 5;
-            if (res.people > 30) staffNeeded = 7;
+            if (res.people >= 12) staffNeeded = 3;
+            if (res.people >= 17) staffNeeded = 4;
+            if (res.people >= 20) staffNeeded = 5;
+            if (res.people >= 30) staffNeeded = 7;
+            
             TIME_SLOTS.forEach((slot, i) => {
                 const [sStart, sEnd] = slot.split(' - ');
                 const slotStartMin = timeToMin(sStart);
@@ -645,7 +799,6 @@ export default function GeradorHorariosPage() {
                         return true;
                     });
 
-                    // ALGORITMO JUSTO: ordena por horas totais e aleatoriedade
                     candidates.sort((a, b) => {
                         const hoursA = employeeHours[a.id];
                         const hoursB = employeeHours[b.id];
@@ -803,20 +956,35 @@ export default function GeradorHorariosPage() {
                 </p>
                 <div className="bg-gray-50 p-5 rounded-xl mb-8 inline-block text-left w-full max-w-md border border-gray-200">
                   <label className="block text-sm font-bold text-gray-700 mb-2">Escolha a Semana (Segunda-feira):</label>
-                  <div className="relative">
-                    <CalendarDaysIcon className="absolute left-3 top-3 w-5 h-5 text-gray-400" />
-                    <input 
-                      type="date" 
-                      value={selectedDate}
-                      onChange={(e) => {
-                        const date = new Date(e.target.value);
-                        const day = date.getDay();
-                        const diff = date.getDate() - day + (day === 0 ? -6 : 1);
-                        const monday = new Date(date.setDate(diff));
-                        setSelectedDate(monday.toISOString().split('T')[0]);
-                      }}
-                      className="pl-10 w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-pink-500 outline-none transition-shadow font-medium text-gray-700"
-                    />
+                  <div className="flex items-center gap-2">
+                    <div className="relative flex-1">
+                      <CalendarDaysIcon className="absolute left-3 top-3 w-5 h-5 text-gray-400" />
+                      <input 
+                        type="date" 
+                        value={selectedDate}
+                        onChange={(e) => {
+                          const date = new Date(e.target.value);
+                          const day = date.getDay();
+                          const diff = date.getDate() - day + (day === 0 ? -6 : 1); 
+                          const monday = new Date(date.setDate(diff));
+                          setSelectedDate(monday.toISOString().split('T')[0]);
+                        }}
+                        className="pl-10 w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-pink-500 outline-none transition-shadow font-medium text-gray-700"
+                      />
+                    </div>
+                    {/* 🆕 BOTÃO DE CARREGAR HORÁRIO EXISTENTE */}
+                    <button 
+                      onClick={handleLoadSchedule}
+                      disabled={isLoadingSchedule}
+                      className="p-3 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 text-gray-600 transition-colors shadow-sm"
+                      title="Ver horário guardado desta semana"
+                    >
+                      {isLoadingSchedule ? (
+                        <div className="w-5 h-5 border-2 border-gray-500 border-t-transparent rounded-full animate-spin"></div>
+                      ) : (
+                        <EyeIcon className="w-6 h-6" />
+                      )}
+                    </button>
                   </div>
                   <div className="mt-3 text-sm text-pink-600 font-medium flex items-center gap-1">
                     <CheckCircleIcon className="w-4 h-4" />
@@ -909,8 +1077,8 @@ export default function GeradorHorariosPage() {
                                     isSelected 
                                       ? 'bg-blue-200 ring-2 ring-blue-500' 
                                       : hasStaff 
-                                        ? '' 
-                                        : 'bg-gray-50/50'
+                                      ? '' 
+                                      : 'bg-gray-50/50'
                                   } ${!isMultiSelectMode ? 'hover:bg-blue-100' : ''}`}
                                 >
                                   {hasStaff ? (

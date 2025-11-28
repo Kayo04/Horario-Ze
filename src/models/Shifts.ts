@@ -6,7 +6,12 @@ const ShiftSchema = new Schema({
   startTime: { type: String, required: true },
   endTime: { type: String, required: true },
   totalHours: { type: Number, required: true },
-}, { timestamps: true });
+}, { 
+  timestamps: true 
+});
+
+// Índice para pesquisas rápidas
+ShiftSchema.index({ employeeCode: 1, date: 1 });
 
 const Shift = models.Shift || model('Shift', ShiftSchema);
 

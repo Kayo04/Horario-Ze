@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import mongoose from 'mongoose';
-import Shift from '@/models/Shifts';
+import Shift from '@/models/Shifts'; // Certifica-te que o nome do ficheiro do modelo é Shifts.ts ou Shift.ts
 
 const MONGODB_URI = process.env.MONGODB_URI;
 
@@ -12,13 +12,17 @@ const connectDB = async () => {
 
 export async function GET(
   req: Request,
-  { params }: { params: { employeeCode: string } }
+  { params }: { params: { employeeCode: string } } // ✅ AQUI: Tem de coincidir com o nome da pasta
 ) {
+  // O Next.js injeta o valor da URL aqui
   const code = params.employeeCode;
 
   try {
     await connectDB();
-    const shifts = await Shift.find({ employeeCode: code }).sort({ date: 1 });
+    
+    // Buscar turnos e ordenar por data (mais recente primeiro)
+    const shifts = await Shift.find({ employeeCode: code }).sort({ date: -1 });
+    
     return NextResponse.json({ shifts });
   } catch (error) {
     console.error("Erro MongoDB:", error);

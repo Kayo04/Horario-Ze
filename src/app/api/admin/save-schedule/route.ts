@@ -14,30 +14,33 @@ export async function POST(req: Request) {
   try {
     await connectDB();
     const body = await req.json();
-    const { shifts } = body; 
+    const { shifts } = body;
 
-    const operations = shifts.map((shift: any) => ({
-      updateOne: {
-        filter: { 
-          employeeCode: shift.employeeCode, 
-          date: shift.date 
-        },
-        update: {
-          $set: {
-            startTime: shift.startTime,
-            endTime: shift.endTime,
-            totalHours: shift.totalHours
-          }
-        },
-        upsert: true
-      }
-    }));
-
-    if (operations.length > 0) {
-      await Shift.bulkWrite(operations);
+    if (!shifts || shifts.length === 0) {
+      return NextResponse.json({ success: false, message: 'Sem turnos para guardar.' }, { status: 400 });
     }
 
-    return NextResponse.json({ success: true, message: 'Guardado com sucesso!' });
+    // 1. Descobrir intervalo de datas (para saber qual semana estamos a atualizar)
+    const sortedShifts = [...shifts].sort((a: any, b: any) => 
+      new Date(a.date).getTime() - new Date(b.date).getTime()
+    );
+    
+    const startDate = sortedShifts[0].date;
+    const endDate = sortedShifts[sortedShifts.length - 1].date;
+
+    // 2. LIMPEZA: Apagar tudo nesse intervalo de datas para reescrever a limpo
+    // Isto garante que se apagaste alguém da escala no frontend, essa pessoa sai da BD.
+    await Shift.deleteMany({
+      date: { $gte: startDate, $lte: endDate }
+    });
+
+    // 3. Inserir os novos dados
+    await Shift.insertMany(shifts);
+
+    return NextResponse.json({ 
+      success: true, 
+      message: 'Horário oficial guardado com sucesso!' 
+    });
 
   } catch (error) {
     console.error("Erro MongoDB:", error);
