@@ -391,126 +391,123 @@ export default function GeradorHorariosPage() {
   };
 
   // 🆕 FUNÇÃO PARA CARREGAR HORÁRIO DA BD
-  // 🆕 FUNÇÃO PARA CARREGAR HORÁRIO DA BD - VERSÃO CORRIGIDA
-// 🆕 FUNÇÃO PARA CARREGAR HORÁRIO DA BD - VERSÃO COMPLETAMENTE CORRIGIDA
-const handleLoadSchedule = async () => {
-  if (!selectedDate) return;
-  setIsLoadingSchedule(true);
-  setSchedule(null);
+  const handleLoadSchedule = async () => {
+    if (!selectedDate) return;
+    setIsLoadingSchedule(true);
+    setSchedule(null);
 
-  try {
-    const start = new Date(selectedDate);
-    const end = new Date(selectedDate);
-    end.setDate(end.getDate() + 6);
-    
-    const startDateStr = start.toISOString().split('T')[0];
-    const endDateStr = end.toISOString().split('T')[0];
-
-    const res = await fetch(`/api/admin/get-weekly-schedule?start=${startDateStr}&end=${endDateStr}`);
-    
-    if (!res.ok) throw new Error("Erro ao buscar dados");
-    
-    const data = await res.json();
-    const shifts = data.shifts || [];
-
-    if (shifts.length === 0) {
-      alert("Não existe nenhum horário guardado para esta semana na base de dados.");
-      setIsLoadingSchedule(false);
-      return;
-    }
-
-    // INICIALIZAÇÃO COMPLETA E SEGURA DA ESTRUTURA
-    const newSchedule: Record<string, Record<string, string[]>> = {};
-    
-    // Garantir que todos os slots e dias existem
-    TIME_SLOTS.forEach(slot => {
-      newSchedule[slot] = {};
-      WEEK_DAYS.forEach(day => {
-        newSchedule[slot][day] = [];
-      });
-    });
-
-    const newStats: Record<string, number> = {};
-    employees.forEach(emp => newStats[emp.id] = 0);
-
-    console.log("Shifts carregados:", shifts); // Debug
-
-    // Processar cada turno
-    shifts.forEach((shift: any) => {
-      try {
-        const shiftDate = new Date(shift.date);
-        const dayIndex = shiftDate.getDay(); 
-        const jsDay = dayIndex === 0 ? 6 : dayIndex - 1; 
-        const dayName = WEEK_DAYS[jsDay];
-
-        if (!dayName) {
-          console.warn("Dia não encontrado para a data:", shift.date);
-          return;
-        }
-
-        const startMin = timeToMin(shift.startTime);
-        const endMin = timeToMin(shift.endTime);
-        const empId = employees.find(e => e.code === shift.employeeCode)?.id;
-
-        if (empId) newStats[empId] = (newStats[empId] || 0) + shift.totalHours;
-
-        console.log(`Processando turno: ${shift.employeeCode} em ${dayName} das ${shift.startTime} às ${shift.endTime}`); // Debug
-
-        // Adicionar o funcionário a todos os slots dentro do turno
-        TIME_SLOTS.forEach((slot, slotIndex) => {
-          const [sStart] = slot.split(' - ');
-          const slotMin = timeToMin(sStart);
-          
-          // Verificar se o slot está dentro do turno
-          if (slotMin >= startMin && slotMin < endMin) {
-            // Verificação EXTRA segura
-            if (newSchedule[slot] && newSchedule[slot][dayName] && Array.isArray(newSchedule[slot][dayName])) {
-              newSchedule[slot][dayName].push(shift.employeeCode);
-            } else {
-              console.warn(`Célula não encontrada: ${slot} - ${dayName}`);
-            }
-          }
-        });
-      } catch (error) {
-        console.error("Erro ao processar turno:", shift, error);
-      }
-    });
-
-    // PROCESSAMENTO FINAL - VERIFICAÇÃO EXTRA ROBUSTA
-    TIME_SLOTS.forEach(slot => {
-      if (!newSchedule[slot]) {
-        console.warn(`Slot não encontrado: ${slot}`);
-        newSchedule[slot] = {};
-      }
+    try {
+      const start = new Date(selectedDate);
+      const end = new Date(selectedDate);
+      end.setDate(end.getDate() + 6);
       
-      WEEK_DAYS.forEach(day => {
-        // Garantir que a célula existe e é um array
-        if (!newSchedule[slot][day] || !Array.isArray(newSchedule[slot][day])) {
-          console.warn(`Célula inválida: ${slot} - ${day}`);
+      const startDateStr = start.toISOString().split('T')[0];
+      const endDateStr = end.toISOString().split('T')[0];
+
+      const res = await fetch(`/api/admin/get-weekly-schedule?start=${startDateStr}&end=${endDateStr}`);
+      
+      if (!res.ok) throw new Error("Erro ao buscar dados");
+      
+      const data = await res.json();
+      const shifts = data.shifts || [];
+
+      if (shifts.length === 0) {
+        alert("Não existe nenhum horário guardado para esta semana na base de dados.");
+        setIsLoadingSchedule(false);
+        return;
+      }
+
+      // INICIALIZAÇÃO COMPLETA E SEGURA DA ESTRUTURA
+      const newSchedule: Record<string, Record<string, string[]>> = {};
+      
+      // Garantir que todos os slots e dias existem
+      TIME_SLOTS.forEach(slot => {
+        newSchedule[slot] = {};
+        WEEK_DAYS.forEach(day => {
           newSchedule[slot][day] = [];
+        });
+      });
+
+      const newStats: Record<string, number> = {};
+      employees.forEach(emp => newStats[emp.id] = 0);
+
+      console.log("Shifts carregados:", shifts); // Debug
+
+      // Processar cada turno
+      shifts.forEach((shift: any) => {
+        try {
+          const shiftDate = new Date(shift.date);
+          const dayIndex = shiftDate.getDay(); 
+          const jsDay = dayIndex === 0 ? 6 : dayIndex - 1; 
+          const dayName = WEEK_DAYS[jsDay];
+
+          if (!dayName) {
+            console.warn("Dia não encontrado para a data:", shift.date);
+            return;
+          }
+
+          const startMin = timeToMin(shift.startTime);
+          const endMin = timeToMin(shift.endTime);
+          const empId = employees.find(e => e.code === shift.employeeCode)?.id;
+
+          if (empId) newStats[empId] = (newStats[empId] || 0) + shift.totalHours;
+
+          // Adicionar o funcionário a todos os slots dentro do turno
+          TIME_SLOTS.forEach((slot, slotIndex) => {
+            const [sStart] = slot.split(' - ');
+            const slotMin = timeToMin(sStart);
+            
+            // Verificar se o slot está dentro do turno
+            if (slotMin >= startMin && slotMin < endMin) {
+              // Verificação EXTRA segura
+              if (newSchedule[slot] && newSchedule[slot][dayName] && Array.isArray(newSchedule[slot][dayName])) {
+                newSchedule[slot][dayName].push(shift.employeeCode);
+              } else {
+                console.warn(`Célula não encontrada: ${slot} - ${dayName}`);
+              }
+            }
+          });
+        } catch (error) {
+          console.error("Erro ao processar turno:", shift, error);
+        }
+      });
+
+      // PROCESSAMENTO FINAL - VERIFICAÇÃO EXTRA ROBUSTA
+      TIME_SLOTS.forEach(slot => {
+        if (!newSchedule[slot]) {
+          console.warn(`Slot não encontrado: ${slot}`);
+          newSchedule[slot] = {};
         }
         
-        // Remover duplicados e ordenar
-        try {
-newSchedule[slot][day] = Array.from(new Set(newSchedule[slot][day])).sort();        } catch (error) {
-          console.error(`Erro ao processar célula ${slot} - ${day}:`, error);
-          newSchedule[slot][day] = [];
-        }
+        WEEK_DAYS.forEach(day => {
+          // Garantir que a célula existe e é um array
+          if (!newSchedule[slot][day] || !Array.isArray(newSchedule[slot][day])) {
+            console.warn(`Célula inválida: ${slot} - ${day}`);
+            newSchedule[slot][day] = [];
+          }
+          
+          // Remover duplicados e ordenar
+          try {
+            newSchedule[slot][day] = Array.from(new Set(newSchedule[slot][day])).sort();
+          } catch (error) {
+            console.error(`Erro ao processar célula ${slot} - ${day}:`, error);
+            newSchedule[slot][day] = [];
+          }
+        });
       });
-    });
 
-    console.log("Schedule final:", newSchedule); // Debug
-    setSchedule(newSchedule);
-    setStats(newStats);
-    alert("Horário carregado com sucesso!");
+      console.log("Schedule final:", newSchedule); // Debug
+      setSchedule(newSchedule);
+      setStats(newStats);
+      alert("Horário carregado com sucesso!");
 
-  } catch (error) {
-    console.error("Erro ao carregar horário:", error);
-    alert("Erro ao carregar horário.");
-  } finally {
-    setIsLoadingSchedule(false);
-  }
-};
+    } catch (error) {
+      console.error("Erro ao carregar horário:", error);
+      alert("Erro ao carregar horário.");
+    } finally {
+      setIsLoadingSchedule(false);
+    }
+  };
 
   // 🆕 FUNÇÃO PARA GUARDAR NA BASE DE DADOS
   const handleSaveToDatabase = async () => {
@@ -666,11 +663,17 @@ newSchedule[slot][day] = Array.from(new Set(newSchedule[slot][day])).sort();    
         const daysReservations = reservations.filter(r => r.date === dateString);
         const isWeekend = dayIdx === 5 || dayIdx === 6; 
 
+        // ✅ LÓGICA DE FIM DE SEMANA ATUALIZADA
         if (isWeekend) {
             TIME_SLOTS.forEach((slot, i) => {
                 const [sStart] = slot.split(' - ');
                 const slotStartMin = timeToMin(sStart);
-                if (slotStartMin >= STORE_OPEN_MIN && slotStartMin < STORE_CLOSE_MIN) {
+                
+                // 20:00 em minutos (20 * 60 = 1200)
+                const WEEKEND_LIMIT_MIN = 20 * 60;
+
+                // Regra: Entre abertura e 20:00 = 3 pessoas (ou mais se houver reservas)
+                if (slotStartMin >= STORE_OPEN_MIN && slotStartMin < WEEKEND_LIMIT_MIN) {
                     demandMap[dateString][i] = 3;
                 }
             });
@@ -697,6 +700,19 @@ newSchedule[slot][day] = Array.from(new Set(newSchedule[slot][day])).sort();    
             });
         });
 
+        // ✅ CORTE FINAL PARA FIM DE SEMANA: DEPOIS DAS 20:00 É ZERO NA GERAÇÃO AUTOMÁTICA
+        if (isWeekend) {
+            const WEEKEND_LIMIT_MIN = 20 * 60;
+            TIME_SLOTS.forEach((slot, i) => {
+                 const [sStart] = slot.split(' - ');
+                 const slotStartMin = timeToMin(sStart);
+                 if (slotStartMin >= WEEKEND_LIMIT_MIN) {
+                     demandMap[dateString][i] = 0; // Força zero, ignora reservas automáticas
+                 }
+            });
+        }
+
+        // Suavização da procura
         for (let i = 0; i < TIME_SLOTS.length; i++) {
             let d = demandMap[dateString][i];
             if (d > 0 && d < 2) demandMap[dateString][i] = 2;
