@@ -1,5 +1,5 @@
 'use client'
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { 
   ArrowLeftIcon, 
   SparklesIcon, 
@@ -86,8 +86,9 @@ export default function GeradorHorariosPage() {
   const [isGenerating, setIsGenerating] = useState(false);
   const [progress, setProgress] = useState(0);
   const [loadingText, setLoadingText] = useState('');
+  
+  // ✅ schedule é a única fonte de verdade
   const [schedule, setSchedule] = useState<Record<string, Record<string, string[]>> | null>(null);
-  const [stats, setStats] = useState<Record<string, number>>({});
   const [weekDates, setWeekDates] = useState<string[]>([]);
 
   // 🆕 ESTADO DE SALVAR E CARREGAR
@@ -98,6 +99,29 @@ export default function GeradorHorariosPage() {
   const [editingCells, setEditingCells] = useState<{slot: string, day: string}[]>([]);
   const [isMultiSelectMode, setIsMultiSelectMode] = useState(false);
   const [selectedCells, setSelectedCells] = useState<{slot: string, day: string}[]>([]);
+
+  // --- CÁLCULO AUTOMÁTICO DE ESTATÍSTICAS (CORREÇÃO DO BUG) ---
+  // Sempre que o 'schedule' muda, isto recalcula do zero. Nunca falha.
+  const stats = useMemo(() => {
+    const newStats: Record<string, number> = {};
+    // Inicializar a 0
+    employees.forEach(emp => newStats[emp.id] = 0);
+
+    if (schedule) {
+      Object.values(schedule).forEach(daySlots => {
+        Object.values(daySlots).forEach(staffList => {
+          staffList.forEach(code => {
+            const emp = employees.find(e => e.code === code);
+            if (emp) {
+              // Cada slot vale 0.5 horas (30 min)
+              newStats[emp.id] = (newStats[emp.id] || 0) + 0.5;
+            }
+          });
+        });
+      });
+    }
+    return newStats;
+  }, [schedule, employees]);
 
   // --- VERIFICAÇÃO DE AUTENTICAÇÃO ---
   useEffect(() => {
@@ -295,8 +319,7 @@ export default function GeradorHorariosPage() {
     if (!schedule || editingCells.length === 0) return;
 
     const newSchedule = { ...schedule };
-    const empId = employees.find(e => e.code === code)?.id;
-
+    
     // Verificar se o funcionário está presente em TODAS as células selecionadas
     const isInAllCells = editingCells.every(cell => 
       newSchedule[cell.slot][cell.day].includes(code)
@@ -308,12 +331,10 @@ export default function GeradorHorariosPage() {
       if (isInAllCells) {
         // Remover de todas as células
         newSchedule[cell.slot][cell.day] = currentStaff.filter(c => c !== code).sort();
-        if (empId) updateStats(empId, -0.5 * editingCells.length);
       } else {
         // Adicionar a todas as células onde não está presente
         if (!currentStaff.includes(code)) {
           newSchedule[cell.slot][cell.day] = [...currentStaff, code].sort();
-          if (empId) updateStats(empId, 0.5);
         }
       }
     });
@@ -326,44 +347,12 @@ export default function GeradorHorariosPage() {
 
     const newSchedule = { ...schedule };
     
-    // Calcular diferença nas horas para estatísticas
-    let totalHoursChange = 0;
     editingCells.forEach(cell => {
-      const oldStaff = newSchedule[cell.slot][cell.day];
       const newStaff = [...codes].sort();
-      
-      // Calcular diferença
-      const added = newStaff.filter(code => !oldStaff.includes(code));
-      const removed = oldStaff.filter(code => !newStaff.includes(code));
-      
-      totalHoursChange += (added.length - removed.length) * 0.5;
-      
       newSchedule[cell.slot][cell.day] = newStaff;
     });
 
-    // Atualizar estatísticas de forma justa
-    if (totalHoursChange !== 0) {
-      const affectedEmps = employees.filter(emp => 
-        codes.includes(emp.code) || 
-        editingCells.some(cell => schedule[cell.slot][cell.day].includes(emp.code))
-      );
-      
-      if (affectedEmps.length > 0) {
-        const changePerEmp = totalHoursChange / affectedEmps.length;
-        affectedEmps.forEach(emp => {
-          updateStats(emp.id, changePerEmp);
-        });
-      }
-    }
-
     setSchedule(newSchedule);
-  };
-
-  const updateStats = (empId: string, delta: number) => {
-    setStats(prev => ({
-      ...prev,
-      [empId]: Math.max(0, (prev[empId] || 0) + delta)
-    }));
   };
 
   // --- EXPORTAR EXCEL ---
@@ -428,9 +417,6 @@ export default function GeradorHorariosPage() {
         });
       });
 
-      const newStats: Record<string, number> = {};
-      employees.forEach(emp => newStats[emp.id] = 0);
-
       console.log("Shifts carregados:", shifts); // Debug
 
       // Processar cada turno
@@ -448,9 +434,6 @@ export default function GeradorHorariosPage() {
 
           const startMin = timeToMin(shift.startTime);
           const endMin = timeToMin(shift.endTime);
-          const empId = employees.find(e => e.code === shift.employeeCode)?.id;
-
-          if (empId) newStats[empId] = (newStats[empId] || 0) + shift.totalHours;
 
           // Adicionar o funcionário a todos os slots dentro do turno
           TIME_SLOTS.forEach((slot, slotIndex) => {
@@ -498,7 +481,6 @@ export default function GeradorHorariosPage() {
 
       console.log("Schedule final:", newSchedule); // Debug
       setSchedule(newSchedule);
-      setStats(newStats);
       alert("Horário carregado com sucesso!");
 
     } catch (error) {
@@ -851,7 +833,7 @@ export default function GeradorHorariosPage() {
         });
     });
 
-    setStats(employeeHours);
+    // setStats(employeeHours); // REMOVIDO: stats agora são calculados automaticamente
     setSchedule(newSchedule);
     setIsGenerating(false);
   };
