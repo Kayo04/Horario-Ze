@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import mongoose from 'mongoose';
-import Shift from '@/models/Shifts'; // Certifica-te que o nome do ficheiro do modelo é Shifts.ts ou Shift.ts
+import Shifts from '@/models/Shifts'; // Mantido 'Shifts' para consistência com o outro ficheiro
 
 const MONGODB_URI = process.env.MONGODB_URI;
 
@@ -10,22 +10,26 @@ const connectDB = async () => {
   return mongoose.connect(MONGODB_URI);
 };
 
+// Next.js 15: params é uma Promise, por isso usamos 'props' e fazemos await
 export async function GET(
   req: Request,
-  { params }: { params: { employeeCode: string } } // ✅ AQUI: Tem de coincidir com o nome da pasta
+  props: { params: Promise<{ employeeCode: string }> }
 ) {
-  // O Next.js injeta o valor da URL aqui
-  const code = params.employeeCode;
-
   try {
+    // AWAIT é obrigatório no Next.js 15 para params dinâmicos
+    const params = await props.params;
+    const code = params.employeeCode;
+
     await connectDB();
     
     // Buscar turnos e ordenar por data (mais recente primeiro)
-    const shifts = await Shift.find({ employeeCode: code }).sort({ date: -1 });
+    // Nota: Certifica-te que o campo na BD é 'employeeCode' ou apenas 'code'
+    // Se o modelo user 'code', muda para: { code: code }
+    const shifts = await Shifts.find({ employeeCode: code }).sort({ date: -1 });
     
     return NextResponse.json({ shifts });
   } catch (error) {
-    console.error("Erro MongoDB:", error);
-    return NextResponse.json({ shifts: [] }, { status: 500 });
+    console.error("Erro MongoDB ao buscar turnos:", error);
+    return NextResponse.json({ shifts: [], error: 'Erro ao buscar turnos' }, { status: 500 });
   }
 }

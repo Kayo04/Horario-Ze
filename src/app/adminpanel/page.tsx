@@ -8,9 +8,10 @@ import {
   ChartBarIcon, 
   CalendarIcon,
   UserGroupIcon,
-  PencilSquareIcon, // Ícone Editar
-  TrashIcon,        // Ícone Apagar
-  XMarkIcon         // Ícone Fechar
+  PencilSquareIcon,
+  TrashIcon,
+  XMarkIcon,
+  CheckCircleIcon
 } from '@heroicons/react/24/outline'
 
 // --- INTERFACES ---
@@ -23,7 +24,7 @@ interface TimeSlot {
 }
 
 interface WorkShift {
-  _id: string // MongoDB usa _id
+  _id: string
   date: string
   startTime: string
   endTime: string
@@ -39,6 +40,8 @@ interface Employee {
 
 const weekdays = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom']
 const monthNames = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro']
+const HOURS_24 = Array.from({ length: 24 }, (_, i) => i.toString().padStart(2, '0'));
+const MINUTES_STEP = ['00', '05', '10', '15', '20', '25', '30', '35', '40', '45', '50', '55'];
 
 // --- HELPERS ---
 const getInitials = (name: string) => name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
@@ -56,7 +59,7 @@ const getCalendarGrid = (date: Date) => {
 }
 
 const sumHours = (shifts: WorkShift[]) => {
-  return shifts.reduce((acc, shift) => acc + shift.totalHours, 0)
+  return shifts.reduce((acc, shift) => acc + (shift.totalHours || 0), 0)
 }
 
 const getWeekRange = (dateStr: string) => {
@@ -68,6 +71,20 @@ const getWeekRange = (dateStr: string) => {
   const sunday = new Date(monday)
   sunday.setDate(monday.getDate() + 6); sunday.setHours(23,59,59,999)
   return { start: monday, end: sunday }
+}
+
+const cleanTimeFormat = (timeStr: string): string => {
+    if (!timeStr) return '09:00';
+    if (/^([01]?[0-9]|2[0-3]):[0-5][0-9]$/.test(timeStr)) return timeStr;
+    const match = timeStr.match(/(\d+):(\d+)\s*(AM|PM|am|pm)?/i);
+    if (match) {
+        let [_, h, m, period] = match;
+        let hour = parseInt(h);
+        if (period?.toUpperCase() === 'PM' && hour < 12) hour += 12;
+        if (period?.toUpperCase() === 'AM' && hour === 12) hour = 0;
+        return `${hour.toString().padStart(2, '0')}:${m}`;
+    }
+    return timeStr;
 }
 
 export default function AdminPanelPage() {
@@ -91,10 +108,15 @@ export default function AdminPanelPage() {
   const [workShifts, setWorkShifts] = useState<WorkShift[]>([])
   const [isLoadingPerformance, setIsLoadingPerformance] = useState(false)
 
+  // SELEÇÃO MÚLTIPLA
+  const [selectedShiftIds, setSelectedShiftIds] = useState<string[]>([])
+
   // ESTADOS DE EDIÇÃO
   const [editingShift, setEditingShift] = useState<WorkShift | null>(null)
-  const [editStartTime, setEditStartTime] = useState('')
-  const [editEndTime, setEditEndTime] = useState('')
+  const [editStartH, setEditStartH] = useState('09')
+  const [editStartM, setEditStartM] = useState('00')
+  const [editEndH, setEditEndH] = useState('18')
+  const [editEndM, setEditEndM] = useState('00')
 
   // 1. AUTH
   useEffect(() => {
@@ -131,9 +153,8 @@ export default function AdminPanelPage() {
 
   // 3. CARREGAR DADOS
   const loadData = () => {
+    setSelectedShiftIds([]); // Limpar seleções ao mudar de dados
     if (!selectedEmployeeId) { setTimeSlots([]); setWorkShifts([]); setSelectedDate(null); return; }
-    
-    // Não limpar selectedDate aqui para não perder o foco se estivermos a editar
     
     if (activeTab === 'availability') {
         setIsLoadingSlots(true);
@@ -150,7 +171,12 @@ export default function AdminPanelPage() {
             fetch(`/api/admin/shifts/${selectedEmployeeCode}`)
               .then(res => res.json())
               .then(data => {
-                 setWorkShifts(data.shifts || []);
+                 const convertedShifts = data.shifts?.map((shift: any) => ({
+                   ...shift,
+                   startTime: cleanTimeFormat(shift.startTime),
+                   endTime: cleanTimeFormat(shift.endTime)
+                 })) || [];
+                 setWorkShifts(convertedShifts);
                  setIsLoadingPerformance(false);
               })
               .catch(() => setIsLoadingPerformance(false));
@@ -164,63 +190,122 @@ export default function AdminPanelPage() {
     loadData();
   }, [selectedEmployeeId, activeTab, selectedEmployeeCode]);
 
-  // --- AÇÕES DE EDIÇÃO E APAGAR ---
+  // --- LÓGICA DE SELEÇÃO MÚLTIPLA ---
+  const toggleSelectShift = (id: string) => {
+    setSelectedShiftIds(prev => 
+      prev.includes(id) ? prev.filter(sid => sid !== id) : [...prev, id]
+    );
+  }
+
+  const handleBulkDelete = async () => {
+    if (selectedShiftIds.length === 0) return;
+    if (!confirm(`Tem a certeza que quer apagar ${selectedShiftIds.length} turnos selecionados?`)) return;
+
+    try {
+        const idsString = selectedShiftIds.join(',');
+        console.log(`Apagando em massa: ${idsString}`);
+        
+        const res = await fetch(`/api/admin/shifts?ids=${idsString}`, { method: 'DELETE' });
+        
+        const contentType = res.headers.get("content-type");
+        let data;
+        if (contentType && contentType.includes("application/json")) {
+            data = await res.json();
+        } else {
+            const text = await res.text();
+            throw new Error(`Erro ${res.status}: Servidor não respondeu JSON.`);
+        }
+
+        if (res.ok && data.success) {
+            setWorkShifts(prev => prev.filter(s => !selectedShiftIds.includes(s._id)));
+            setSelectedShiftIds([]);
+            alert("Turnos apagados com sucesso!");
+        } else {
+            alert(data.error || "Erro ao apagar.");
+        }
+    } catch (e: any) {
+        alert(`Erro: ${e.message}`);
+    }
+  }
+
+  // --- AÇÕES INDIVIDUAIS ---
 
   const handleDeleteShift = async (id: string) => {
+    if (!id) return;
     if (!confirm("Tem a certeza que quer apagar este turno?")) return;
 
     try {
-        const res = await fetch('/api/admin/shift', {
-            method: 'DELETE',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({ id })
-        });
-        if (res.ok) {
-            // Atualizar localmente ou recarregar
-            setWorkShifts(prev => prev.filter(s => s._id !== id));
-            alert("Turno apagado.");
+        const res = await fetch(`/api/admin/shifts?id=${id}`, { method: 'DELETE' });
+        
+        const contentType = res.headers.get("content-type");
+        let data;
+        if (contentType && contentType.includes("application/json")) {
+            data = await res.json();
         } else {
-            alert("Erro ao apagar.");
+            throw new Error(`Erro ${res.status}`);
         }
-    } catch (e) {
-        alert("Erro de conexão.");
+        
+        if (res.ok && data.success) {
+            setWorkShifts(prev => prev.filter(s => s._id !== id));
+            // alert("Turno apagado com sucesso."); // Feedback visual suficiente, opcional alert
+        } else {
+            alert(data.error || "Erro ao apagar.");
+        }
+    } catch (e: any) {
+        alert(`Erro: ${e.message}`);
     }
   }
 
   const openEditModal = (shift: WorkShift) => {
     setEditingShift(shift);
-    setEditStartTime(shift.startTime);
-    setEditEndTime(shift.endTime);
+    const start = cleanTimeFormat(shift.startTime);
+    const end = cleanTimeFormat(shift.endTime);
+    const [sh, sm] = start.split(':');
+    const [eh, em] = end.split(':');
+    setEditStartH(sh || '09');
+    setEditStartM(sm || '00');
+    setEditEndH(eh || '18');
+    setEditEndM(em || '00');
   }
 
   const handleSaveEdit = async () => {
-    if (!editingShift) return;
+    if (!editingShift || !editingShift._id) return;
+
+    const finalStart = `${editStartH}:${editStartM}`;
+    const finalEnd = `${editEndH}:${editEndM}`;
 
     try {
-        const res = await fetch('/api/admin/shift', {
-            method: 'PUT',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({ 
-                id: editingShift._id,
-                startTime: editStartTime,
-                endTime: editEndTime
-            })
-        });
+      const res = await fetch('/api/admin/shifts', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          id: editingShift._id,
+          startTime: finalStart,
+          endTime: finalEnd
+        })
+      });
 
-        if (res.ok) {
-            alert("Turno atualizado!");
-            setEditingShift(null);
-            loadData(); // Recarrega os dados para atualizar totais
-        } else {
-            alert("Erro ao atualizar.");
-        }
-    } catch (e) {
-        alert("Erro de conexão.");
+      const contentType = res.headers.get("content-type");
+      let data;
+      if (contentType && contentType.includes("application/json")) {
+          data = await res.json();
+      } else {
+          throw new Error(`Erro ${res.status}`);
+      }
+
+      if (res.ok && data.success) {
+        setEditingShift(null);
+        alert("Horário atualizado com sucesso!");
+        loadData();
+      } else {
+        alert(data.error || "Erro ao atualizar.");
+      }
+    } catch (e: any) {
+      alert(`Erro: ${e.message}`);
     }
   }
 
-
-  // --- HELPERS ---
+  // --- RENDER ---
   const calendarGridDays = getCalendarGrid(currentMonth)
   const previousMonth = () => { setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1, 1)); setSelectedDate(null); }
   const nextMonth = () => { setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 1)); setSelectedDate(null); }
@@ -286,7 +371,7 @@ export default function AdminPanelPage() {
         
         {(isLoadingSlots || isLoadingPerformance) && <div className="text-center p-10">A carregar dados...</div>}
 
-        {/* ABA DISPONIBILIDADE (Mantida) */}
+        {/* ABA DISPONIBILIDADE */}
         {selectedEmployeeId && activeTab === 'availability' && !isLoadingSlots && (
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 animate-in fade-in">
             <div className="lg:col-span-2 bg-white p-3 sm:p-6 rounded-lg shadow-md">
@@ -342,19 +427,19 @@ export default function AdminPanelPage() {
                 <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
                     <div className={`bg-white p-5 rounded-xl border ${selectedDate ? 'border-indigo-500 bg-indigo-50' : ''}`}>
                         <div className="text-sm text-gray-500 font-bold mb-1 flex items-center gap-2"><ClockIcon className="w-4 h-4"/> {selectedDate ? 'Dia Selecionado' : 'Hoje'}</div>
-                        <div className="text-3xl font-bold text-gray-800">{stats.hoursToday}h</div>
+                        <div className="text-3xl font-bold text-gray-800">{stats.hoursToday.toFixed(1)}h</div>
                     </div>
                     <div className="bg-white p-5 rounded-xl border">
                         <div className="text-sm text-gray-500 font-bold mb-1 flex items-center gap-2"><CalendarDaysIcon className="w-4 h-4"/> Esta Semana</div>
-                        <div className="text-3xl font-bold text-gray-800">{stats.hoursWeek}h</div>
+                        <div className="text-3xl font-bold text-gray-800">{stats.hoursWeek.toFixed(1)}h</div>
                     </div>
                     <div className="bg-white p-5 rounded-xl border">
                         <div className="text-sm text-gray-500 font-bold mb-1 flex items-center gap-2"><CalendarIcon className="w-4 h-4"/> Mês Atual</div>
-                        <div className="text-3xl font-bold text-gray-800">{stats.hoursMonth}h</div>
+                        <div className="text-3xl font-bold text-gray-800">{stats.hoursMonth.toFixed(1)}h</div>
                     </div>
                     <div className="bg-white p-5 rounded-xl border">
                         <div className="text-sm text-gray-500 font-bold mb-1 flex items-center gap-2"><ChartBarIcon className="w-4 h-4"/> Ano {currentMonth.getFullYear()}</div>
-                        <div className="text-3xl font-bold text-gray-800">{stats.hoursYear}h</div>
+                        <div className="text-3xl font-bold text-gray-800">{stats.hoursYear.toFixed(1)}h</div>
                     </div>
                 </div>
 
@@ -380,7 +465,9 @@ export default function AdminPanelPage() {
                                         <span className={`font-bold text-sm ${isSelected ? 'text-indigo-700' : 'text-gray-700'}`}>{day.getDate()}</span>
                                         <div className="w-full flex flex-col gap-1">
                                             {shifts.map((s, i) => (
-                                                <span key={i} className="text-[10px] bg-blue-100 text-blue-800 px-1.5 py-0.5 rounded font-bold w-full text-left truncate">{s.startTime}-{s.endTime}</span>
+                                                <span key={i} className="text-[10px] bg-blue-100 text-blue-800 px-1.5 py-0.5 rounded font-bold w-full text-left truncate">
+                                                  {s.startTime}-{s.endTime}
+                                                </span>
                                             ))}
                                         </div>
                                     </button>
@@ -389,29 +476,55 @@ export default function AdminPanelPage() {
                         </div>
                     </div>
 
-                    {/* DETALHES DA PERFORMANCE (COM EDITAR/APAGAR) */}
                     <div className="bg-white p-6 rounded-xl shadow border h-fit">
-                        <h3 className="font-bold border-b pb-2 mb-4 text-lg">{selectedDate ? formatDetailDate(selectedDate) : 'Detalhes do Turno'}</h3>
+                        <div className="flex justify-between items-center border-b pb-2 mb-4">
+                            <h3 className="font-bold text-lg">{selectedDate ? formatDetailDate(selectedDate) : 'Detalhes do Turno'}</h3>
+                            {/* BOTÃO DE APAGAR MÚLTIPLOS */}
+                            {selectedShiftIds.length > 0 && (
+                                <button 
+                                    onClick={handleBulkDelete}
+                                    className="text-xs bg-red-100 text-red-600 px-3 py-1 rounded-full font-bold hover:bg-red-200 transition-colors animate-in fade-in"
+                                >
+                                    Apagar {selectedShiftIds.length} selecionados
+                                </button>
+                            )}
+                        </div>
+                        
                         {selectedDate && (
                             <div>
                                 {workShifts.filter(s => s.date === selectedDate).length === 0 ? 
                                     <div className="text-center py-8 text-gray-400"><ClockIcon className="w-10 h-10 mx-auto mb-2 opacity-20"/><p>Sem turnos registados.</p></div> 
                                 : 
-                                workShifts.filter(s => s.date === selectedDate).map((s, i) => (
-                                    <div key={i} className="bg-blue-50 p-4 rounded-lg mb-3 border border-blue-100 shadow-sm relative group">
-                                        <div className="flex justify-between items-center mb-2">
-                                            <span className="text-xs font-bold text-blue-400 uppercase tracking-wider">Turno</span>
-                                            <span className="bg-white text-blue-600 text-xs font-bold px-2 py-1 rounded shadow-sm">{s.totalHours} Horas</span>
+                                workShifts.filter(s => s.date === selectedDate).map((s, i) => {
+                                    const isSelected = selectedShiftIds.includes(s._id);
+                                    return (
+                                        <div key={i} className={`p-4 rounded-lg mb-3 border shadow-sm relative group transition-all cursor-pointer ${isSelected ? 'bg-blue-100 border-blue-300' : 'bg-blue-50 border-blue-100'}`} onClick={() => toggleSelectShift(s._id)}>
+                                            <div className="flex justify-between items-center mb-2">
+                                                <div className="flex items-center gap-2">
+                                                    {/* CHECKBOX */}
+                                                    <div className={`w-5 h-5 rounded border flex items-center justify-center ${isSelected ? 'bg-blue-500 border-blue-500' : 'bg-white border-gray-300'}`}>
+                                                        {isSelected && <CheckCircleIcon className="w-4 h-4 text-white"/>}
+                                                    </div>
+                                                    <span className="text-xs font-bold text-blue-400 uppercase tracking-wider">Turno</span>
+                                                </div>
+                                                <span className="bg-white text-blue-600 text-xs font-bold px-2 py-1 rounded shadow-sm">{s.totalHours.toFixed(2)} Horas</span>
+                                            </div>
+                                            <div className="flex items-center gap-2 text-blue-900 font-bold text-lg pl-7">
+                                              <ClockIcon className="w-5 h-5"/> 
+                                              {s.startTime} - {s.endTime}
+                                            </div>
+                                            
+                                            <div className="mt-3 pt-2 border-t border-blue-200 flex justify-end gap-2" onClick={e => e.stopPropagation()}>
+                                                <button onClick={() => openEditModal(s)} className="p-1.5 bg-white text-blue-600 rounded hover:bg-blue-100 transition-colors" title="Editar">
+                                                  <PencilSquareIcon className="w-4 h-4"/>
+                                                </button>
+                                                <button onClick={() => handleDeleteShift(s._id)} className="p-1.5 bg-white text-red-600 rounded hover:bg-red-100 transition-colors" title="Apagar">
+                                                  <TrashIcon className="w-4 h-4"/>
+                                                </button>
+                                            </div>
                                         </div>
-                                        <div className="flex items-center gap-2 text-blue-900 font-bold text-lg"><ClockIcon className="w-5 h-5"/> {s.startTime} - {s.endTime}</div>
-                                        
-                                        {/* 🆕 BOTÕES DE AÇÃO */}
-                                        <div className="mt-3 pt-2 border-t border-blue-100 flex justify-end gap-2">
-                                            <button onClick={() => openEditModal(s)} className="p-1.5 bg-white text-blue-600 rounded hover:bg-blue-100" title="Editar"><PencilSquareIcon className="w-4 h-4"/></button>
-                                            <button onClick={() => handleDeleteShift(s._id)} className="p-1.5 bg-white text-red-600 rounded hover:bg-red-100" title="Apagar"><TrashIcon className="w-4 h-4"/></button>
-                                        </div>
-                                    </div>
-                                ))}
+                                    );
+                                })}
                             </div>
                         )}
                         {!selectedDate && <p className="text-gray-500 text-center py-10">Selecione um dia para ver as horas trabalhadas.</p>}
@@ -421,26 +534,51 @@ export default function AdminPanelPage() {
         )}
       </div>
 
-      {/* MODAL DE EDIÇÃO */}
+      {/* MODAL DE EDIÇÃO COM SELECTS */}
       {editingShift && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 animate-in fade-in duration-200">
             <div className="bg-white rounded-xl shadow-xl w-full max-w-sm p-6">
-                <div className="flex justify-between items-center mb-4">
-                    <h3 className="text-lg font-bold">Editar Turno</h3>
-                    <button onClick={() => setEditingShift(null)}><XMarkIcon className="w-6 h-6 text-gray-500"/></button>
+                <div className="flex justify-between items-center mb-6">
+                    <h3 className="text-lg font-bold">Editar Horário</h3>
+                    <button onClick={() => setEditingShift(null)}>
+                      <XMarkIcon className="w-6 h-6 text-gray-500"/>
+                    </button>
                 </div>
-                <div className="space-y-4">
+                
+                <div className="space-y-6">
                     <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Início</label>
-                        <input type="time" value={editStartTime} onChange={e => setEditStartTime(e.target.value)} className="w-full border rounded p-2"/>
+                        <label className="block text-xs font-bold text-gray-500 uppercase mb-2">Hora de Início</label>
+                        <div className="flex gap-2">
+                            <select value={editStartH} onChange={e => setEditStartH(e.target.value)} className="w-full p-2 border rounded font-mono text-lg bg-gray-50">
+                                {HOURS_24.map(h => <option key={h} value={h}>{h}</option>)}
+                            </select>
+                            <span className="text-2xl text-gray-300">:</span>
+                            <select value={editStartM} onChange={e => setEditStartM(e.target.value)} className="w-full p-2 border rounded font-mono text-lg bg-gray-50">
+                                {MINUTES_STEP.map(m => <option key={m} value={m}>{m}</option>)}
+                            </select>
+                        </div>
                     </div>
+
                     <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Fim</label>
-                        <input type="time" value={editEndTime} onChange={e => setEditEndTime(e.target.value)} className="w-full border rounded p-2"/>
+                        <label className="block text-xs font-bold text-gray-500 uppercase mb-2">Hora de Fim</label>
+                        <div className="flex gap-2">
+                            <select value={editEndH} onChange={e => setEditEndH(e.target.value)} className="w-full p-2 border rounded font-mono text-lg bg-gray-50">
+                                {HOURS_24.map(h => <option key={h} value={h}>{h}</option>)}
+                            </select>
+                            <span className="text-2xl text-gray-300">:</span>
+                            <select value={editEndM} onChange={e => setEditEndM(e.target.value)} className="w-full p-2 border rounded font-mono text-lg bg-gray-50">
+                                {MINUTES_STEP.map(m => <option key={m} value={m}>{m}</option>)}
+                            </select>
+                        </div>
                     </div>
-                    <div className="flex gap-2 mt-6">
-                        <button onClick={() => setEditingShift(null)} className="flex-1 py-2 border rounded text-gray-600 hover:bg-gray-50">Cancelar</button>
-                        <button onClick={handleSaveEdit} className="flex-1 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">Guardar</button>
+
+                    <div className="flex gap-3 mt-6 pt-4 border-t">
+                        <button onClick={() => setEditingShift(null)} className="flex-1 py-2.5 border rounded-lg text-gray-600 font-medium hover:bg-gray-50">
+                          Cancelar
+                        </button>
+                        <button onClick={handleSaveEdit} className="flex-1 py-2.5 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 shadow-sm">
+                          Guardar Alterações
+                        </button>
                     </div>
                 </div>
             </div>
