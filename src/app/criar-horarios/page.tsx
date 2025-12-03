@@ -1,5 +1,5 @@
 'use client'
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { 
   ArrowLeftIcon, 
   SparklesIcon, 
@@ -13,38 +13,62 @@ import {
   Squares2X2Icon,
   ShieldExclamationIcon,
   CloudArrowUpIcon,
-  EyeIcon
+  EyeIcon,
+  ExclamationTriangleIcon,
+  InformationCircleIcon,
+  DocumentArrowDownIcon,
+  DocumentArrowUpIcon,
+  XCircleIcon,
+  ChevronLeftIcon,
+  ChevronRightIcon
 } from '@heroicons/react/24/outline';
 
-// ✅ MOCK DO LINK
-const Link = ({ href, children, className }: { href: string, children: React.ReactNode, className?: string }) => (
+// ✅ MOCK DO LINK (Mantido para compatibilidade com o teu projeto)
+const Link = ({ href, children, className }: { href: string; children: React.ReactNode; className?: string }) => (
   <a href={href} className={className}>
     {children}
   </a>
 );
 
 // --- TIPOS ---
-type UnavailableWeekday = { day: number; start: string; end: string }
-type UnavailableSlot = { date: string; type: 'unavailable'; allDay?: boolean; startTime?: string; endTime?: string }
+type UnavailableWeekday = { day: number; start: string; end: string };
+type UnavailableSlot = { date: string; type: 'unavailable'; allDay?: boolean; startTime?: string; endTime?: string };
 
 type Employee = {
-  id: string
-  name: string
-  code: string
-  role: 'admin' | 'employee'
+  id: string;
+  name: string;
+  code: string;
+  role: 'admin' | 'employee';
   unavailable?: {
-    weekdays: UnavailableWeekday[]
-    specificDates: UnavailableSlot[]
-  }
-}
+    weekdays: UnavailableWeekday[];
+    specificDates: UnavailableSlot[];
+  };
+};
 
 type Reservation = {
-  id: string
-  date: string
-  startTime: string
-  endTime: string
-  people: number
-}
+  id: string;
+  date: string;
+  startTime: string;
+  endTime: string;
+  people: number;
+};
+
+type Schedule = Record<string, Record<string, string[]>>;
+
+type NotificationType = {
+  show: boolean;
+  message: string;
+  type: 'success' | 'error' | 'info';
+};
+
+type SavePromptType = {
+  show: boolean;
+  title: string;
+  message: string;
+  onSave?: () => void;
+  onDiscard?: () => void;
+  onCancel?: () => void;
+};
 
 // --- CONFIGURAÇÃO ---
 const TIME_SLOTS = [
@@ -60,11 +84,258 @@ const TIME_SLOTS = [
 
 const WEEK_DAYS = ['Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado', 'Domingo'];
 
-const STORE_OPEN_MIN = 9 * 60 + 30; 
-const STORE_CLOSE_MIN = 24 * 60; 
-const MAX_DAILY_HOURS = 6; 
-const MIN_SHIFT_SLOTS = 4; 
-const MAX_SHIFT_SLOTS = 12; 
+// --- FUNÇÕES HELPER PARA DATAS ---
+const formatDateToEuropean = (date: Date): string => {
+  const day = String(date.getDate()).padStart(2, '0');
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const year = date.getFullYear();
+  return `${day}/${month}/${year}`;
+};
+
+const formatDateToInput = (date: Date): string => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
+// --- COMPONENTE SELETOR DE DATA EM PORTUGUÊS ---
+const PortugueseDatePicker = ({ 
+  selectedDate, 
+  onDateChange 
+}: { 
+  selectedDate: string; 
+  onDateChange: (date: string) => void;
+}) => {
+  const [showPicker, setShowPicker] = useState(false);
+  const [currentMonth, setCurrentMonth] = useState(new Date());
+  
+  const selectedDateObj = useMemo(() => 
+    selectedDate ? new Date(selectedDate) : new Date()
+  , [selectedDate]);
+  
+  const daysInMonth = useMemo(() => {
+    const year = currentMonth.getFullYear();
+    const month = currentMonth.getMonth();
+    return new Date(year, month + 1, 0).getDate();
+  }, [currentMonth]);
+  
+  const firstDayOfMonth = useMemo(() => {
+    const year = currentMonth.getFullYear();
+    const month = currentMonth.getMonth();
+    const firstDay = new Date(year, month, 1);
+    // Ajustar para Segunda-feira como primeiro dia da semana
+    let day = firstDay.getDay();
+    if (day === 0) day = 6; // Domingo vira 6
+    else day -= 1; // Segunda=0, Terça=1, etc.
+    return day;
+  }, [currentMonth]);
+  
+  const monthNames = [
+    'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
+    'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'
+  ];
+  
+  const dayNames = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom'];
+  
+  const generateDays = () => {
+    const days = [];
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    // Dias do mês anterior (para preencher o início)
+    const prevMonth = new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1, 1);
+    const daysInPrevMonth = new Date(prevMonth.getFullYear(), prevMonth.getMonth() + 1, 0).getDate();
+    
+    for (let i = firstDayOfMonth - 1; i >= 0; i--) {
+      const date = new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1, daysInPrevMonth - i);
+      date.setHours(0, 0, 0, 0);
+      days.push({
+        date,
+        isCurrentMonth: false,
+        isToday: date.getTime() === today.getTime(),
+        isSelected: date.toISOString().split('T')[0] === selectedDate
+      });
+    }
+    
+    // Dias do mês atual
+    for (let i = 1; i <= daysInMonth; i++) {
+      const date = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), i);
+      date.setHours(0, 0, 0, 0);
+      days.push({
+        date,
+        isCurrentMonth: true,
+        isToday: date.getTime() === today.getTime(),
+        isSelected: date.toISOString().split('T')[0] === selectedDate
+      });
+    }
+    
+    // Dias do próximo mês (para completar a grade)
+    const totalCells = 42; // 6 semanas * 7 dias
+    const nextMonthDays = totalCells - days.length;
+    
+    for (let i = 1; i <= nextMonthDays; i++) {
+      const date = new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, i);
+      date.setHours(0, 0, 0, 0);
+      days.push({
+        date,
+        isCurrentMonth: false,
+        isToday: date.getTime() === today.getTime(),
+        isSelected: date.toISOString().split('T')[0] === selectedDate
+      });
+    }
+    
+    return days;
+  };
+  
+  const handleDayClick = (date: Date) => {
+    const day = date.getDay();
+    const diff = date.getDate() - day + (day === 0 ? -6 : 1);
+    const monday = new Date(date);
+    monday.setDate(diff);
+    onDateChange(formatDateToInput(monday));
+    setShowPicker(false);
+  };
+  
+  const goToPreviousMonth = () => {
+    setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1, 1));
+  };
+  
+  const goToNextMonth = () => {
+    setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 1));
+  };
+  
+  const goToToday = () => {
+    const today = new Date();
+    const day = today.getDay();
+    const diff = today.getDate() - day + (day === 0 ? -6 : 1);
+    const monday = new Date(today);
+    monday.setDate(diff);
+    onDateChange(formatDateToInput(monday));
+    setCurrentMonth(new Date(monday.getFullYear(), monday.getMonth(), 1));
+    setShowPicker(false);
+  };
+
+  const handleDateInput = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    // Tentar parsear a data no formato DD/MM/YYYY
+    const parts = value.split('/');
+    if (parts.length === 3) {
+      const day = parseInt(parts[0], 10);
+      const month = parseInt(parts[1], 10) - 1;
+      const year = parseInt(parts[2], 10);
+      
+      if (!isNaN(day) && !isNaN(month) && !isNaN(year)) {
+        const date = new Date(year, month, day);
+        if (!isNaN(date.getTime())) {
+          const dayOfWeek = date.getDay();
+          const diff = date.getDate() - dayOfWeek + (dayOfWeek === 0 ? -6 : 1);
+          const monday = new Date(date);
+          monday.setDate(diff);
+          onDateChange(formatDateToInput(monday));
+          setCurrentMonth(new Date(year, month, 1));
+        }
+      }
+    }
+  };
+
+  return (
+    <div className="relative">
+      <div className="relative">
+        <CalendarDaysIcon className="absolute left-3 top-3 w-5 h-5 text-gray-400" />
+        <input 
+          type="text"
+          value={selectedDate ? formatDateToEuropean(selectedDateObj) : ''}
+          onChange={handleDateInput}
+          onClick={() => setShowPicker(true)}
+          className="pl-10 w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-pink-500 outline-none transition-shadow font-medium text-gray-700 bg-white cursor-pointer"
+          placeholder="DD/MM/AAAA"
+          pattern="\d{2}/\d{2}/\d{4}"
+        />
+        <button 
+          onClick={() => setShowPicker(!showPicker)}
+          className="absolute right-3 top-3"
+        >
+          <CalendarDaysIcon className="w-5 h-5 text-gray-500" />
+        </button>
+      </div>
+      
+      {showPicker && (
+        <>
+          <div 
+            className="fixed inset-0 z-40" 
+            onClick={() => setShowPicker(false)}
+          />
+          <div className="absolute top-full left-0 mt-2 z-50 bg-white rounded-lg shadow-xl border border-gray-200 p-4 w-80">
+            {/* Cabeçalho do calendário */}
+            <div className="flex items-center justify-between mb-4">
+              <button 
+                onClick={goToPreviousMonth}
+                className="p-2 hover:bg-gray-100 rounded-lg"
+              >
+                <ChevronLeftIcon className="w-5 h-5 text-gray-600" />
+              </button>
+              
+              <div className="text-center">
+                <div className="font-bold text-lg text-gray-800">
+                  {monthNames[currentMonth.getMonth()]} {currentMonth.getFullYear()}
+                </div>
+                <div className="text-sm text-gray-500">
+                  Segunda-feira: {formatDateToEuropean(selectedDateObj)}
+                </div>
+              </div>
+              
+              <button 
+                onClick={goToNextMonth}
+                className="p-2 hover:bg-gray-100 rounded-lg"
+              >
+                <ChevronRightIcon className="w-5 h-5 text-gray-600" />
+              </button>
+            </div>
+            
+            {/* Dias da semana */}
+            <div className="grid grid-cols-7 gap-1 mb-2">
+              {dayNames.map(day => (
+                <div key={day} className="text-center text-sm font-medium text-gray-500 p-2">
+                  {day}
+                </div>
+              ))}
+            </div>
+            
+            {/* Dias do mês */}
+            <div className="grid grid-cols-7 gap-1">
+              {generateDays().map((day, index) => (
+                <button
+                  key={index}
+                  onClick={() => handleDayClick(day.date)}
+                  className={`
+                    h-9 rounded-lg text-sm font-medium transition-colors
+                    ${day.isCurrentMonth ? 'text-gray-800' : 'text-gray-400'}
+                    ${day.isToday ? 'bg-blue-50 border border-blue-200' : ''}
+                    ${day.isSelected ? 'bg-pink-600 text-white' : 'hover:bg-gray-100'}
+                    ${!day.isCurrentMonth ? 'opacity-50' : ''}
+                  `}
+                >
+                  {day.date.getDate()}
+                </button>
+              ))}
+            </div>
+            
+            {/* Rodapé */}
+            <div className="mt-4 pt-4 border-t border-gray-100">
+              <button
+                onClick={goToToday}
+                className="w-full py-2 px-4 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg font-medium text-sm transition-colors"
+              >
+                Ir para esta semana
+              </button>
+            </div>
+          </div>
+        </>
+      )}
+    </div>
+  );
+};
 
 export default function GeradorHorariosPage() {
   // --- ESTADOS ---
@@ -77,34 +348,59 @@ export default function GeradorHorariosPage() {
   
   const [selectedDate, setSelectedDate] = useState(() => {
     const today = new Date();
-    const day = today.getDay(); 
-    const diff = today.getDate() - day + (day === 0 ? -6 : 1); 
-    const monday = new Date(today.setDate(diff));
-    return monday.toISOString().split('T')[0];
+    const day = today.getDay();
+    const diff = today.getDate() - day + (day === 0 ? -6 : 1);
+    const monday = new Date(today);
+    monday.setDate(diff);
+    return formatDateToInput(monday);
   });
 
   const [isGenerating, setIsGenerating] = useState(false);
   const [progress, setProgress] = useState(0);
   const [loadingText, setLoadingText] = useState('');
   
-  // ✅ schedule é a única fonte de verdade
-  const [schedule, setSchedule] = useState<Record<string, Record<string, string[]>> | null>(null);
+  const [schedule, setSchedule] = useState<Schedule | null>(null);
   const [weekDates, setWeekDates] = useState<string[]>([]);
 
-  // 🆕 ESTADO DE SALVAR E CARREGAR
   const [isSaving, setIsSaving] = useState(false);
   const [isLoadingSchedule, setIsLoadingSchedule] = useState(false);
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
 
-  // Estados para o Modal de Edição Multipla
-  const [editingCells, setEditingCells] = useState<{slot: string, day: string}[]>([]);
+  const [editingCells, setEditingCells] = useState<{slot: string; day: string}[]>([]);
   const [isMultiSelectMode, setIsMultiSelectMode] = useState(false);
-  const [selectedCells, setSelectedCells] = useState<{slot: string, day: string}[]>([]);
+  const [selectedCells, setSelectedCells] = useState<{slot: string; day: string}[]>([]);
 
-  // --- CÁLCULO AUTOMÁTICO DE ESTATÍSTICAS (CORREÇÃO DO BUG) ---
-  // Sempre que o 'schedule' muda, isto recalcula do zero. Nunca falha.
+  const [notification, setNotification] = useState<NotificationType | null>(null);
+  const [savePrompt, setSavePrompt] = useState<SavePromptType | null>(null);
+
+  // --- EFEITO: REMOVER NOTIFICAÇÃO APÓS 3 SEGUNDOS ---
+  useEffect(() => {
+    if (notification?.show) {
+      const timer = setTimeout(() => setNotification(null), 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [notification]);
+
+  // --- HELPERS ---
+  const showToast = useCallback((message: string, type: 'success' | 'error' | 'info' = 'success') => {
+    setNotification({ show: true, message, type });
+  }, []);
+
+  // --- EFEITO PARA PREVENIR SAÍDA SEM GUARDAR ---
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (hasUnsavedChanges) {
+        e.preventDefault();
+        e.returnValue = '';
+      }
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [hasUnsavedChanges]);
+
+  // --- CÁLCULO DE ESTATÍSTICAS ---
   const stats = useMemo(() => {
     const newStats: Record<string, number> = {};
-    // Inicializar a 0
     employees.forEach(emp => newStats[emp.id] = 0);
 
     if (schedule) {
@@ -113,7 +409,6 @@ export default function GeradorHorariosPage() {
           staffList.forEach(code => {
             const emp = employees.find(e => e.code === code);
             if (emp) {
-              // Cada slot vale 0.5 horas (30 min)
               newStats[emp.id] = (newStats[emp.id] || 0) + 0.5;
             }
           });
@@ -136,28 +431,25 @@ export default function GeradorHorariosPage() {
             setAccessDenied(true);
           }
         } else {
-          // Fallback para desenvolvimento - assumir que é admin
           setCurrentUser({
-            id: '4',
-            name: 'Tiago Ribeiro',
-            code: 'TR',
+            id: '4', 
+            name: 'Tiago Ribeiro', 
+            code: 'TR', 
             role: 'admin',
             unavailable: { weekdays: [], specificDates: [] }
           });
         }
       } catch (error) {
-        console.warn('Erro na verificação de auth, usando fallback:', error);
-        // Fallback para desenvolvimento
+        console.warn('Erro auth, usando fallback:', error);
         setCurrentUser({
-          id: '4',
-          name: 'Tiago Ribeiro',
-          code: 'TR',
+          id: '4', 
+          name: 'Tiago Ribeiro', 
+          code: 'TR', 
           role: 'admin',
           unavailable: { weekdays: [], specificDates: [] }
         });
       }
     };
-
     checkAuth();
   }, []);
 
@@ -174,92 +466,103 @@ export default function GeradorHorariosPage() {
     document.body.appendChild(script);
   }, []);
 
-  // --- 1. CARREGAR DADOS ---
+  // --- CARREGAR DADOS ---
   useEffect(() => {
     const fetchData = async () => {
-      // Só carrega dados se o usuário for admin
       if (!currentUser || currentUser.role !== 'admin') {
         setLoadingData(false);
         return;
       }
-
       try {
         setLoadingData(true);
         
+        // Carregar Funcionários
         let loadedEmployees: Employee[] = [];
         try {
-            const resEmp = await fetch('/api/employees');
-            if (resEmp.ok) {
-              const data = await resEmp.json();
-              const filteredData = data.filter((emp: any) => {
-                const isBoss = emp.name.toLowerCase().includes('jose marques') || emp.name.toLowerCase().includes('josé marques');
-                if (emp.code === 'TR') return true; 
-                const isAdmin = emp.role === 'admin';
-                return !isAdmin && !isBoss;
-              });
-              loadedEmployees = filteredData.map((emp: any) => ({
-                  ...emp,
-                  code: emp.code || getInitials(emp.name)
-              }));
-            }
-        } catch (e) {
-            console.warn("API employees offline.");
-            loadedEmployees = [
-                { id: '1', name: 'Nuno Matias', code: 'NR', role: 'employee', unavailable: { weekdays: [{day: 2, start: '', end: ''}, {day: 0, start: '', end: ''}], specificDates: [] } },
-                { id: '2', name: 'Helena Nogueira', code: 'HN', role: 'employee', unavailable: { weekdays: [{day: 1, start: '', end: ''}], specificDates: [] } },
-                { id: '3', name: 'Dinis Oliveira', code: 'DO', role: 'employee', unavailable: { weekdays: [], specificDates: [] } },
-                { id: '4', name: 'Tiago Ribeiro', code: 'TR', role: 'admin', unavailable: { weekdays: [{day: 3, start: '', end: ''}, {day: 4, start: '', end: ''}], specificDates: [] } },
-                { id: '5', name: 'Matilde Osório', code: 'MO', role: 'employee', unavailable: { weekdays: [{day: 5, start: '', end: ''}], specificDates: [] } },
-                { id: '6', name: 'João Maria', code: 'JMM', role: 'employee', unavailable: { weekdays: [{day: 1, start: '', end: ''}, {day: 2, start: '', end: ''}], specificDates: [] } },
-                { id: '7', name: 'Inês Paquete', code: 'IQ', role: 'employee', unavailable: { weekdays: [{day: 0, start: '', end: ''}], specificDates: [] } },
-                { id: '8', name: 'Miguel Santos', code: 'MS', role: 'employee', unavailable: { weekdays: [], specificDates: [] } },
-                { id: '9', name: 'Beatriz Pinto', code: 'BP', role: 'employee', unavailable: { weekdays: [], specificDates: [] } },
-            ];
+          const resEmp = await fetch('/api/employees');
+          if (resEmp.ok) {
+            const data = await resEmp.json();
+            const filteredData = data.filter((emp: any) => {
+              const isBoss = emp.name.toLowerCase().includes('jose marques') || 
+                           emp.name.toLowerCase().includes('josé marques');
+              if (emp.code === 'TR') return true;
+              const isAdmin = emp.role === 'admin';
+              return !isAdmin && !isBoss;
+            });
+            loadedEmployees = filteredData.map((emp: any) => ({
+              ...emp,
+              code: emp.code || getInitials(emp.name)
+            }));
+          }
+        } catch (error) {
+          console.warn("API employees offline, mock loaded.");
+          loadedEmployees = [
+            { 
+              id: '1', 
+              name: 'Nuno Matias', 
+              code: 'NR', 
+              role: 'employee', 
+              unavailable: { 
+                weekdays: [
+                  { day: 2, start: '', end: '' }, 
+                  { day: 0, start: '', end: '' }
+                ], 
+                specificDates: [] 
+              } 
+            },
+            { 
+              id: '2', 
+              name: 'Helena Nogueira', 
+              code: 'HN', 
+              role: 'employee', 
+              unavailable: { 
+                weekdays: [{ day: 1, start: '', end: '' }], 
+                specificDates: [] 
+              } 
+            },
+            { 
+              id: '4', 
+              name: 'Tiago Ribeiro', 
+              code: 'TR', 
+              role: 'admin', 
+              unavailable: { weekdays: [], specificDates: [] } 
+            },
+          ];
         }
         setEmployees(loadedEmployees);
 
+        // Carregar Reservas
         let loadedReservations: Reservation[] = [];
         try {
-            const resRes = await fetch('/api/reservations');
-            if (resRes.ok) {
-                loadedReservations = await resRes.json();
-            }
-        } catch (e) {
-            const today = new Date();
-            const monday = new Date(today);
-            const day = monday.getDay();
-            const diff = monday.getDate() - day + (day === 0 ? -6 : 1);
-            monday.setDate(diff);
-            const getDate = (daysAdd: number) => {
-                const d = new Date(monday);
-                d.setDate(monday.getDate() + daysAdd);
-                return d.toISOString().split('T')[0];
-            };
-            loadedReservations = [
-                { id: '1', date: getDate(0), startTime: '10:00', endTime: '13:00', people: 12 },
-                { id: '2', date: getDate(1), startTime: '15:00', endTime: '18:00', people: 40 },
-                { id: '3', date: getDate(3), startTime: '18:00', endTime: '20:00', people: 20 }, 
-                { id: '4', date: getDate(4), startTime: '14:00', endTime: '17:00', people: 8 }, 
-                { id: '5', date: getDate(4), startTime: '18:00', endTime: '20:00', people: 25 }, 
-            ];
+          const resRes = await fetch('/api/reservations');
+          if (resRes.ok) {
+            loadedReservations = await resRes.json();
+          }
+        } catch (error) {
+          loadedReservations = [];
         }
         setReservations(loadedReservations);
 
       } catch (error) {
         console.error("Erro fatal", error);
+        showToast("Erro ao carregar dados iniciais.", "error");
       } finally {
         setLoadingData(false);
       }
     };
     fetchData();
-  }, [currentUser]);
+  }, [currentUser, showToast]);
 
-  const getInitials = (name: string) => name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
+  // --- HELPERS ---
+  const getInitials = (name: string) => 
+    name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
+
   const timeToMin = (time: string) => {
     const [h, m] = time.split(':').map(Number);
     return h * 60 + m;
-  }
+  };
 
+  // --- CALCULAR DATAS DA SEMANA ---
   useEffect(() => {
     if (!selectedDate) return;
     const start = new Date(selectedDate);
@@ -274,15 +577,14 @@ export default function GeradorHorariosPage() {
     setWeekDates(dates);
   }, [selectedDate]);
 
-  const getWeekRangeText = () => {
+  const getWeekRangeText = useCallback(() => {
     if (weekDates.length === 0) return "";
     return `Semana de ${weekDates[0]} a ${weekDates[6]}`;
-  }
+  }, [weekDates]);
 
   // --- FUNÇÕES DE SELEÇÃO MÚLTIPLA ---
-  const toggleCellSelection = (slot: string, day: string) => {
+  const toggleCellSelection = useCallback((slot: string, day: string) => {
     if (!isMultiSelectMode) return;
-    
     const cellKey = `${slot}-${day}`;
     setSelectedCells(prev => {
       const exists = prev.find(c => `${c.slot}-${c.day}` === cellKey);
@@ -292,96 +594,245 @@ export default function GeradorHorariosPage() {
         return [...prev, { slot, day }];
       }
     });
-  };
+  }, [isMultiSelectMode]);
 
-  const startMultiSelect = () => {
+  const startMultiSelect = useCallback(() => {
     setIsMultiSelectMode(true);
     setSelectedCells([]);
-  };
+    showToast("Modo de seleção ativado. Clique nas células.", "info");
+  }, [showToast]);
 
-  const cancelMultiSelect = () => {
+  const cancelMultiSelect = useCallback(() => {
     setIsMultiSelectMode(false);
     setSelectedCells([]);
-  };
+  }, []);
 
-  const openMultiEditModal = () => {
+  const openMultiEditModal = useCallback(() => {
     if (selectedCells.length === 0) {
-      alert('Selecione pelo menos uma célula para editar.');
+      showToast('Selecione pelo menos uma célula para editar.', 'error');
       return;
     }
     setEditingCells(selectedCells);
     setIsMultiSelectMode(false);
     setSelectedCells([]);
-  };
+  }, [selectedCells, showToast]);
 
   // --- FUNÇÕES DE EDIÇÃO ---
-  const toggleEmployeeInMultipleCells = (code: string) => {
+  const toggleEmployeeInMultipleCells = useCallback((code: string) => {
     if (!schedule || editingCells.length === 0) return;
 
+    setHasUnsavedChanges(true);
     const newSchedule = { ...schedule };
     
-    // Verificar se o funcionário está presente em TODAS as células selecionadas
     const isInAllCells = editingCells.every(cell => 
-      newSchedule[cell.slot][cell.day].includes(code)
+      newSchedule[cell.slot]?.[cell.day]?.includes(code)
     );
 
     editingCells.forEach(cell => {
-      const currentStaff = [...newSchedule[cell.slot][cell.day]];
+      if (!newSchedule[cell.slot]) newSchedule[cell.slot] = {};
+      if (!newSchedule[cell.slot][cell.day]) newSchedule[cell.slot][cell.day] = [];
       
+      const currentStaff = [...newSchedule[cell.slot][cell.day]];
       if (isInAllCells) {
-        // Remover de todas as células
         newSchedule[cell.slot][cell.day] = currentStaff.filter(c => c !== code).sort();
       } else {
-        // Adicionar a todas as células onde não está presente
         if (!currentStaff.includes(code)) {
           newSchedule[cell.slot][cell.day] = [...currentStaff, code].sort();
         }
       }
     });
-
     setSchedule(newSchedule);
-  };
+  }, [schedule, editingCells]);
 
-  const setEmployeesInMultipleCells = (codes: string[]) => {
+  const setEmployeesInMultipleCells = useCallback((codes: string[]) => {
     if (!schedule || editingCells.length === 0) return;
 
+    setHasUnsavedChanges(true);
     const newSchedule = { ...schedule };
-    
     editingCells.forEach(cell => {
+      if (!newSchedule[cell.slot]) newSchedule[cell.slot] = {};
       const newStaff = [...codes].sort();
       newSchedule[cell.slot][cell.day] = newStaff;
     });
-
     setSchedule(newSchedule);
-  };
+  }, [schedule, editingCells]);
 
   // --- EXPORTAR EXCEL ---
-  const handleExportExcel = () => {
+  const handleExportExcel = useCallback(() => {
     if (!schedule || !(window as any).XLSX) return;
     const XLSX = (window as any).XLSX;
     const headers = ["Horário", ...WEEK_DAYS.map((day, i) => `${day} (${weekDates[i]})`)];
     const dataRows = TIME_SLOTS.map(slot => {
       const row = [slot];
       WEEK_DAYS.forEach(day => {
-        const staff = schedule[slot][day] || [];
-        row.push(staff.join('+')); 
+        const staff = schedule[slot]?.[day] || [];
+        row.push(staff.join('+'));
       });
       return row;
     });
     const worksheetData = [headers, ...dataRows];
     const worksheet = XLSX.utils.aoa_to_sheet(worksheetData);
-    const wscols = [{ wch: 15 }]; 
+    const wscols = [{ wch: 15 }];
     for (let i = 0; i < 7; i++) wscols.push({ wch: 20 });
     worksheet['!cols'] = wscols;
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, "Horário");
-    const fileName = `Horario_${weekDates[0].replace('/','-')}_a_${weekDates[6].replace('/','-')}.xlsx`;
+    const fileName = `Horario_${weekDates[0].replace('/', '-')}_a_${weekDates[6].replace('/', '-')}.xlsx`;
     XLSX.writeFile(workbook, fileName);
-  };
+    showToast("Excel exportado com sucesso!", "success");
+  }, [schedule, weekDates, showToast]);
 
-  // 🆕 FUNÇÃO PARA CARREGAR HORÁRIO DA BD
-  const handleLoadSchedule = async () => {
+  // --- FUNÇÃO PARA SAIR ---
+  const handleExit = useCallback(() => {
+    if (hasUnsavedChanges) {
+      setSavePrompt({
+        show: true,
+        title: "Sair sem guardar?",
+        message: "Tem alterações não guardadas no horário. O que pretende fazer?",
+        onSave: () => {
+          handleSaveToDatabase(() => {
+            window.location.href = '/portal';
+          });
+        },
+        onDiscard: () => {
+          window.location.href = '/portal';
+        },
+        onCancel: () => {
+          setSavePrompt(null);
+        }
+      });
+    } else {
+      window.location.href = '/portal';
+    }
+  }, [hasUnsavedChanges]);
+
+  // --- FUNÇÃO PARA GUARDAR NA BD (COM CALLBACK) ---
+  const handleSaveToDatabase = useCallback(async (onSuccess?: () => void) => {
+    if (!schedule) return;
+    
+    setIsSaving(true);
+
+    try {
+      const shiftsToSave: any[] = [];
+      const allStaffCodes = new Set<string>();
+      
+      Object.values(schedule).forEach(daySlots => {
+        Object.values(daySlots).forEach(staffList => {
+          staffList.forEach(code => allStaffCodes.add(code));
+        });
+      });
+
+      allStaffCodes.forEach(code => {
+        WEEK_DAYS.forEach((dayName, dayIndex) => {
+          const d = new Date(selectedDate);
+          d.setDate(d.getDate() + dayIndex);
+          const dateStr = d.toISOString().split('T')[0];
+          
+          const workedSlotsIndices: number[] = [];
+          TIME_SLOTS.forEach((slot, slotIndex) => {
+            if (schedule[slot]?.[dayName]?.includes(code)) {
+              workedSlotsIndices.push(slotIndex);
+            }
+          });
+          
+          if (workedSlotsIndices.length === 0) return;
+          workedSlotsIndices.sort((a, b) => a - b);
+          
+          let currentBlockStart = workedSlotsIndices[0];
+          let previousSlot = workedSlotsIndices[0];
+
+          for (let i = 1; i <= workedSlotsIndices.length; i++) {
+            const currentSlot = workedSlotsIndices[i];
+            if (currentSlot !== previousSlot + 1 || i === workedSlotsIndices.length) {
+              const startSlotStr = TIME_SLOTS[currentBlockStart].split(' - ')[0];
+              const endSlotStr = TIME_SLOTS[previousSlot].split(' - ')[1];
+              const slotsCount = (previousSlot - currentBlockStart) + 1;
+              const totalHours = slotsCount * 0.5;
+
+              shiftsToSave.push({
+                employeeCode: code,
+                date: dateStr,
+                startTime: startSlotStr,
+                endTime: endSlotStr,
+                totalHours: totalHours
+              });
+
+              if (i < workedSlotsIndices.length) {
+                currentBlockStart = currentSlot;
+              }
+            }
+            previousSlot = currentSlot;
+          }
+        });
+      });
+
+      const response = await fetch('/api/admin/save-schedule', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ shifts: shiftsToSave })
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        setHasUnsavedChanges(false);
+        showToast(`Horário Oficial Guardado (${shiftsToSave.length} turnos)`, "success");
+        
+        if (onSuccess) {
+          onSuccess();
+        }
+        
+        setSavePrompt(null);
+      } else {
+        showToast(`Erro ao guardar: ${data.message}`, "error");
+      }
+
+    } catch (error) {
+      console.error("Erro ao guardar:", error);
+      showToast("Erro de conexão ao servidor.", "error");
+    } finally {
+      setIsSaving(false);
+    }
+  }, [schedule, selectedDate, showToast]);
+
+  // --- GUARDAR NA BD (BOTÃO NORMAL) ---
+  const handleSaveClick = useCallback(() => {
+    if (!schedule) return;
+    
+    if (hasUnsavedChanges) {
+      handleSaveToDatabase();
+    } else {
+      showToast("Não há alterações para guardar.", "info");
+    }
+  }, [schedule, hasUnsavedChanges, handleSaveToDatabase, showToast]);
+
+  // --- CARREGAR HORÁRIO DA BD ---
+  const executeLoadSchedule = useCallback(async () => {
     if (!selectedDate) return;
+
+    if (hasUnsavedChanges) {
+      setSavePrompt({
+        show: true,
+        title: "Alterações não guardadas",
+        message: "Tem alterações pendentes no horário atual. Se carregar da base de dados, perderá o que fez agora. Deseja guardar primeiro?",
+        onSave: () => {
+          handleSaveToDatabase(() => {
+            loadScheduleFromDatabase();
+          });
+        },
+        onDiscard: () => {
+          loadScheduleFromDatabase();
+        },
+        onCancel: () => {
+          setSavePrompt(null);
+        }
+      });
+    } else {
+      loadScheduleFromDatabase();
+    }
+  }, [selectedDate, hasUnsavedChanges, handleSaveToDatabase]);
+
+  const loadScheduleFromDatabase = useCallback(async () => {
     setIsLoadingSchedule(true);
     setSchedule(null);
 
@@ -394,210 +845,107 @@ export default function GeradorHorariosPage() {
       const endDateStr = end.toISOString().split('T')[0];
 
       const res = await fetch(`/api/admin/get-weekly-schedule?start=${startDateStr}&end=${endDateStr}`);
-      
       if (!res.ok) throw new Error("Erro ao buscar dados");
       
       const data = await res.json();
       const shifts = data.shifts || [];
 
       if (shifts.length === 0) {
-        alert("Não existe nenhum horário guardado para esta semana na base de dados.");
+        showToast("Não existe nenhum horário guardado para esta semana.", "info");
         setIsLoadingSchedule(false);
+        setHasUnsavedChanges(false);
         return;
       }
 
-      // INICIALIZAÇÃO COMPLETA E SEGURA DA ESTRUTURA
-      const newSchedule: Record<string, Record<string, string[]>> = {};
-      
-      // Garantir que todos os slots e dias existem
+      const newSchedule: Schedule = {};
       TIME_SLOTS.forEach(slot => {
         newSchedule[slot] = {};
-        WEEK_DAYS.forEach(day => {
-          newSchedule[slot][day] = [];
-        });
+        WEEK_DAYS.forEach(day => { newSchedule[slot][day] = []; });
       });
 
-      console.log("Shifts carregados:", shifts); // Debug
-
-      // Processar cada turno
       shifts.forEach((shift: any) => {
         try {
           const shiftDate = new Date(shift.date);
-          const dayIndex = shiftDate.getDay(); 
-          const jsDay = dayIndex === 0 ? 6 : dayIndex - 1; 
+          const dayIndex = shiftDate.getDay();
+          const jsDay = dayIndex === 0 ? 6 : dayIndex - 1;
           const dayName = WEEK_DAYS[jsDay];
-
-          if (!dayName) {
-            console.warn("Dia não encontrado para a data:", shift.date);
-            return;
-          }
-
+          if (!dayName) return;
           const startMin = timeToMin(shift.startTime);
           const endMin = timeToMin(shift.endTime);
 
-          // Adicionar o funcionário a todos os slots dentro do turno
-          TIME_SLOTS.forEach((slot, slotIndex) => {
+          TIME_SLOTS.forEach((slot) => {
             const [sStart] = slot.split(' - ');
             const slotMin = timeToMin(sStart);
-            
-            // Verificar se o slot está dentro do turno
             if (slotMin >= startMin && slotMin < endMin) {
-              // Verificação EXTRA segura
-              if (newSchedule[slot] && newSchedule[slot][dayName] && Array.isArray(newSchedule[slot][dayName])) {
+              if (newSchedule[slot] && newSchedule[slot][dayName]) {
                 newSchedule[slot][dayName].push(shift.employeeCode);
-              } else {
-                console.warn(`Célula não encontrada: ${slot} - ${dayName}`);
               }
             }
           });
-        } catch (error) {
-          console.error("Erro ao processar turno:", shift, error);
+        } catch (error) { 
+          console.error(error); 
         }
       });
 
-      // PROCESSAMENTO FINAL - VERIFICAÇÃO EXTRA ROBUSTA
       TIME_SLOTS.forEach(slot => {
-        if (!newSchedule[slot]) {
-          console.warn(`Slot não encontrado: ${slot}`);
-          newSchedule[slot] = {};
-        }
-        
         WEEK_DAYS.forEach(day => {
-          // Garantir que a célula existe e é um array
-          if (!newSchedule[slot][day] || !Array.isArray(newSchedule[slot][day])) {
-            console.warn(`Célula inválida: ${slot} - ${day}`);
-            newSchedule[slot][day] = [];
-          }
-          
-          // Remover duplicados e ordenar
-          try {
-            newSchedule[slot][day] = Array.from(new Set(newSchedule[slot][day])).sort();
-          } catch (error) {
-            console.error(`Erro ao processar célula ${slot} - ${day}:`, error);
-            newSchedule[slot][day] = [];
-          }
+          newSchedule[slot][day] = Array.from(new Set(newSchedule[slot][day])).sort();
         });
       });
 
-      console.log("Schedule final:", newSchedule); // Debug
       setSchedule(newSchedule);
-      alert("Horário carregado com sucesso!");
+      setHasUnsavedChanges(false);
+      showToast("Horário carregado da base de dados!", "success");
 
     } catch (error) {
       console.error("Erro ao carregar horário:", error);
-      alert("Erro ao carregar horário.");
+      showToast("Erro ao comunicar com o servidor.", "error");
     } finally {
       setIsLoadingSchedule(false);
+      setSavePrompt(null);
     }
-  };
+  }, [selectedDate, showToast]);
 
-  // 🆕 FUNÇÃO PARA GUARDAR NA BASE DE DADOS
-  const handleSaveToDatabase = async () => {
-    if (!schedule) return;
-    
-    // Confirmação antes de guardar
-    if (!confirm("⚠️ Atenção: Vai guardar este horário como OFICIAL.\n\nIsto permite ao Zé ver e editar cada turno no Painel de Admin.\nSe já existia um horário para esta semana, ele será substituído por este.")) {
-      return;
-    }
+  const handleLoadClick = useCallback(() => {
+    executeLoadSchedule();
+  }, [executeLoadSchedule]);
 
-    setIsSaving(true);
-
-    try {
-        const shiftsToSave: any[] = [];
-        const allStaffCodes = new Set<string>();
-        
-        // 1. Identificar todos os funcionários que estão na escala
-        Object.values(schedule).forEach(daySlots => {
-            Object.values(daySlots).forEach(staffList => {
-                staffList.forEach(code => allStaffCodes.add(code));
-            });
-        });
-
-        // 2. Processar funcionário a funcionário
-        allStaffCodes.forEach(code => {
-            // Para cada dia da semana...
-            WEEK_DAYS.forEach((dayName, dayIndex) => {
-                // Calcular a data real baseada na selectedDate
-                const d = new Date(selectedDate);
-                d.setDate(d.getDate() + dayIndex);
-                const dateStr = d.toISOString().split('T')[0];
-                
-                // Encontrar em quais slots (índices) este funcionário trabalha neste dia
-                const workedSlotsIndices: number[] = [];
-                TIME_SLOTS.forEach((slot, slotIndex) => {
-                    if (schedule[slot][dayName].includes(code)) {
-                        workedSlotsIndices.push(slotIndex);
-                    }
-                });
-
-                if (workedSlotsIndices.length === 0) return; // Folga neste dia
-
-                // 3. Lógica para agrupar slots contínuos num único turno
-                workedSlotsIndices.sort((a, b) => a - b);
-                
-                let currentBlockStart = workedSlotsIndices[0];
-                let previousSlot = workedSlotsIndices[0];
-
-                for (let i = 1; i <= workedSlotsIndices.length; i++) {
-                    const currentSlot = workedSlotsIndices[i];
-
-                    // Se o slot atual não é consecutivo ao anterior (ou se acabaram os slots)
-                    if (currentSlot !== previousSlot + 1 || i === workedSlotsIndices.length) {
-                        
-                        // Fechar o bloco anterior
-                        const startSlotStr = TIME_SLOTS[currentBlockStart].split(' - ')[0]; // Hora inicio
-                        const endSlotStr = TIME_SLOTS[previousSlot].split(' - ')[1];     // Hora fim
-                        
-                        // Calcular horas deste bloco (cada slot = 0.5h)
-                        const slotsCount = (previousSlot - currentBlockStart) + 1;
-                        const totalHours = slotsCount * 0.5;
-
-                        shiftsToSave.push({
-                            employeeCode: code,
-                            date: dateStr,
-                            startTime: startSlotStr,
-                            endTime: endSlotStr,
-                            totalHours: totalHours
-                        });
-
-                        // Iniciar novo bloco (se houver)
-                        if (i < workedSlotsIndices.length) {
-                            currentBlockStart = currentSlot;
-                        }
-                    }
-                    previousSlot = currentSlot;
-                }
-            });
-        });
-
-        // 4. Enviar para a API
-        const response = await fetch('/api/admin/save-schedule', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ shifts: shiftsToSave })
-        });
-
-        const data = await response.json();
-
-        if (response.ok) {
-            alert(`✅ Horário Oficial Guardado!\n\nForam registados ${shiftsToSave.length} turnos.`);
-        } else {
-            alert(`❌ Erro ao guardar: ${data.message || 'Falha ao guardar'}`);
+  // --- DESCARREGAR E GERAR NOVAMENTE ---
+  const handleDiscardAndRegenerate = useCallback(() => {
+    if (hasUnsavedChanges) {
+      setSavePrompt({
+        show: true,
+        title: "Descartar alterações?",
+        message: "Tem alterações não guardadas. Se gerar um novo horário, perderá todas as alterações feitas. Deseja guardar primeiro?",
+        onSave: () => {
+          handleSaveToDatabase(() => {
+            setSchedule(null);
+            setHasUnsavedChanges(false);
+          });
+        },
+        onDiscard: () => {
+          setSchedule(null);
+          setHasUnsavedChanges(false);
+        },
+        onCancel: () => {
+          setSavePrompt(null);
         }
-
-    } catch (error) {
-        console.error("Erro ao guardar:", error);
-        alert('Erro de conexão ao servidor.');
-    } finally {
-        setIsSaving(false);
+      });
+    } else {
+      setSchedule(null);
     }
-  };
+  }, [hasUnsavedChanges, handleSaveToDatabase]);
 
   // --- ALGORITMO JUSTO ---
-  const handleGenerate = () => {
-    if (employees.length === 0) return alert("Sem funcionários válidos.");
+  const handleGenerate = useCallback(() => {
+    if (employees.length === 0) {
+      showToast("Não há funcionários disponíveis para gerar.", "error");
+      return;
+    }
+    
     setIsGenerating(true);
     setSchedule(null);
+    setHasUnsavedChanges(true);
     setProgress(0);
 
     const steps = [
@@ -618,99 +966,76 @@ export default function GeradorHorariosPage() {
         stepIndex++;
       }
     }, 400);
-  };
 
-  const runAlgorithm = () => {
-    const newSchedule: Record<string, Record<string, string[]>> = {};
-    TIME_SLOTS.forEach(slot => {
-      newSchedule[slot] = {};
-      WEEK_DAYS.forEach(day => newSchedule[slot][day] = []);
-    });
+    const runAlgorithm = () => {
+      const newSchedule: Schedule = {};
+      TIME_SLOTS.forEach(slot => {
+        newSchedule[slot] = {};
+        WEEK_DAYS.forEach(day => newSchedule[slot][day] = []);
+      });
 
-    // Sistema justo - todos começam com 0 horas
-    const employeeHours: Record<string, number> = {};
-    employees.forEach(emp => employeeHours[emp.id] = 0);
+      const employeeHours: Record<string, number> = {};
+      employees.forEach(emp => employeeHours[emp.id] = 0);
 
-    const startOfWeek = new Date(selectedDate);
+      const startOfWeek = new Date(selectedDate);
+      const demandMap: Record<string, number[]> = {};
 
-    // 1. MAPA DE PROCURA
-    const demandMap: Record<string, number[]> = {};
+      const STORE_OPEN_MIN = 9 * 60 + 30;
+      const MIN_SHIFT_SLOTS = 4;
+      const MAX_SHIFT_SLOTS = 12;
 
-    WEEK_DAYS.forEach((_, dayIdx) => {
+      WEEK_DAYS.forEach((_, dayIdx) => {
         const currentDate = new Date(startOfWeek);
         currentDate.setDate(startOfWeek.getDate() + dayIdx);
         const dateString = currentDate.toISOString().split('T')[0];
         demandMap[dateString] = new Array(TIME_SLOTS.length).fill(0);
 
         const daysReservations = reservations.filter(r => r.date === dateString);
-        const isWeekend = dayIdx === 5 || dayIdx === 6; 
+        const isWeekend = dayIdx === 5 || dayIdx === 6;
 
-        // ✅ LÓGICA DE FIM DE SEMANA ATUALIZADA
         if (isWeekend) {
-            TIME_SLOTS.forEach((slot, i) => {
-                const [sStart] = slot.split(' - ');
-                const slotStartMin = timeToMin(sStart);
-                
-                // 20:00 em minutos (20 * 60 = 1200)
-                const WEEKEND_LIMIT_MIN = 20 * 60;
-
-                // Regra: Entre abertura e 20:00 = 3 pessoas (ou mais se houver reservas)
-                if (slotStartMin >= STORE_OPEN_MIN && slotStartMin < WEEKEND_LIMIT_MIN) {
-                    demandMap[dateString][i] = 3;
-                }
-            });
+          TIME_SLOTS.forEach((slot, i) => {
+            const [sStart] = slot.split(' - ');
+            const slotStartMin = timeToMin(sStart);
+            const WEEKEND_LIMIT_MIN = 20 * 60;
+            if (slotStartMin >= STORE_OPEN_MIN && slotStartMin < WEEKEND_LIMIT_MIN) {
+              demandMap[dateString][i] = 3;
+            }
+          });
         }
 
         daysReservations.forEach(res => {
-            // ✅ BUFFER DE 30 MINUTOS
-            const rawStart = timeToMin(res.startTime) - 30; 
-            const rawEnd = timeToMin(res.endTime) + 30;     
-            
-            let staffNeeded = 2;
-            if (res.people >= 12) staffNeeded = 3;
-            if (res.people >= 17) staffNeeded = 4;
-            if (res.people >= 20) staffNeeded = 5;
-            if (res.people >= 30) staffNeeded = 7;
-            
-            TIME_SLOTS.forEach((slot, i) => {
-                const [sStart, sEnd] = slot.split(' - ');
-                const slotStartMin = timeToMin(sStart);
-                const slotEndMin = timeToMin(sEnd);
-                if (slotStartMin < rawEnd && slotEndMin > rawStart) {
-                    demandMap[dateString][i] = Math.max(demandMap[dateString][i], staffNeeded);
-                }
-            });
+          const rawStart = timeToMin(res.startTime) - 30;
+          const rawEnd = timeToMin(res.endTime) + 30;
+          let staffNeeded = 2;
+          if (res.people >= 12) staffNeeded = 3;
+          if (res.people >= 17) staffNeeded = 4;
+          if (res.people >= 20) staffNeeded = 5;
+          if (res.people >= 30) staffNeeded = 7;
+          
+          TIME_SLOTS.forEach((slot, i) => {
+            const [sStart, sEnd] = slot.split(' - ');
+            const slotStartMin = timeToMin(sStart);
+            const slotEndMin = timeToMin(sEnd);
+            if (slotStartMin < rawEnd && slotEndMin > rawStart) {
+              demandMap[dateString][i] = Math.max(demandMap[dateString][i], staffNeeded);
+            }
+          });
         });
 
-        // ✅ CORTE FINAL PARA FIM DE SEMANA: DEPOIS DAS 20:00 É ZERO NA GERAÇÃO AUTOMÁTICA
         if (isWeekend) {
-            const WEEKEND_LIMIT_MIN = 20 * 60;
-            TIME_SLOTS.forEach((slot, i) => {
-                 const [sStart] = slot.split(' - ');
-                 const slotStartMin = timeToMin(sStart);
-                 if (slotStartMin >= WEEKEND_LIMIT_MIN) {
-                     demandMap[dateString][i] = 0; // Força zero, ignora reservas automáticas
-                 }
-            });
-        }
-
-        // Suavização da procura
-        for (let i = 0; i < TIME_SLOTS.length; i++) {
-            let d = demandMap[dateString][i];
-            if (d > 0 && d < 2) demandMap[dateString][i] = 2;
-        }
-        for (let i = 1; i < TIME_SLOTS.length - 1; i++) {
-            const prev = demandMap[dateString][i-1];
-            const curr = demandMap[dateString][i];
-            const next = demandMap[dateString][i+1];
-            if (prev > 0 && next > 0 && curr < Math.min(prev, next)) {
-                demandMap[dateString][i] = Math.min(prev, next);
+          const WEEKEND_LIMIT_MIN = 20 * 60;
+          TIME_SLOTS.forEach((slot, i) => {
+            const [sStart] = slot.split(' - ');
+            const slotStartMin = timeToMin(sStart);
+            if (slotStartMin >= WEEKEND_LIMIT_MIN) {
+              demandMap[dateString][i] = 0;
             }
+          });
         }
-    });
+      });
 
-    // 2. ATRIBUIÇÃO JUSTA
-    WEEK_DAYS.forEach((dayName, dayIdx) => {
+      WEEK_DAYS.forEach((dayName, dayIdx) => {
         const currentDate = new Date(startOfWeek);
         currentDate.setDate(startOfWeek.getDate() + dayIdx);
         const dateString = currentDate.toISOString().split('T')[0];
@@ -723,122 +1048,127 @@ export default function GeradorHorariosPage() {
         const assignedInSlot = new Array(TIME_SLOTS.length).fill(0);
 
         for (let level = 1; level <= maxDemand; level++) {
-            let inShift = false;
-            let startIdx = -1;
-            const shiftRequests: {start: number, end: number}[] = [];
-            
-            for (let i = 0; i < TIME_SLOTS.length; i++) {
-                if (demandArr[i] >= level) {
-                    if (!inShift) {
-                        startIdx = i;
-                        inShift = true;
-                    }
-                } else {
-                    if (inShift) {
-                        shiftRequests.push({ start: startIdx, end: i });
-                        inShift = false;
-                    }
-                }
+          let inShift = false;
+          let startIdx = -1;
+          const shiftRequests: {start: number; end: number}[] = [];
+          
+          for (let i = 0; i < TIME_SLOTS.length; i++) {
+            if (demandArr[i] >= level) {
+              if (!inShift) {
+                startIdx = i;
+                inShift = true;
+              }
+            } else {
+              if (inShift) {
+                shiftRequests.push({ start: startIdx, end: i });
+                inShift = false;
+              }
             }
-            if (inShift) {
-                shiftRequests.push({ start: startIdx, end: TIME_SLOTS.length });
+          }
+          if (inShift) {
+            shiftRequests.push({ start: startIdx, end: TIME_SLOTS.length });
+          }
+
+          shiftRequests.forEach(req => {
+            let duration = req.end - req.start;
+            let currentStart = req.start;
+            let currentEnd = req.end;
+
+            if (duration < MIN_SHIFT_SLOTS) {
+              const missing = MIN_SHIFT_SLOTS - duration;
+              currentStart = Math.max(0, currentStart - Math.floor(missing / 2));
+              currentEnd = Math.min(TIME_SLOTS.length, currentStart + MIN_SHIFT_SLOTS);
+              if (currentEnd - currentStart < MIN_SHIFT_SLOTS) {
+                currentStart = Math.max(0, currentEnd - MIN_SHIFT_SLOTS);
+              }
+              duration = currentEnd - currentStart;
             }
 
-            shiftRequests.forEach(req => {
-                let duration = req.end - req.start;
-                let currentStart = req.start;
-                let currentEnd = req.end;
+            const shiftsToFill: {s: number; e: number}[] = [];
+            if (duration > MAX_SHIFT_SLOTS) {
+              const midPoint = currentStart + Math.floor(duration / 2);
+              shiftsToFill.push({ s: currentStart, e: midPoint });
+              shiftsToFill.push({ s: midPoint, e: currentEnd });
+            } else {
+              shiftsToFill.push({ s: currentStart, e: currentEnd });
+            }
 
-                if (duration < MIN_SHIFT_SLOTS) {
-                    const missing = MIN_SHIFT_SLOTS - duration;
-                    currentStart = Math.max(0, currentStart - Math.floor(missing / 2));
-                    currentEnd = Math.min(TIME_SLOTS.length, currentStart + MIN_SHIFT_SLOTS);
-                    if (currentEnd - currentStart < MIN_SHIFT_SLOTS) {
-                          currentStart = Math.max(0, currentEnd - MIN_SHIFT_SLOTS);
-                    }
-                    duration = currentEnd - currentStart;
+            shiftsToFill.forEach(shift => {
+              const [tStartStr] = TIME_SLOTS[shift.s].split(' - ');
+              const shiftStartMin = timeToMin(tStartStr);
+              const endSlotIdx = Math.min(shift.e - 1, TIME_SLOTS.length - 1);
+              const [_, tEndStr] = TIME_SLOTS[endSlotIdx].split(' - ');
+              const shiftEndMin = timeToMin(tEndStr);
+
+              const candidates = employees.filter(emp => {
+                if (emp.role === 'admin' && emp.code !== 'TR') return false;
+                if (dailyHours[emp.id] > 0) return false;
+                if (!emp.unavailable) return true;
+                
+                const specific = emp.unavailable.specificDates?.find(s => s.date === dateString);
+                if (specific) {
+                  if (specific.allDay) return false;
+                  if (specific.startTime && specific.endTime) {
+                    const uStart = timeToMin(specific.startTime);
+                    const uEnd = timeToMin(specific.endTime);
+                    if (shiftStartMin < uEnd && shiftEndMin > uStart) return false;
+                  }
                 }
-
-                const shiftsToFill: {s: number, e: number}[] = [];
-                if (duration > MAX_SHIFT_SLOTS) {
-                    const midPoint = currentStart + Math.floor(duration / 2);
-                    shiftsToFill.push({ s: currentStart, e: midPoint });
-                    shiftsToFill.push({ s: midPoint, e: currentEnd });
-                } else {
-                    shiftsToFill.push({ s: currentStart, e: currentEnd });
+                
+                const weekdayUn = emp.unavailable.weekdays?.find(w => w.day === jsDay);
+                if (weekdayUn) {
+                  if (weekdayUn.start && weekdayUn.end) {
+                    const wStart = timeToMin(weekdayUn.start);
+                    const wEnd = timeToMin(weekdayUn.end);
+                    if (shiftStartMin < wEnd && shiftEndMin > wStart) return false;
+                  } else { 
+                    return false; 
+                  }
                 }
+                return true;
+              });
 
-                shiftsToFill.forEach(shift => {
-                    const [tStartStr] = TIME_SLOTS[shift.s].split(' - ');
-                    const shiftStartMin = timeToMin(tStartStr);
-                    const endSlotIdx = Math.min(shift.e - 1, TIME_SLOTS.length - 1);
-                    const [_, tEndStr] = TIME_SLOTS[endSlotIdx].split(' - ');
-                    const shiftEndMin = timeToMin(tEndStr);
+              candidates.sort((a, b) => {
+                if (a.code === 'TR') return -1;
+                if (b.code === 'TR') return 1;
+                const hoursA = employeeHours[a.id];
+                const hoursB = employeeHours[b.id];
+                if (Math.abs(hoursA - hoursB) > 2) return hoursA - hoursB;
+                return 0.5 - Math.random();
+              });
 
-                    const candidates = employees.filter(emp => {
-                        if (emp.role === 'admin' && emp.code !== 'TR') return false;
-                        if (dailyHours[emp.id] > 0) return false;
-                        if (!emp.unavailable) return true;
-                        const specific = emp.unavailable.specificDates?.find(s => s.date === dateString);
-                        if (specific) {
-                            if (specific.allDay) return false;
-                            if (specific.startTime && specific.endTime) {
-                                const uStart = timeToMin(specific.startTime);
-                                const uEnd = timeToMin(specific.endTime);
-                                if (shiftStartMin < uEnd && shiftEndMin > uStart) return false;
-                            }
-                        }
-                        const weekdayUn = emp.unavailable.weekdays?.find(w => w.day === jsDay);
-                        if (weekdayUn) {
-                            if (weekdayUn.start && weekdayUn.end) {
-                                const wStart = timeToMin(weekdayUn.start);
-                                const wEnd = timeToMin(weekdayUn.end);
-                                if (shiftStartMin < wEnd && shiftEndMin > wStart) return false;
-                            } else { return false; }
-                        }
-                        return true;
-                    });
-
-                    candidates.sort((a, b) => {
-                        // --- PRIORIDADE TOTAL PARA O TIAGO (TR) ---
-                        // Se um dos candidatos for o Tiago, ele passa logo para a frente.
-                        if (a.code === 'TR') return -1; 
-                        if (b.code === 'TR') return 1;
-                        // ----------------------------------------------
-
-                        const hoursA = employeeHours[a.id];
-                        const hoursB = employeeHours[b.id];
-                        if (Math.abs(hoursA - hoursB) > 2) return hoursA - hoursB;
-                        return 0.5 - Math.random();
-                    });
-
-                    if (candidates.length > 0) {
-                        const worker = candidates[0];
-                        for (let k = shift.s; k < shift.e; k++) {
-                            newSchedule[TIME_SLOTS[k]][dayName].push(worker.code);
-                            assignedInSlot[k]++;
-                        }
-                        const hoursAdded = (shift.e - shift.s) * 0.5;
-                        employeeHours[worker.id] += hoursAdded;
-                        dailyHours[worker.id] += hoursAdded;
-                    }
-                });
+              if (candidates.length > 0) {
+                const worker = candidates[0];
+                for (let k = shift.s; k < shift.e; k++) {
+                  if (!newSchedule[TIME_SLOTS[k]]) newSchedule[TIME_SLOTS[k]] = {};
+                  if (!newSchedule[TIME_SLOTS[k]][dayName]) newSchedule[TIME_SLOTS[k]][dayName] = [];
+                  newSchedule[TIME_SLOTS[k]][dayName].push(worker.code);
+                  assignedInSlot[k]++;
+                }
+                const hoursAdded = (shift.e - shift.s) * 0.5;
+                employeeHours[worker.id] += hoursAdded;
+                dailyHours[worker.id] += hoursAdded;
+              }
             });
+          });
         }
-    });
+      });
 
-    TIME_SLOTS.forEach(slot => {
+      TIME_SLOTS.forEach(slot => {
         WEEK_DAYS.forEach(day => {
+          if (newSchedule[slot] && newSchedule[slot][day]) {
             newSchedule[slot][day].sort();
+          }
         });
-    });
+      });
 
-    // setStats(employeeHours); // REMOVIDO: stats agora são calculados automaticamente
-    setSchedule(newSchedule);
-    setIsGenerating(false);
-  };
+      setSchedule(newSchedule);
+      setIsGenerating(false);
+      showToast("Horário gerado com sucesso!", "success");
+    };
+  }, [employees, reservations, selectedDate, showToast]);
 
-  // --- PÁGINA DE ACESSO NEGADO ---
+  // --- RENDERIZAÇÃO ---
   if (accessDenied) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
@@ -848,13 +1178,9 @@ export default function GeradorHorariosPage() {
           </div>
           <h1 className="text-2xl font-bold text-gray-800 mb-4">Acesso Restrito</h1>
           <p className="text-gray-600 mb-6">
-            Esta área é reservada apenas para administradores. 
-            Você não tem permissão para acessar o gerador de horários.
+            Esta área é reservada apenas para administradores.
           </p>
-          <Link 
-            href="/portal"
-            className="inline-flex items-center gap-2 bg-blue-600 text-white px-6 py-3 rounded-lg font-medium hover:bg-blue-700 transition-colors"
-          >
+          <Link href="/portal" className="inline-flex items-center gap-2 bg-blue-600 text-white px-6 py-3 rounded-lg font-medium hover:bg-blue-700 transition-colors">
             <ArrowLeftIcon className="w-5 h-5" />
             Voltar ao Portal
           </Link>
@@ -863,14 +1189,111 @@ export default function GeradorHorariosPage() {
     );
   }
 
-  // --- RENDER PRINCIPAL (apenas para admins) ---
   return (
     <div className="min-h-screen bg-gray-50 font-sans text-gray-900 pb-20">
+      
+      {/* 🟢 COMPONENTE DE NOTIFICAÇÃO (TOAST) */}
+      {notification?.show && (
+        <div className={`fixed top-4 right-4 z-50 p-4 rounded-xl shadow-2xl flex items-center gap-3 animate-in slide-in-from-right duration-300 max-w-sm border ${
+            notification.type === 'success' ? 'bg-white border-green-200 text-green-800' :
+            notification.type === 'error' ? 'bg-white border-red-200 text-red-800' :
+            'bg-white border-blue-200 text-blue-800'
+        }`}>
+            {notification.type === 'success' && <CheckCircleIcon className="w-6 h-6 text-green-500" />}
+            {notification.type === 'error' && <ExclamationTriangleIcon className="w-6 h-6 text-red-500" />}
+            {notification.type === 'info' && <InformationCircleIcon className="w-6 h-6 text-blue-500" />}
+            
+            <div className="flex-1">
+                <p className="font-medium text-sm">{notification.message}</p>
+            </div>
+            <button onClick={() => setNotification(null)} className="text-gray-400 hover:text-gray-600">
+                <XMarkIcon className="w-4 h-4" />
+            </button>
+        </div>
+      )}
+
+      {/* 🟡 PROMPT DE GUARDAR (TIPO WORD) */}
+      {savePrompt?.show && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/40 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+          <div className="bg-white rounded-xl shadow-2xl max-w-md w-full animate-in zoom-in-95 duration-200 scale-100 border border-gray-200">
+            {/* Header */}
+            <div className="flex items-center justify-between p-4 border-b border-gray-100">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-amber-50 rounded-full">
+                  <ExclamationTriangleIcon className="w-6 h-6 text-amber-600" />
+                </div>
+                <h3 className="text-lg font-semibold text-gray-900">{savePrompt.title}</h3>
+              </div>
+              <button 
+                onClick={savePrompt.onCancel}
+                className="p-1 hover:bg-gray-100 rounded-full transition-colors"
+              >
+                <XMarkIcon className="w-5 h-5 text-gray-500" />
+              </button>
+            </div>
+            
+            {/* Message */}
+            <div className="p-6">
+              <p className="text-gray-600 mb-2">{savePrompt.message}</p>
+              <div className="mt-4 p-3 bg-gray-50 rounded-lg border border-gray-200">
+                <div className="flex items-center gap-2 text-sm text-gray-500">
+                  <InformationCircleIcon className="w-4 h-4" />
+                  <span>As suas alterações serão perdidas se não as guardar.</span>
+                </div>
+              </div>
+            </div>
+            
+            {/* Actions */}
+            <div className="flex flex-col sm:flex-row gap-2 p-4 border-t border-gray-100 bg-gray-50/50">
+              <button 
+                onClick={savePrompt.onSave}
+                disabled={isSaving}
+                className="flex items-center justify-center gap-2 px-4 py-3 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors shadow-sm flex-1"
+              >
+                {isSaving ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                    <span>A guardar...</span>
+                  </>
+                ) : (
+                  <>
+                    <DocumentArrowDownIcon className="w-5 h-5" />
+                    <span>Guardar</span>
+                  </>
+                )}
+              </button>
+              
+              <button 
+                onClick={savePrompt.onDiscard}
+                className="flex items-center justify-center gap-2 px-4 py-3 bg-white border border-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-50 transition-colors flex-1"
+              >
+                <XCircleIcon className="w-5 h-5" />
+                <span>Sair sem guardar</span>
+              </button>
+              
+              <button 
+                onClick={savePrompt.onCancel}
+                className="flex items-center justify-center gap-2 px-4 py-3 bg-white border border-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-50 transition-colors flex-1"
+              >
+                <ArrowLeftIcon className="w-5 h-5" />
+                <span>Cancelar</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* HEADER */}
       <div className="bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between sticky top-0 z-20 shadow-sm">
         <div className="flex items-center gap-4">
-          <Link href="/portal" className="p-2 hover:bg-gray-100 rounded-full transition-colors text-gray-600">
+          <button 
+            onClick={handleExit}
+            className="p-2 hover:bg-gray-100 rounded-full transition-colors text-gray-600"
+            title="Voltar ao Portal"
+          >
             <ArrowLeftIcon className="w-6 h-6" />
-          </Link>
+          </button>
+          
           <div>
             <h1 className="text-xl font-bold text-gray-800 flex items-center gap-2">
               <SparklesIcon className="w-5 h-5 text-pink-500" />
@@ -881,21 +1304,35 @@ export default function GeradorHorariosPage() {
             </p>
           </div>
         </div>
+        
+        {/* INDICADOR DE ALTERAÇÕES NÃO GUARDADAS */}
+        {hasUnsavedChanges && (
+          <div className="absolute top-4 left-1/2 transform -translate-x-1/2 flex items-center gap-2 px-3 py-1 bg-amber-50 border border-amber-200 rounded-full">
+            <div className="w-2 h-2 bg-amber-500 rounded-full animate-pulse"></div>
+            <span className="text-sm font-medium text-amber-700">Alterações não guardadas</span>
+          </div>
+        )}
+        
         <div className="flex items-center gap-3">
           {schedule && !isMultiSelectMode && (
             <>
-                {/* 🆕 BOTÃO DE GUARDAR NA BD */}
                 <button 
-                    onClick={handleSaveToDatabase}
+                    onClick={handleSaveClick}
                     disabled={isSaving}
-                    className="flex items-center gap-2 bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-indigo-700 transition-colors shadow-sm disabled:opacity-50"
+                    className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all shadow-sm disabled:opacity-50 ${
+                      hasUnsavedChanges 
+                        ? 'bg-amber-500 hover:bg-amber-600 text-white ring-2 ring-amber-300 ring-offset-2' 
+                        : 'bg-indigo-600 hover:bg-indigo-700 text-white'
+                    }`}
                 >
                     {isSaving ? (
                         <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
                     ) : (
-                        <CloudArrowUpIcon className="w-4 h-4" />
+                        <DocumentArrowDownIcon className="w-4 h-4" />
                     )}
-                    <span className="hidden sm:inline">Guardar Oficial</span>
+                    <span className="hidden sm:inline">
+                      {hasUnsavedChanges ? "Guardar *" : "Guardar"}
+                    </span>
                 </button>
 
                 <button 
@@ -962,39 +1399,45 @@ export default function GeradorHorariosPage() {
                 </p>
                 <div className="bg-gray-50 p-5 rounded-xl mb-8 inline-block text-left w-full max-w-md border border-gray-200">
                   <label className="block text-sm font-bold text-gray-700 mb-2">Escolha a Semana (Segunda-feira):</label>
+                  
+                  <div className="mb-4">
+                    <PortugueseDatePicker 
+                      selectedDate={selectedDate}
+                      onDateChange={(date) => setSelectedDate(date)}
+                    />
+                  </div>
+                  
                   <div className="flex items-center gap-2">
-                    <div className="relative flex-1">
-                      <CalendarDaysIcon className="absolute left-3 top-3 w-5 h-5 text-gray-400" />
-                      <input 
-                        type="date" 
-                        value={selectedDate}
-                        onChange={(e) => {
-                          const date = new Date(e.target.value);
-                          const day = date.getDay();
-                          const diff = date.getDate() - day + (day === 0 ? -6 : 1); 
-                          const monday = new Date(date.setDate(diff));
-                          setSelectedDate(monday.toISOString().split('T')[0]);
-                        }}
-                        className="pl-10 w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-pink-500 outline-none transition-shadow font-medium text-gray-700"
-                      />
-                    </div>
-                    {/* 🆕 BOTÃO DE CARREGAR HORÁRIO EXISTENTE */}
                     <button 
-                      onClick={handleLoadSchedule}
+                      onClick={handleLoadClick}
                       disabled={isLoadingSchedule}
-                      className="p-3 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 text-gray-600 transition-colors shadow-sm"
+                      className="flex-1 flex items-center justify-center gap-2 p-3 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 text-gray-700 transition-colors shadow-sm"
                       title="Ver horário guardado desta semana"
                     >
                       {isLoadingSchedule ? (
-                        <div className="w-5 h-5 border-2 border-gray-500 border-t-transparent rounded-full animate-spin"></div>
+                        <>
+                          <div className="w-4 h-4 border-2 border-gray-500 border-t-transparent rounded-full animate-spin"></div>
+                          <span>A carregar...</span>
+                        </>
                       ) : (
-                        <EyeIcon className="w-6 h-6" />
+                        <>
+                          <DocumentArrowUpIcon className="w-5 h-5" />
+                          <span>Carregar Horário</span>
+                        </>
                       )}
                     </button>
                   </div>
-                  <div className="mt-3 text-sm text-pink-600 font-medium flex items-center gap-1">
-                    <CheckCircleIcon className="w-4 h-4" />
-                    {getWeekRangeText()}
+                  
+                  <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                    <div className="flex items-center gap-2 text-blue-700">
+                      <CheckCircleIcon className="w-4 h-4" />
+                      <div>
+                        <p className="font-medium text-sm">{getWeekRangeText()}</p>
+                        <p className="text-xs text-blue-600 mt-1">
+                          Dias úteis: {weekDates[0]} a {weekDates[4]} • Fim de semana: {weekDates[5]} e {weekDates[6]}
+                        </p>
+                      </div>
+                    </div>
                   </div>
                 </div>
                 <button 
@@ -1035,7 +1478,7 @@ export default function GeradorHorariosPage() {
                     </p>
                   </div>
                   <button 
-                    onClick={() => setSchedule(null)} 
+                    onClick={handleDiscardAndRegenerate}
                     className="text-sm text-gray-500 hover:text-red-600 underline"
                   >
                     Descartar e Gerar Novamente
@@ -1065,7 +1508,7 @@ export default function GeradorHorariosPage() {
                               {slot}
                             </td>
                             {WEEK_DAYS.map(day => {
-                              const staffCodes = schedule[slot][day];
+                              const staffCodes = schedule[slot]?.[day] || [];
                               const hasStaff = staffCodes.length > 0;
                               const isSelected = selectedCells.some(c => c.slot === slot && c.day === day);
                               
@@ -1163,9 +1606,9 @@ export default function GeradorHorariosPage() {
                             <button
                               onClick={() => {
                                 const commonStaff = editingCells.reduce((common, cell) => {
-                                  const cellStaff = schedule[cell.slot][cell.day];
+                                  const cellStaff = schedule[cell.slot]?.[cell.day] || [];
                                   return common.filter(code => cellStaff.includes(code));
-                                }, schedule[editingCells[0].slot][editingCells[0].day]);
+                                }, schedule[editingCells[0].slot]?.[editingCells[0].day] || []);
                                 setEmployeesInMultipleCells(commonStaff);
                               }}
                               className="px-3 py-1 bg-blue-100 text-blue-700 rounded text-xs font-medium hover:bg-blue-200"
@@ -1179,14 +1622,11 @@ export default function GeradorHorariosPage() {
                           {employees
                             .filter(e => e.role !== 'admin' || e.code === 'TR')
                             .map(emp => {
-                              // Verificar se o funcionário está presente em TODAS as células selecionadas
                               const isInAllCells = editingCells.every(cell => 
-                                schedule[cell.slot][cell.day].includes(emp.code)
+                                schedule[cell.slot]?.[cell.day]?.includes(emp.code)
                               );
-                              
-                              // Verificar se está em pelo menos uma
                               const isInSomeCells = editingCells.some(cell =>
-                                schedule[cell.slot][cell.day].includes(emp.code)
+                                schedule[cell.slot]?.[cell.day]?.includes(emp.code)
                               );
 
                               let buttonStyle = 'bg-white border-gray-200 hover:border-blue-300 hover:bg-gray-50';
@@ -1225,23 +1665,6 @@ export default function GeradorHorariosPage() {
                               );
                             })}
                         </div>
-
-                        {/* Visualização das células selecionadas */}
-                        {editingCells.length > 1 && (
-                          <div className="mt-6 border-t pt-4">
-                            <h4 className="text-sm font-medium text-gray-500 mb-2">Pré-visualização das Células:</h4>
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-32 overflow-y-auto">
-                              {editingCells.map((cell, index) => (
-                                <div key={index} className="flex items-center justify-between p-2 bg-gray-50 rounded text-xs">
-                                  <span>{cell.day} {cell.slot}</span>
-                                  <span className="font-mono bg-white px-2 py-1 rounded">
-                                    {schedule[cell.slot][cell.day].join('+') || '-'}
-                                  </span>
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        )}
                       </div>
 
                       <div className="p-4 border-t border-gray-100 bg-gray-50 flex justify-between items-center">
