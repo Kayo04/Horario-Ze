@@ -10,9 +10,13 @@ import {
   ChartBarSquareIcon,
   PlusCircleIcon, // ⬅️ 1. ADICIONAR O ÍCONE NOVO
 } from '@heroicons/react/24/outline' // Ícones de exemplo
+import { useLanguage } from '@/context/LanguageContext'
+import { translations } from '@/lib/translations'
 
 export default function PortalPage() {
   const { data: session } = useSession()
+  const { language, setLanguage } = useLanguage()
+  const t = translations[language]
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-4 sm:p-8 font-sans">
@@ -21,22 +25,42 @@ export default function PortalPage() {
         <header className="flex flex-col sm:flex-row justify-between items-center gap-4 mb-12 bg-white p-6 rounded-xl shadow-lg">
           <div className="text-center sm:text-left">
             <h1 className="text-3xl sm:text-4xl font-extrabold text-gray-900 leading-tight">
-              Bem-vindo, {session?.user?.name}!
+              {t.welcome.replace('{name}', session?.user?.name || '')}
             </h1>
-            <p className="text-lg text-gray-600 mt-1">O seu painel de controlo está aqui.</p>
+            <p className="text-lg text-gray-600 mt-1">{t.dashboard_subtitle}</p>
           </div>
-          <button
-            onClick={() => signOut({ callbackUrl: '/' })}
-            className="flex items-center gap-2 px-6 py-3 bg-red-600 text-white rounded-lg shadow-md hover:bg-red-700 transition-all duration-200 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2"
-          >
-            <ArrowRightOnRectangleIcon className="h-5 w-5" />
-            Sair
-          </button>
+          
+          <div className="flex items-center gap-4">
+            <div className="flex gap-2">
+              <button 
+                onClick={() => setLanguage('pt')}
+                className={`text-2xl hover:scale-110 transition-transform ${language === 'pt' ? 'opacity-100' : 'opacity-50'}`}
+                title="Português"
+              >
+                🇵🇹
+              </button>
+              <button 
+                onClick={() => setLanguage('en')}
+                className={`text-2xl hover:scale-110 transition-transform ${language === 'en' ? 'opacity-100' : 'opacity-50'}`}
+                title="English"
+              >
+                🇬🇧
+              </button>
+            </div>
+
+            <button
+              onClick={() => signOut({ callbackUrl: '/' })}
+              className="flex items-center gap-2 px-6 py-3 bg-red-600 text-white rounded-lg shadow-md hover:bg-red-700 transition-all duration-200 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2"
+            >
+              <ArrowRightOnRectangleIcon className="h-5 w-5" />
+              {t.logout}
+            </button>
+          </div>
         </header>
 
         {/* Menu Principal */}
         <div className="bg-white p-8 rounded-xl shadow-lg">
-          <h2 className="text-2xl font-bold text-gray-800 mb-8 border-b pb-4">Ações Rápidas</h2>
+          <h2 className="text-2xl font-bold text-gray-800 mb-8 border-b pb-4">{t.quick_actions}</h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
             
             {/* Botão 1 - Gerir Horários (SÓ PARA ADMINS) */}
@@ -46,9 +70,9 @@ export default function PortalPage() {
                 className="flex flex-col items-center justify-center p-6 bg-gradient-to-br from-blue-500 to-blue-700 text-white rounded-xl shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-300 ease-in-out group"
               >
                 <CalendarDaysIcon className="h-12 w-12 mb-3 text-blue-200 group-hover:text-white transition-colors duration-300" />
-                <span className="text-lg font-semibold">Gerir Horários</span>
+                <span className="text-lg font-semibold">{t.manage_schedules}</span>
                 <span className="text-sm text-blue-100 group-hover:text-blue-50 mt-1">
-                  Atribuição de staff e eventos
+                  {t.manage_schedules_desc}
                 </span>
               </Link>
             )}
@@ -59,9 +83,9 @@ export default function PortalPage() {
               className="flex flex-col items-center justify-center p-6 bg-gradient-to-br from-green-500 to-green-700 text-white rounded-xl shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-300 ease-in-out group"
             >
               <UsersIcon className="h-12 w-12 mb-3 text-green-200 group-hover:text-white transition-colors duration-300" />
-              <span className="text-lg font-semibold">Gerir Reservas</span>
+              <span className="text-lg font-semibold">{t.manage_reservations}</span>
               <span className="text-sm text-green-100 group-hover:text-green-50 mt-1">
-                Visualizar e alterar eventos
+                {t.manage_reservations_desc}
               </span>
             </Link>
 
@@ -72,9 +96,9 @@ export default function PortalPage() {
                 className="flex flex-col items-center justify-center p-6 bg-gradient-to-br from-indigo-500 to-indigo-700 text-white rounded-xl shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-300 ease-in-out group"
               >
                 <UserGroupIcon className="h-12 w-12 mb-3 text-indigo-200 group-hover:text-white transition-colors duration-300" />
-                <span className="text-lg font-semibold">Gerir Funcionários</span>
+                <span className="text-lg font-semibold">{t.manage_employees}</span>
                 <span className="text-sm text-indigo-100 group-hover:text-indigo-50 mt-1">
-                  Dados e gestão de equipa
+                  {t.manage_employees_desc}
                 </span>
               </Link>
             )}
@@ -87,9 +111,9 @@ export default function PortalPage() {
                 className="flex flex-col items-center justify-center p-6 bg-gradient-to-br from-orange-500 to-orange-700 text-white rounded-xl shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-300 ease-in-out group"
               >
                 <ChartBarSquareIcon className="h-12 w-12 mb-3 text-orange-200 group-hover:text-white transition-colors duration-300" />
-                <span className="text-lg font-semibold">Painel de Admin</span>
+                <span className="text-lg font-semibold">{t.admin_panel}</span>
                 <span className="text-sm text-orange-100 group-hover:text-orange-50 mt-1">
-                  Ver calendário da equipa
+                  {t.admin_panel_desc}
                 </span>
               </Link>
             )}
@@ -100,9 +124,9 @@ export default function PortalPage() {
               className="flex flex-col items-center justify-center p-6 bg-gradient-to-br from-purple-500 to-purple-700 text-white rounded-xl shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-300 ease-in-out group"
             >
               <ClockIcon className="h-12 w-12 mb-3 text-purple-200 group-hover:text-white transition-colors duration-300" />
-              <span className="text-lg font-semibold">Minha Disponibilidade</span>
+              <span className="text-lg font-semibold">{t.my_availability}</span>
               <span className="text-sm text-purple-100 group-hover:text-purple-50 mt-1">
-                Definir horários de trabalho
+                {t.my_availability_desc}
               </span>
             </Link>
             {/* Botão - Criar Horários (SÓ PARA ADMINS) */}
@@ -112,9 +136,9 @@ export default function PortalPage() {
     className="flex flex-col items-center justify-center p-6 bg-gradient-to-br from-pink-500 to-pink-700 text-white rounded-xl shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-300 ease-in-out group"
   >
     <PlusCircleIcon className="h-12 w-12 mb-3 text-pink-200 group-hover:text-white transition-colors duration-300" />
-    <span className="text-lg font-semibold">Criar Horários</span>
+    <span className="text-lg font-semibold">{t.create_schedules}</span>
     <span className="text-sm text-pink-100 group-hover:text-pink-50 mt-1">
-      Criar horários personalizados
+      {t.create_schedules_desc}
     </span>
   </Link>
 )}

@@ -4,6 +4,8 @@ import toast from 'react-hot-toast'
 import Link from 'next/link'
 import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
+import { useLanguage } from '@/context/LanguageContext'
+import { translations } from '@/lib/translations'
 
 /* ---------- Tipos ---------- */
 type EventType = 'teambuilding' | 'birthday' | 'vrlocal' | 'experiencia'
@@ -57,12 +59,8 @@ const generateWorkingTimeOptions = () => {
   const options = []
   for (let hour = 9; hour <= 20; hour++) {
     for (let minute = 0; minute < 60; minute += 15) {
-      // Para a primeira hora (9:00), só queremos 9:30
       if (hour === 9 && minute < 30) continue;
-      
-      // Para a última hora (20:00), só queremos 20:00
       if (hour === 20 && minute > 0) continue;
-      
       const timeString = `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`
       options.push(timeString)
     }
@@ -76,6 +74,8 @@ const workingTimeOptions = generateWorkingTimeOptions()
 export default function SchedulerPage(): JSX.Element {
   const { data: session, status } = useSession()
   const router = useRouter()
+  const { language, setLanguage } = useLanguage()
+  const t = translations[language]
 
   const [reservations, setReservations] = useState<Reservation[]>([])
   const [employees, setEmployees] = useState<Employee[]>([])
@@ -121,12 +121,12 @@ export default function SchedulerPage(): JSX.Element {
       return
     }
     if (status === 'authenticated' && session?.user?.role !== 'admin') {
-      toast.error('Acesso negado. Apenas admins.')
+      toast.error(t.access_denied)
       router.replace('/portal')
     } else if (status === 'authenticated' && session?.user?.role === 'admin') {
       loadData()
     }
-  }, [status, session, router])
+  }, [status, session, router, t])
 
   /* ---------- Carregar dados ---------- */
   const loadData = async () => {
@@ -141,7 +141,7 @@ export default function SchedulerPage(): JSX.Element {
 
     } catch (error) {
       console.error('Erro ao carregar dados:', error)
-      toast.error('Erro ao carregar dados')
+      toast.error(t.error_generic)
     } finally {
       setLoading(false)
     }
@@ -161,7 +161,7 @@ export default function SchedulerPage(): JSX.Element {
   const handleFormSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (startTime >= endTime) {
-      toast.error('A hora de fim deve ser depois da hora de início')
+      toast.error(t.end_time_error)
       return
     }
     setSaving(true)
@@ -190,14 +190,14 @@ export default function SchedulerPage(): JSX.Element {
       })
       if (response.ok) {
         await loadData()
-        toast.success('✅ Evento agendado com sucesso!')
+        toast.success(`✅ ${t.success_schedule}`)
       } else {
         const errorData = await response.json()
-        toast.error('❌ Erro ao agendar evento: ' + (errorData.error || 'Erro desconhecido'))
+        toast.error(`❌ ${t.error_schedule}: ` + (errorData.error || 'Erro desconhecido'))
       }
     } catch (error) {
       console.error('Erro ao criar reserva:', error)
-      toast.error('❌ Erro de conexão ao agendar evento')
+      toast.error(`❌ ${t.error_connection}`)
       throw error 
     }
   }
@@ -212,14 +212,14 @@ export default function SchedulerPage(): JSX.Element {
       })
       if (response.ok) {
         await loadData()
-        toast.success('✅ Evento atualizado com sucesso!')
+        toast.success(`✅ ${t.success_update}`)
       } else {
         const errorData = await response.json()
-        toast.error('❌ Erro ao atualizar evento: ' + (errorData.error || 'Erro desconhecido'))
+        toast.error(`❌ ${t.error_update}: ` + (errorData.error || 'Erro desconhecido'))
       }
     } catch (error) {
       console.error('Erro ao atualizar reserva:', error)
-      toast.error('❌ Erro de conexão ao atualizar evento')
+      toast.error(`❌ ${t.error_connection}`)
       throw error 
     }
   }
@@ -235,37 +235,35 @@ export default function SchedulerPage(): JSX.Element {
   }
 
   const deleteReservation = async (id: string) => {
-    if (!window.confirm('Tem a certeza que quer cancelar este evento?')) return
+    if (!window.confirm(t.confirm_cancel_event)) return
     try {
       const response = await fetch(`/api/reservations/${id}`, { method: 'DELETE' })
       if (response.ok) {
         await loadData()
         setSchedule({})
-        toast.success('✅ Evento cancelado com sucesso!')
+        toast.success(`✅ ${t.success_cancel}`)
       } else {
-        toast.error('❌ Erro ao cancelar evento')
+        toast.error(`❌ ${t.error_cancel}`)
       }
     } catch (error) {
-      toast.error('❌ Erro de conexão ao cancelar evento')
+      toast.error(`❌ ${t.error_connection}`)
     }
   }
 
   const clearAll = async () => {
-    if (!window.confirm('Tem a certeza que quer apagar TODOS os eventos agendados?')) return
+    if (!window.confirm(t.confirm_delete_all)) return
     try {
       const deletePromises = reservations.map(r => fetch(`/api/reservations/${r.id}`, { method: 'DELETE' }))
       await Promise.all(deletePromises)
       await loadData()
       setSchedule({})
-      toast.success('✅ Todos os eventos foram apagados!')
+      toast.success(`✅ ${t.success_delete_all}`)
     } catch (error) {
-      toast.error('❌ Erro ao apagar eventos')
+      toast.error(`❌ ${t.error_delete_all}`)
     }
   }
   
-  /* ---------------------------------------------- */
   /* ---------- LÓGICA DE IMPORTAÇÃO (ATUALIZADA) ---------- */
-  /* ---------------------------------------------- */
 
   const triggerFileInput = () => {
     if (!isSheetJSLoaded) {
@@ -283,7 +281,7 @@ export default function SchedulerPage(): JSX.Element {
       return;
     }
     setIsUploading(true)
-    const toastId = toast.loading('A processar ficheiro...')
+    const toastId = toast.loading(t.file_processing)
     const reader = new FileReader();
     reader.onload = (event) => {
       try {
@@ -298,13 +296,13 @@ export default function SchedulerPage(): JSX.Element {
         processParsedData(json as string[][]); 
       } catch (error: any) {
         toast.dismiss(toastId);
-        toast.error(`Erro ao ler o ficheiro: ${error.message}`);
+        toast.error(`${t.file_read_error}: ${error.message}`);
         setIsUploading(false);
       }
     };
     reader.onerror = () => {
        toast.dismiss(toastId);
-       toast.error('Não foi possível ler o ficheiro.');
+       toast.error(t.file_read_error);
        setIsUploading(false);
     };
     reader.readAsArrayBuffer(file);
@@ -312,16 +310,13 @@ export default function SchedulerPage(): JSX.Element {
   }
 
   const processParsedData = (data: string[][]) => {
-    console.log("DEBUG: Dados lidos do ficheiro:", data);
     const headerIndex = data.findIndex(row => row && row.includes('Customer Email'))
     if (headerIndex === -1) {
       toast.error('Formato inválido. Não foi possível encontrar a coluna "Customer Email".')
       setIsUploading(false)
-      console.log("DEBUG: Não encontrou 'Customer Email'");
       return
     }
     const headerRow = data[headerIndex];
-    console.log("DEBUG: Linha do cabeçalho encontrada:", headerRow);
     const colMap: { [key: string]: number } = {
       date: headerRow.findIndex(h => h && h.startsWith('Date')),
       email: headerRow.indexOf('Customer Email'),
@@ -332,11 +327,9 @@ export default function SchedulerPage(): JSX.Element {
     };
     if (colMap.date === -1 || colMap.email === -1 || colMap.time === -1) {
       toast.error("Colunas essenciais (Date, Customer Email, Booking Time) não encontradas.");
-      console.log("DEBUG: Colunas em falta. Mapa:", colMap);
       setIsUploading(false);
       return
     }
-    console.log("DEBUG: Mapa de colunas:", colMap);
     const dataRows = data.slice(headerIndex + 1)
     const reservationsToUpload: Omit<Reservation, 'id'>[] = []
     let currentDate = ''; 
@@ -371,9 +364,8 @@ export default function SchedulerPage(): JSX.Element {
         }
       }
     }
-    console.log("DEBUG: Reservas para upload:", reservationsToUpload);
     if (reservationsToUpload.length === 0) {
-      toast.error('Nenhuma reserva válida encontrada no ficheiro.')
+      toast.error(t.file_no_valid_reservations)
       setIsUploading(false)
       return
     }
@@ -381,7 +373,6 @@ export default function SchedulerPage(): JSX.Element {
   }
 
   const startBatchUpload = async (reservationsToUpload: Omit<Reservation, 'id'>[]) => {
-    console.log(`DEBUG: Encontradas ${reservationsToUpload.length} reservas no ficheiro.`);
     const existingKeys = new Set(
       reservations.map(res => 
         `${res.date}_${res.startTime}_${res.eventType}_${res.people}`
@@ -391,13 +382,12 @@ export default function SchedulerPage(): JSX.Element {
       const fileKey = `${fileRes.date}_${fileRes.startTime}_${fileRes.eventType}_${fileRes.people}`;
       return !existingKeys.has(fileKey);
     });
-    console.log(`DEBUG: ${newReservationsOnly.length} são reservas NOVAS.`);
     if (newReservationsOnly.length === 0) {
       toast.success('O ficheiro foi lido, mas não foram encontradas novas reservas para adicionar.');
       setIsUploading(false);
       return;
     }
-    const toastId = toast.loading(`A importar ${newReservationsOnly.length} novas reservas...`);
+    const toastId = toast.loading(`${t.importing} ${newReservationsOnly.length}...`);
     const uploadPromises = newReservationsOnly.map(res => 
       fetch('/api/reservations', {
         method: 'POST',
@@ -410,12 +400,12 @@ export default function SchedulerPage(): JSX.Element {
       const successCount = results.filter(r => r.ok).length;
       const failCount = results.length - successCount;
       toast.dismiss(toastId);
-      if (successCount > 0) toast.success(`${successCount} reservas importadas com sucesso!`);
-      if (failCount > 0) toast.error(`${failCount} reservas falharam ao importar.`);
+      if (successCount > 0) toast.success(`${successCount} ${t.import_success}`);
+      if (failCount > 0) toast.error(`${failCount} ${t.import_fail}`);
       await loadData();
     } catch (error) {
       toast.dismiss(toastId);
-      toast.error('Erro grave durante a importação.');
+      toast.error(t.import_error_grave);
     } finally {
       setIsUploading(false);
     }
@@ -463,62 +453,31 @@ export default function SchedulerPage(): JSX.Element {
     const lowerNotes = (notes || '').toLowerCase()
     const lowerDesc = (description || '').toLowerCase()
     const combinedText = lowerNotes + ' ' + lowerDesc
-
-    // Regra 1: Procurar por "15+1px" ou "15 + 1px" ou "15+1pax" ou "15 + 1pax"
     let match = combinedText.match(/(\d+)\s*\+\s*(\d+)\s*(pax|px)/i);
-    if (match) {
-      return parseInt(match[1]) + parseInt(match[2]); // 15 + 1 = 16
-    }
-    
-    // Regra 2: Procurar por "30px" ou "12pax" ou "30 pax" ou "12 px"
+    if (match) return parseInt(match[1]) + parseInt(match[2]);
     match = combinedText.match(/(\d+)\s*(pax|px)/i);
-    if (match) {
-      return parseInt(match[1]);
-    }
-    
-    // Regra 3: Procurar por "30 Pax" ou "12 Px" (com espaço e maiúsculas)
+    if (match) return parseInt(match[1]);
     match = combinedText.match(/(\d+)\s+(pax|px)/i);
-    if (match) {
-      return parseInt(match[1]);
-    }
-
-    // Regra 4 (Fallback): Procurar "16x Noob" na descrição
+    if (match) return parseInt(match[1]);
     match = lowerDesc.match(/(\d+)\s*x/i);
-    if (match) {
-      return parseInt(match[1]);
-    }
-
-    return 1; // Fallback
+    if (match) return parseInt(match[1]);
+    return 1; 
   }
 
   const parseEventTypeFromCSV = (description: string, notes: string): EventType => {
     const lowerNotes = (notes || '').toLowerCase()
     const lowerDesc = (description || '').toLowerCase()
     const combinedText = lowerNotes + ' ' + lowerDesc
-
-    if (combinedText.includes('aniversário') || combinedText.includes('aniversario')) {
-      return 'birthday'
-    }
-    if (combinedText.includes('vr local')) {
-      return 'vrlocal'
-    }
-    const experienciaKeywords = [
-      'the break-in', 'mission planet x', 'nano clash', 
-      'roboclash', 'dont scream', "don't scream", 'mask of the pharaoh'
-    ];
-    if (experienciaKeywords.some(keyword => combinedText.includes(keyword))) {
-      return 'experiencia';
-    }
+    if (combinedText.includes('aniversário') || combinedText.includes('aniversario')) return 'birthday'
+    if (combinedText.includes('vr local')) return 'vrlocal'
+    const experienciaKeywords = ['the break-in', 'mission planet x', 'nano clash', 'roboclash', 'dont scream', "don't scream", 'mask of the pharaoh'];
+    if (experienciaKeywords.some(keyword => combinedText.includes(keyword))) return 'experiencia';
     return 'teambuilding'
   }
 
   const parseEndTimeFromCSV = (startTime: string, endTime: string): string => {
-    if (endTime && endTime.includes(':')) {
-      return endTime
-    }
-    if (!startTime || !startTime.includes(':')) {
-        return '20:00'
-    }
+    if (endTime && endTime.includes(':')) return endTime
+    if (!startTime || !startTime.includes(':')) return '20:00'
     try {
       const [hours, minutes] = startTime.split(':').map(Number)
       const date = new Date()
@@ -575,8 +534,6 @@ export default function SchedulerPage(): JSX.Element {
           return true
         }
       })
-
-      console.log(`📊 Evento ${r.eventType} - ${r.date} ${r.startTime}: ${available.length} funcionários disponíveis de ${employees.length} total`)
       const allAvailableStaff = available.map(e => ({ id: e.id, name: e.name, code: e.code }))
       const assignedCount = Math.min(available.length, required)
       bySlot[slotKey] = {
@@ -607,26 +564,26 @@ export default function SchedulerPage(): JSX.Element {
 
   const formatEventType = (type: EventType) => {
     switch (type) {
-      case 'teambuilding': return 'Team Building'
-      case 'birthday': return 'Aniversário'
-      case 'vrlocal': return 'VR Local'
-      case 'experiencia': return 'Experiência'
+      case 'teambuilding': return t.teambuilding
+      case 'birthday': return t.birthday
+      case 'vrlocal': return t.vrlocal
+      case 'experiencia': return t.experiencia
       default: return type
     }
   }
 
   const eventTypeDetails: Record<EventType, { subtitle: string }> = {
-    teambuilding: { subtitle: 'Corporativos' },
-    birthday: { subtitle: 'Celebrações' },
-    vrlocal: { subtitle: 'Realidade Virtual' },
-    experiencia: { subtitle: 'Escape Rooms' },
+    teambuilding: { subtitle: t.corporate },
+    birthday: { subtitle: t.celebrations },
+    vrlocal: { subtitle: t.virtual_reality },
+    experiencia: { subtitle: t.escape_rooms },
   }
 
   const formatDateBlock = (dateStr: string) => {
     try {
       const date = new Date(dateStr + 'T12:00:00');
       const day = date.getDate().toString();
-      const month = date.toLocaleString('pt-PT', { month: 'short' }).toUpperCase().replace('.', '');
+      const month = date.toLocaleString(language === 'pt' ? 'pt-PT' : 'en-US', { month: 'short' }).toUpperCase().replace('.', '');
       const year = date.getFullYear();
       return { day, month, year };
     } catch (e) {
@@ -654,7 +611,7 @@ export default function SchedulerPage(): JSX.Element {
       <div className="min-h-screen bg-gray-50 p-6 flex items-center justify-center">
         <div className="text-center">
           <div className="w-8 h-8 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin mx-auto mb-4"></div>
-          <div className="text-lg">A verificar sessão...</div>
+          <div className="text-lg">{t.check_session}</div>
         </div>
       </div>
     )
@@ -665,7 +622,7 @@ export default function SchedulerPage(): JSX.Element {
     return (
       <div className="min-h-screen bg-gray-50 p-6 flex items-center justify-center">
         <div className="text-center">
-          <div className="text-lg">A carregar eventos e funcionários...</div>
+          <div className="text-lg">{t.loading_data}</div>
         </div>
       </div>
     )
@@ -685,62 +642,80 @@ export default function SchedulerPage(): JSX.Element {
         
         <div className="max-w-4xl mx-auto">
 
-          <div className="mb-6">
+          <div className="mb-6 flex justify-between items-center">
             <Link href="/portal" className="inline-flex items-center text-sm text-indigo-600 hover:text-indigo-800 group">
               <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-1 transition-transform group-hover:-translate-x-1" viewBox="0 0 20 20" fill="currentColor">
                 <path fillRule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clipRule="evenodd" />
               </svg>
-              Voltar ao Portal
+              {t.back_to_portal}
             </Link>
+
+            {/* Language Toggle */}
+            <div className="flex space-x-2">
+              <button 
+                onClick={() => setLanguage('pt')} 
+                className={`text-2xl hover:scale-110 transition-transform ${language === 'pt' ? 'opacity-100' : 'opacity-50'}`}
+                title="Português"
+              >
+                🇵🇹
+              </button>
+              <button 
+                onClick={() => setLanguage('en')} 
+                className={`text-2xl hover:scale-110 transition-transform ${language === 'en' ? 'opacity-100' : 'opacity-50'}`}
+                title="English"
+              >
+                🇬🇧
+              </button>
+            </div>
           </div>
 
           <div className="mb-8">
             <div>
-              <h1 className="text-3xl font-bold text-gray-800">Agendamento de Eventos</h1>
+              <h1 className="text-3xl font-bold text-gray-800">{t.scheduler_title}</h1>
               <p className="mt-2 text-gray-600">
-                Sistema de agendamento para eventos corporativos e aniversários
+                {t.scheduler_subtitle}
               </p>
             </div>
           </div>
 
           <section className="bg-white rounded-lg shadow-md p-6 mb-8">
             <h2 className="text-xl font-semibold mb-4">
-              {editingReservationId ? 'Editar Evento' : 'Agendar Novo Evento'}
+              {editingReservationId ? t.edit_event : t.schedule_new_event}
             </h2>
             
             <form onSubmit={handleFormSubmit} className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Tipo de Evento *
+                  {t.event_type} *
                 </label>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                   <button type="button" onClick={() => setEventType('teambuilding')} className={`p-4 border-2 rounded-lg text-center transition-colors ${eventType === 'teambuilding' ? 'border-blue-500 bg-blue-50 text-blue-700' : 'border-gray-200 bg-white text-gray-700 hover:border-gray-300'}`}>
-                    <div className="font-medium">Team Building</div>
+                    <div className="font-medium">{t.teambuilding}</div>
                   </button>
                   <button type="button" onClick={() => setEventType('birthday')} className={`p-4 border-2 rounded-lg text-center transition-colors ${eventType === 'birthday' ? 'border-green-500 bg-green-50 text-green-700' : 'border-gray-200 bg-white text-gray-700 hover:border-gray-300'}`}>
-                    <div className="font-medium">Aniversário</div>
+                    <div className="font-medium">{t.birthday}</div>
                   </button>
                   <button type="button" onClick={() => setEventType('vrlocal')} className={`p-4 border-2 rounded-lg text-center transition-colors ${eventType === 'vrlocal' ? 'border-purple-500 bg-purple-50 text-purple-700' : 'border-gray-200 bg-white text-gray-700 hover:border-gray-300'}`}>
-                    <div className="font-medium">VR Local</div>
+                    <div className="font-medium">{t.vrlocal}</div>
                   </button>
                   <button type="button" onClick={() => setEventType('experiencia')} className={`p-4 border-2 rounded-lg text-center transition-colors ${eventType === 'experiencia' ? 'border-cyan-500 bg-cyan-50 text-cyan-700' : 'border-gray-200 bg-white text-gray-700 hover:border-gray-300'}`}>
-                    <div className="font-medium">Experiência</div>
+                    <div className="font-medium">{t.experiencia}</div>
                   </button>
                 </div>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Data do Evento *</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">{t.date_label} *</label>
                 <input type="date" value={date} onChange={e => setDate(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" required disabled={saving || isUploading} />
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Hora de Início *</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">{t.start_time} *</label>
                   <select value={startTime} onChange={e => setStartTime(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" required disabled={saving || isUploading}>
                     { workingTimeOptions.map(time => (<option key={time} value={time}>{time}</option>))}
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Hora de Fim *</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">{t.end_time} *</label>
                   <select value={endTime} onChange={e => setEndTime(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" required disabled={saving || isUploading}>
                     { workingTimeOptions.map(time => (<option key={time} value={time}>{time}</option>))}
                   </select>
@@ -748,13 +723,13 @@ export default function SchedulerPage(): JSX.Element {
               </div>
               <div className="bg-gray-50 p-3 rounded-md">
                 <div className="text-sm text-gray-600">
-                  <span className="font-medium">Duração do evento:</span>{' '}
-                  {calculateDuration(startTime, endTime)} horas
-                  {startTime >= endTime && (<span className="text-red-600 ml-2">⚠️ A hora de fim deve ser depois do início</span>)}
+                  <span className="font-medium">{t.duration}:</span>{' '}
+                  {calculateDuration(startTime, endTime)} {t.hours}
+                  {startTime >= endTime && (<span className="text-red-600 ml-2">⚠️ {t.end_time_error}</span>)}
                 </div>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Número de Pessoas *</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">{t.people_label} *</label>
                 <input type="number" min="1" max="100" value={people} onChange={e => setPeople(Number(e.target.value))} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" required disabled={saving || isUploading} />
               </div>
               
@@ -766,7 +741,7 @@ export default function SchedulerPage(): JSX.Element {
                     disabled={saving}
                     className="px-6 py-3 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 font-medium disabled:opacity-50"
                   >
-                    Cancelar Edição
+                    {t.cancel_edit}
                   </button>
                 )}
                 <button
@@ -775,8 +750,8 @@ export default function SchedulerPage(): JSX.Element {
                   className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
                 >
                   {saving 
-                    ? (editingReservationId ? 'A atualizar...' : 'A guardar...')
-                    : (editingReservationId ? 'Atualizar Evento' : 'Agendar Evento')
+                    ? (editingReservationId ? t.updating : t.saving)
+                    : (editingReservationId ? t.update_event : t.schedule_event)
                   }
                 </button>
               </div>
@@ -785,11 +760,11 @@ export default function SchedulerPage(): JSX.Element {
 
           <section className="bg-white rounded-lg shadow-md p-6 mb-8">
             <div className="flex justify-between items-center mb-4">
-              <h2 className="text-xl font-semibold">Eventos Agendados ({reservations.length})</h2>
-              {reservations.length > 0 && (<button onClick={clearAll} className="px-3 py-1 bg-red-500 text-white rounded text-sm hover:bg-red-600" disabled={saving || isUploading}>Apagar Todos</button>)}
+              <h2 className="text-xl font-semibold">{t.scheduled_events} ({reservations.length})</h2>
+              {reservations.length > 0 && (<button onClick={clearAll} className="px-3 py-1 bg-red-500 text-white rounded text-sm hover:bg-red-600" disabled={saving || isUploading}>{t.delete_all}</button>)}
             </div>
             {reservations.length === 0 ? (
-              <p className="text-gray-500 text-center py-4">Nenhum evento agendado. Use o formulário acima ou importe um ficheiro.</p>
+              <p className="text-gray-500 text-center py-4">{t.no_events}</p>
             ) : (
               <div className="space-y-3">
                  {[...reservations].sort((a, b) => {
@@ -835,8 +810,8 @@ export default function SchedulerPage(): JSX.Element {
                                 </div>
 
                                 <div className="text-sm text-gray-600 space-y-1">
-                                  <div><span className="font-medium">Horário:</span> {reservation.startTime} - {reservation.endTime} <span className="text-gray-500 ml-2">({calculateDuration(reservation.startTime, reservation.endTime)} horas)</span></div>
-                                  <div><span className="font-medium">Pessoas:</span> {reservation.people}</div>
+                                  <div><span className="font-medium">{t.start_time.split(' ')[0]}:</span> {reservation.startTime} - {reservation.endTime} <span className="text-gray-500 ml-2">({calculateDuration(reservation.startTime, reservation.endTime)} {t.hours})</span></div>
+                                  <div><span className="font-medium">{t.people_label.split(' ')[0]}:</span> {reservation.people}</div>
                                 </div>
                               </div>
 
@@ -847,14 +822,14 @@ export default function SchedulerPage(): JSX.Element {
                                   className="px-3 py-1 bg-blue-500 text-white rounded text-sm hover:bg-blue-600 mr-2"
                                   disabled={saving || isUploading}
                                 >
-                                  Editar
+                                  {t.edit}
                                 </button>
                                 <button
                                   onClick={() => deleteReservation(reservation.id)}
                                   className="px-3 py-1 bg-red-500 text-white rounded text-sm hover:bg-red-600"
                                   disabled={saving || isUploading}
                                 >
-                                  Cancelar
+                                  {t.cancel}
                                 </button>
                               </div>
                             </div>
@@ -869,21 +844,25 @@ export default function SchedulerPage(): JSX.Element {
 
           <section className="bg-white rounded-lg shadow-md p-6">
             <div className="flex flex-wrap gap-4 justify-between items-center mb-4">
-              <h2 className="text-xl font-semibold">Atribuição de Staff</h2>
+              <h2 className="text-xl font-semibold">{t.staff_assignment}</h2>
               <div className="flex gap-2"> 
-                <button
-                  onClick={triggerFileInput}
-                  className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 disabled:opacity-50"
-                  disabled={!isSheetJSLoaded || isUploading || saving}
-                >
-                  {isUploading ? 'A importar...' : 'Importar Ficheiro (.xlsx, .csv)'}
-                </button>
+<button
+  onClick={triggerFileInput}
+  className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 disabled:opacity-50"
+  disabled={!isSheetJSLoaded || isUploading || saving}
+>
+  {/* CORREÇÃO: Verifica se está a carregar, senão verifica a língua para escolher o texto */}
+  {isUploading 
+    ? t.importing 
+    : (language === 'en' ? "Import File (.xlsx, .csv)" : "Importar Ficheiro (.xlsx, .csv)")
+  }
+</button>
                 <button
                   onClick={generateSchedule}
                   className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700"
                   disabled={reservations.length === 0 || isUploading || saving}
                 >
-                  Gerar Horário
+                  {t.generate_schedule}
                 </button>
               </div>
             </div>
@@ -891,25 +870,25 @@ export default function SchedulerPage(): JSX.Element {
             <div className="space-y-4">
               {Object.keys(schedule).length === 0 ? (
                 <p className="text-gray-500 text-center py-4">
-                  {reservations.length === 0 ? 'Agende eventos primeiro para gerar o horário.' : 'Clique em "Gerar Horário" para ver a atribuição de staff.'}
+                  {reservations.length === 0 ? t.generate_schedule_help : t.generate_schedule_click}
                 </p>
               ) : (
                 Object.entries(schedule).map(([slot, data]) => (
                   <div key={slot} className="border border-gray-200 rounded-lg p-4">
                     <div className="flex justify-between items-start mb-3">
                       <div>
-                        <div className="font-medium text-lg">{formatEventType(data.reservation.eventType)} - {new Date(data.reservation.date + 'T12:00:00').toLocaleDateString('pt-PT')}</div>
-                        <div className="text-sm text-gray-600 mt-1">{data.reservation.startTime} - {data.reservation.endTime} • {data.reservation.people} pessoas</div>
+                        <div className="font-medium text-lg">{formatEventType(data.reservation.eventType)} - {new Date(data.reservation.date + 'T12:00:00').toLocaleDateString(language === 'pt' ? 'pt-PT' : 'en-US')}</div>
+                        <div className="text-sm text-gray-600 mt-1">{data.reservation.startTime} - {data.reservation.endTime} • {data.reservation.people} {t.people_label.split(' ')[2] || 'pessoas'}</div>
                       </div>
                       <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${data.note === 'OK' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
                         {data.note}
                       </span>
                     </div>
                     <div className="text-sm">
-                      <div className="mb-2"><span className="font-medium">Staff necessário:</span> {data.required}</div>
+                      <div className="mb-2"><span className="font-medium">{t.staff_required}:</span> {data.required}</div>
                       <div>
-                        <span className="font-medium">Staff disponível ({data.available.length}):</span>{' '}
-                        {data.available.length > 0 ? data.available.map(a => a.name).join(', ') : 'Nenhum staff disponível'}
+                        <span className="font-medium">{t.staff_available} ({data.available.length}):</span>{' '}
+                        {data.available.length > 0 ? data.available.map(a => a.name).join(', ') : t.no_staff_available}
                       </div>
                     </div>
                   </div>
@@ -919,10 +898,10 @@ export default function SchedulerPage(): JSX.Element {
           </section>
 
           <footer className="mt-8 text-center text-gray-500 text-sm">
-            Sistema de agendamento - {employees.length} funcionários disponíveis
+            {t.system_footer} - {employees.length} {t.staff_available_count}
             <br />
             <span className="text-xs">
-              ⚡ Eventos passados são automaticamente eliminados da base de dados
+              ⚡ {t.auto_delete_footer}
             </span>
           </footer>
         </div>
@@ -934,8 +913,8 @@ export default function SchedulerPage(): JSX.Element {
   return (
     <div className="min-h-screen bg-gray-50 p-6 flex items-center justify-center">
       <div className="text-center">
-        <div className="text-lg text-red-600">Acesso Negado</div>
-        <p className="text-gray-600">A ser redirecionado...</p>
+        <div className="text-lg text-red-600">{t.access_denied}</div>
+        <p className="text-gray-600">{t.redirecting}</p>
       </div>
     </div>
   )

@@ -12,8 +12,6 @@ import {
   PlusIcon,
   Squares2X2Icon,
   ShieldExclamationIcon,
-  CloudArrowUpIcon,
-  EyeIcon,
   ExclamationTriangleIcon,
   InformationCircleIcon,
   DocumentArrowDownIcon,
@@ -22,8 +20,10 @@ import {
   ChevronLeftIcon,
   ChevronRightIcon
 } from '@heroicons/react/24/outline';
+import { useLanguage } from '@/context/LanguageContext';
+import { translations } from '@/lib/translations';
 
-// ✅ MOCK DO LINK (Mantido para compatibilidade com o teu projeto)
+// ✅ MOCK DO LINK
 const Link = ({ href, children, className }: { href: string; children: React.ReactNode; className?: string }) => (
   <a href={href} className={className}>
     {children}
@@ -82,8 +82,6 @@ const TIME_SLOTS = [
   '23:30 - 00:00'
 ];
 
-const WEEK_DAYS = ['Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado', 'Domingo'];
-
 // --- FUNÇÕES HELPER PARA DATAS ---
 const formatDateToEuropean = (date: Date): string => {
   const day = String(date.getDate()).padStart(2, '0');
@@ -99,8 +97,8 @@ const formatDateToInput = (date: Date): string => {
   return `${year}-${month}-${day}`;
 };
 
-// --- COMPONENTE SELETOR DE DATA EM PORTUGUÊS ---
-const PortugueseDatePicker = ({ 
+// --- COMPONENTE SELETOR DE DATA LOCALIZADO ---
+const LocalizedDatePicker = ({ 
   selectedDate, 
   onDateChange 
 }: { 
@@ -109,7 +107,12 @@ const PortugueseDatePicker = ({
 }) => {
   const [showPicker, setShowPicker] = useState(false);
   const [currentMonth, setCurrentMonth] = useState(new Date());
+  const { language } = useLanguage();
+  const t = translations[language]; // Para usar o botão "Go to this week"
   
+  // Define o locale (pt-PT ou en-US)
+  const locale = language === 'pt' ? 'pt-PT' : 'en-US';
+
   const selectedDateObj = useMemo(() => 
     selectedDate ? new Date(selectedDate) : new Date()
   , [selectedDate]);
@@ -124,26 +127,27 @@ const PortugueseDatePicker = ({
     const year = currentMonth.getFullYear();
     const month = currentMonth.getMonth();
     const firstDay = new Date(year, month, 1);
-    // Ajustar para Segunda-feira como primeiro dia da semana
     let day = firstDay.getDay();
-    if (day === 0) day = 6; // Domingo vira 6
-    else day -= 1; // Segunda=0, Terça=1, etc.
+    if (day === 0) day = 6;
+    else day -= 1;
     return day;
   }, [currentMonth]);
   
-  const monthNames = [
-    'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
-    'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'
-  ];
+  const monthNames = useMemo(() => {
+    const formatter = new Intl.DateTimeFormat(locale, { month: 'long' });
+    return Array.from({ length: 12 }, (_, i) => formatter.format(new Date(2024, i, 1)));
+  }, [locale]);
   
-  const dayNames = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom'];
+  const dayNames = useMemo(() => {
+    const formatter = new Intl.DateTimeFormat(locale, { weekday: 'short' });
+    return Array.from({ length: 7 }, (_, i) => formatter.format(new Date(2024, 0, i + 1)).replace('.', ''));
+  }, [locale]);
   
   const generateDays = () => {
     const days = [];
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     
-    // Dias do mês anterior (para preencher o início)
     const prevMonth = new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1, 1);
     const daysInPrevMonth = new Date(prevMonth.getFullYear(), prevMonth.getMonth() + 1, 0).getDate();
     
@@ -158,7 +162,6 @@ const PortugueseDatePicker = ({
       });
     }
     
-    // Dias do mês atual
     for (let i = 1; i <= daysInMonth; i++) {
       const date = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), i);
       date.setHours(0, 0, 0, 0);
@@ -170,8 +173,7 @@ const PortugueseDatePicker = ({
       });
     }
     
-    // Dias do próximo mês (para completar a grade)
-    const totalCells = 42; // 6 semanas * 7 dias
+    const totalCells = 42;
     const nextMonthDays = totalCells - days.length;
     
     for (let i = 1; i <= nextMonthDays; i++) {
@@ -218,7 +220,6 @@ const PortugueseDatePicker = ({
 
   const handleDateInput = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
-    // Tentar parsear a data no formato DD/MM/YYYY
     const parts = value.split('/');
     if (parts.length === 3) {
       const day = parseInt(parts[0], 10);
@@ -267,7 +268,6 @@ const PortugueseDatePicker = ({
             onClick={() => setShowPicker(false)}
           />
           <div className="absolute top-full left-0 mt-2 z-50 bg-white rounded-lg shadow-xl border border-gray-200 p-4 w-80">
-            {/* Cabeçalho do calendário */}
             <div className="flex items-center justify-between mb-4">
               <button 
                 onClick={goToPreviousMonth}
@@ -277,11 +277,12 @@ const PortugueseDatePicker = ({
               </button>
               
               <div className="text-center">
-                <div className="font-bold text-lg text-gray-800">
+                <div className="font-bold text-lg text-gray-800 capitalize">
                   {monthNames[currentMonth.getMonth()]} {currentMonth.getFullYear()}
                 </div>
+                {/* Tradução: Semana de ... */}
                 <div className="text-sm text-gray-500">
-                  Segunda-feira: {formatDateToEuropean(selectedDateObj)}
+                  {dayNames[0]}: {formatDateToEuropean(selectedDateObj)}
                 </div>
               </div>
               
@@ -293,16 +294,14 @@ const PortugueseDatePicker = ({
               </button>
             </div>
             
-            {/* Dias da semana */}
             <div className="grid grid-cols-7 gap-1 mb-2">
               {dayNames.map(day => (
-                <div key={day} className="text-center text-sm font-medium text-gray-500 p-2">
+                <div key={day} className="text-center text-sm font-medium text-gray-500 p-2 capitalize">
                   {day}
                 </div>
               ))}
             </div>
             
-            {/* Dias do mês */}
             <div className="grid grid-cols-7 gap-1">
               {generateDays().map((day, index) => (
                 <button
@@ -321,13 +320,12 @@ const PortugueseDatePicker = ({
               ))}
             </div>
             
-            {/* Rodapé */}
             <div className="mt-4 pt-4 border-t border-gray-100">
               <button
                 onClick={goToToday}
                 className="w-full py-2 px-4 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg font-medium text-sm transition-colors"
               >
-                Ir para esta semana
+                {t.go_to_this_week}
               </button>
             </div>
           </div>
@@ -338,7 +336,23 @@ const PortugueseDatePicker = ({
 };
 
 export default function GeradorHorariosPage() {
-  // --- ESTADOS ---
+  const { language } = useLanguage(); 
+  const t = translations[language];
+  
+  // ✅ Array de dias dinâmico usando o Intl para tradução automática
+  const locale = language === 'pt' ? 'pt-PT' : 'en-US';
+  const WEEK_DAYS = useMemo(() => {
+    const formatter = new Intl.DateTimeFormat(locale, { weekday: 'long' });
+    // Começa na segunda-feira
+    return Array.from({ length: 7 }, (_, i) => {
+        // 2024-01-01 foi segunda-feira
+        const d = new Date(2024, 0, i + 1); 
+        const dayName = formatter.format(d);
+        // Capitalizar a primeira letra
+        return dayName.charAt(0).toUpperCase() + dayName.slice(1);
+    });
+  }, [locale]);
+
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [reservations, setReservations] = useState<Reservation[]>([]);
   const [loadingData, setLoadingData] = useState(true);
@@ -373,7 +387,6 @@ export default function GeradorHorariosPage() {
   const [notification, setNotification] = useState<NotificationType | null>(null);
   const [savePrompt, setSavePrompt] = useState<SavePromptType | null>(null);
 
-  // --- EFEITO: REMOVER NOTIFICAÇÃO APÓS 3 SEGUNDOS ---
   useEffect(() => {
     if (notification?.show) {
       const timer = setTimeout(() => setNotification(null), 3000);
@@ -381,12 +394,10 @@ export default function GeradorHorariosPage() {
     }
   }, [notification]);
 
-  // --- HELPERS ---
   const showToast = useCallback((message: string, type: 'success' | 'error' | 'info' = 'success') => {
     setNotification({ show: true, message, type });
   }, []);
 
-  // --- EFEITO PARA PREVENIR SAÍDA SEM GUARDAR ---
   useEffect(() => {
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
       if (hasUnsavedChanges) {
@@ -398,7 +409,6 @@ export default function GeradorHorariosPage() {
     return () => window.removeEventListener('beforeunload', handleBeforeUnload);
   }, [hasUnsavedChanges]);
 
-  // --- CÁLCULO DE ESTATÍSTICAS ---
   const stats = useMemo(() => {
     const newStats: Record<string, number> = {};
     employees.forEach(emp => newStats[emp.id] = 0);
@@ -418,7 +428,6 @@ export default function GeradorHorariosPage() {
     return newStats;
   }, [schedule, employees]);
 
-  // --- VERIFICAÇÃO DE AUTENTICAÇÃO ---
   useEffect(() => {
     const checkAuth = async () => {
       try {
@@ -433,8 +442,8 @@ export default function GeradorHorariosPage() {
         } else {
           setCurrentUser({
             id: '4', 
-            name: 'Tiago Ribeiro', 
-            code: 'TR', 
+            name: 'Admin Local', 
+            code: 'AD', 
             role: 'admin',
             unavailable: { weekdays: [], specificDates: [] }
           });
@@ -443,8 +452,8 @@ export default function GeradorHorariosPage() {
         console.warn('Erro auth, usando fallback:', error);
         setCurrentUser({
           id: '4', 
-          name: 'Tiago Ribeiro', 
-          code: 'TR', 
+          name: 'Admin Local', 
+          code: 'AD', 
           role: 'admin',
           unavailable: { weekdays: [], specificDates: [] }
         });
@@ -453,7 +462,6 @@ export default function GeradorHorariosPage() {
     checkAuth();
   }, []);
 
-  // --- CARREGAMENTO DE SCRIPT EXCEL ---
   useEffect(() => {
     if ((window as any).XLSX) {
       setIsSheetJSLoaded(true);
@@ -466,7 +474,6 @@ export default function GeradorHorariosPage() {
     document.body.appendChild(script);
   }, []);
 
-  // --- CARREGAR DADOS ---
   useEffect(() => {
     const fetchData = async () => {
       if (!currentUser || currentUser.role !== 'admin') {
@@ -476,7 +483,6 @@ export default function GeradorHorariosPage() {
       try {
         setLoadingData(true);
         
-        // Carregar Funcionários
         let loadedEmployees: Employee[] = [];
         try {
           const resEmp = await fetch('/api/employees');
@@ -484,7 +490,7 @@ export default function GeradorHorariosPage() {
             const data = await resEmp.json();
             const filteredData = data.filter((emp: any) => {
               const isBoss = emp.name.toLowerCase().includes('jose marques') || 
-                           emp.name.toLowerCase().includes('josé marques');
+                             emp.name.toLowerCase().includes('josé marques');
               if (emp.code === 'TR') return true;
               const isAdmin = emp.role === 'admin';
               return !isAdmin && !isBoss;
@@ -495,43 +501,10 @@ export default function GeradorHorariosPage() {
             }));
           }
         } catch (error) {
-          console.warn("API employees offline, mock loaded.");
-          loadedEmployees = [
-            { 
-              id: '1', 
-              name: 'Nuno Matias', 
-              code: 'NR', 
-              role: 'employee', 
-              unavailable: { 
-                weekdays: [
-                  { day: 2, start: '', end: '' }, 
-                  { day: 0, start: '', end: '' }
-                ], 
-                specificDates: [] 
-              } 
-            },
-            { 
-              id: '2', 
-              name: 'Helena Nogueira', 
-              code: 'HN', 
-              role: 'employee', 
-              unavailable: { 
-                weekdays: [{ day: 1, start: '', end: '' }], 
-                specificDates: [] 
-              } 
-            },
-            { 
-              id: '4', 
-              name: 'Tiago Ribeiro', 
-              code: 'TR', 
-              role: 'admin', 
-              unavailable: { weekdays: [], specificDates: [] } 
-            },
-          ];
+          console.warn("API employees offline.");
         }
         setEmployees(loadedEmployees);
 
-        // Carregar Reservas
         let loadedReservations: Reservation[] = [];
         try {
           const resRes = await fetch('/api/reservations');
@@ -545,15 +518,14 @@ export default function GeradorHorariosPage() {
 
       } catch (error) {
         console.error("Erro fatal", error);
-        showToast("Erro ao carregar dados iniciais.", "error");
+        showToast(t.error_generic, "error");
       } finally {
         setLoadingData(false);
       }
     };
     fetchData();
-  }, [currentUser, showToast]);
+  }, [currentUser, showToast, t]);
 
-  // --- HELPERS ---
   const getInitials = (name: string) => 
     name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
 
@@ -562,7 +534,6 @@ export default function GeradorHorariosPage() {
     return h * 60 + m;
   };
 
-  // --- CALCULAR DATAS DA SEMANA ---
   useEffect(() => {
     if (!selectedDate) return;
     const start = new Date(selectedDate);
@@ -579,10 +550,9 @@ export default function GeradorHorariosPage() {
 
   const getWeekRangeText = useCallback(() => {
     if (weekDates.length === 0) return "";
-    return `Semana de ${weekDates[0]} a ${weekDates[6]}`;
-  }, [weekDates]);
+    return t.week_days_range.replace('{start}', weekDates[0]).replace('{end}', weekDates[6]);
+  }, [weekDates, t]);
 
-  // --- FUNÇÕES DE SELEÇÃO MÚLTIPLA ---
   const toggleCellSelection = useCallback((slot: string, day: string) => {
     if (!isMultiSelectMode) return;
     const cellKey = `${slot}-${day}`;
@@ -599,8 +569,8 @@ export default function GeradorHorariosPage() {
   const startMultiSelect = useCallback(() => {
     setIsMultiSelectMode(true);
     setSelectedCells([]);
-    showToast("Modo de seleção ativado. Clique nas células.", "info");
-  }, [showToast]);
+    showToast(t.multi_select_active, "info");
+  }, [showToast, t]);
 
   const cancelMultiSelect = useCallback(() => {
     setIsMultiSelectMode(false);
@@ -609,15 +579,14 @@ export default function GeradorHorariosPage() {
 
   const openMultiEditModal = useCallback(() => {
     if (selectedCells.length === 0) {
-      showToast('Selecione pelo menos uma célula para editar.', 'error');
+      showToast(t.select_cell_edit, 'error');
       return;
     }
     setEditingCells(selectedCells);
     setIsMultiSelectMode(false);
     setSelectedCells([]);
-  }, [selectedCells, showToast]);
+  }, [selectedCells, showToast, t]);
 
-  // --- FUNÇÕES DE EDIÇÃO ---
   const toggleEmployeeInMultipleCells = useCallback((code: string) => {
     if (!schedule || editingCells.length === 0) return;
 
@@ -657,11 +626,10 @@ export default function GeradorHorariosPage() {
     setSchedule(newSchedule);
   }, [schedule, editingCells]);
 
-  // --- EXPORTAR EXCEL ---
   const handleExportExcel = useCallback(() => {
     if (!schedule || !(window as any).XLSX) return;
     const XLSX = (window as any).XLSX;
-    const headers = ["Horário", ...WEEK_DAYS.map((day, i) => `${day} (${weekDates[i]})`)];
+    const headers = [t.schedule_header, ...WEEK_DAYS.map((day, i) => `${day} (${weekDates[i]})`)];
     const dataRows = TIME_SLOTS.map(slot => {
       const row = [slot];
       WEEK_DAYS.forEach(day => {
@@ -676,37 +644,12 @@ export default function GeradorHorariosPage() {
     for (let i = 0; i < 7; i++) wscols.push({ wch: 20 });
     worksheet['!cols'] = wscols;
     const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, "Horário");
-    const fileName = `Horario_${weekDates[0].replace('/', '-')}_a_${weekDates[6].replace('/', '-')}.xlsx`;
+    XLSX.utils.book_append_sheet(workbook, worksheet, t.schedule_header);
+    const fileName = `Schedule_${weekDates[0].replace('/', '-')}_to_${weekDates[6].replace('/', '-')}.xlsx`;
     XLSX.writeFile(workbook, fileName);
-    showToast("Excel exportado com sucesso!", "success");
-  }, [schedule, weekDates, showToast]);
+    showToast(t.success_generic, "success");
+  }, [schedule, weekDates, showToast, t, WEEK_DAYS]);
 
-  // --- FUNÇÃO PARA SAIR ---
-  const handleExit = useCallback(() => {
-    if (hasUnsavedChanges) {
-      setSavePrompt({
-        show: true,
-        title: "Sair sem guardar?",
-        message: "Tem alterações não guardadas no horário. O que pretende fazer?",
-        onSave: () => {
-          handleSaveToDatabase(() => {
-            window.location.href = '/portal';
-          });
-        },
-        onDiscard: () => {
-          window.location.href = '/portal';
-        },
-        onCancel: () => {
-          setSavePrompt(null);
-        }
-      });
-    } else {
-      window.location.href = '/portal';
-    }
-  }, [hasUnsavedChanges]);
-
-  // --- FUNÇÃO PARA GUARDAR NA BD (COM CALLBACK) ---
   const handleSaveToDatabase = useCallback(async (onSuccess?: () => void) => {
     if (!schedule) return;
     
@@ -776,45 +719,111 @@ export default function GeradorHorariosPage() {
 
       if (response.ok) {
         setHasUnsavedChanges(false);
-        showToast(`Horário Oficial Guardado (${shiftsToSave.length} turnos)`, "success");
-        
-        if (onSuccess) {
-          onSuccess();
-        }
-        
+        showToast(t.schedule_saved.replace('{count}', shiftsToSave.length.toString()), "success");
+        if (onSuccess) onSuccess();
         setSavePrompt(null);
       } else {
-        showToast(`Erro ao guardar: ${data.message}`, "error");
+        showToast(t.error_saving.replace('{message}', data.message), "error");
       }
 
     } catch (error) {
       console.error("Erro ao guardar:", error);
-      showToast("Erro de conexão ao servidor.", "error");
+      showToast(t.error_generic, "error");
     } finally {
       setIsSaving(false);
     }
-  }, [schedule, selectedDate, showToast]);
+  }, [schedule, selectedDate, showToast, t, WEEK_DAYS]);
 
-  // --- GUARDAR NA BD (BOTÃO NORMAL) ---
-  const handleSaveClick = useCallback(() => {
-    if (!schedule) return;
-    
-    if (hasUnsavedChanges) {
-      handleSaveToDatabase();
-    } else {
-      showToast("Não há alterações para guardar.", "info");
+  const loadScheduleFromDatabase = useCallback(async () => {
+    setIsLoadingSchedule(true);
+    setSchedule(null);
+
+    try {
+      const start = new Date(selectedDate);
+      const end = new Date(selectedDate);
+      end.setDate(end.getDate() + 6);
+      
+      const startDateStr = start.toISOString().split('T')[0];
+      const endDateStr = end.toISOString().split('T')[0];
+
+      const res = await fetch(`/api/admin/get-weekly-schedule?start=${startDateStr}&end=${endDateStr}`);
+      if (!res.ok) throw new Error(`Erro na API: ${res.status}`);
+      
+      const data = await res.json();
+      const shifts = data.shifts || [];
+
+      if (shifts.length === 0) {
+        showToast(t.no_schedule_found, "info");
+        setIsLoadingSchedule(false);
+        setHasUnsavedChanges(false);
+        return;
+      }
+
+      const newSchedule: Schedule = {};
+      TIME_SLOTS.forEach(slot => {
+        newSchedule[slot] = {};
+        WEEK_DAYS.forEach(day => { newSchedule[slot][day] = []; });
+      });
+
+      const dateToDayNameMap: Record<string, string> = {};
+      WEEK_DAYS.forEach((day, index) => {
+        const d = new Date(selectedDate);
+        d.setDate(d.getDate() + index);
+        const dateStr = d.toISOString().split('T')[0];
+        dateToDayNameMap[dateStr] = day;
+      });
+
+      shifts.forEach((shift: any) => {
+        try {
+          const shiftDateStr = shift.date.split('T')[0];
+          const dayName = dateToDayNameMap[shiftDateStr];
+
+          if (!dayName) return;
+
+          const startMin = timeToMin(shift.startTime);
+          const endMin = timeToMin(shift.endTime);
+
+          TIME_SLOTS.forEach((slot) => {
+            const [sStart] = slot.split(' - ');
+            const slotMin = timeToMin(sStart);
+            if (slotMin >= startMin && slotMin < endMin) {
+              if (newSchedule[slot] && newSchedule[slot][dayName]) {
+                newSchedule[slot][dayName].push(shift.employeeCode);
+              }
+            }
+          });
+        } catch (error) { 
+          console.error("Erro ao processar turno:", error, shift); 
+        }
+      });
+
+      TIME_SLOTS.forEach(slot => {
+        WEEK_DAYS.forEach(day => {
+          newSchedule[slot][day] = Array.from(new Set(newSchedule[slot][day])).sort();
+        });
+      });
+
+      setSchedule(newSchedule);
+      setHasUnsavedChanges(false);
+      showToast(t.schedule_loaded, "success");
+
+    } catch (error) {
+      console.error("Erro ao carregar:", error);
+      showToast(t.error_generic, "error");
+    } finally {
+      setIsLoadingSchedule(false);
+      setSavePrompt(null);
     }
-  }, [schedule, hasUnsavedChanges, handleSaveToDatabase, showToast]);
+  }, [selectedDate, showToast, t, WEEK_DAYS]);
 
-  // --- CARREGAR HORÁRIO DA BD ---
-  const executeLoadSchedule = useCallback(async () => {
+  const executeLoadSchedule = useCallback(() => {
     if (!selectedDate) return;
 
     if (hasUnsavedChanges) {
       setSavePrompt({
         show: true,
-        title: "Alterações não guardadas",
-        message: "Tem alterações pendentes no horário atual. Se carregar da base de dados, perderá o que fez agora. Deseja guardar primeiro?",
+        title: t.load_unsaved_title,
+        message: t.load_unsaved_message,
         onSave: () => {
           handleSaveToDatabase(() => {
             loadScheduleFromDatabase();
@@ -830,93 +839,18 @@ export default function GeradorHorariosPage() {
     } else {
       loadScheduleFromDatabase();
     }
-  }, [selectedDate, hasUnsavedChanges, handleSaveToDatabase]);
-
-  const loadScheduleFromDatabase = useCallback(async () => {
-    setIsLoadingSchedule(true);
-    setSchedule(null);
-
-    try {
-      const start = new Date(selectedDate);
-      const end = new Date(selectedDate);
-      end.setDate(end.getDate() + 6);
-      
-      const startDateStr = start.toISOString().split('T')[0];
-      const endDateStr = end.toISOString().split('T')[0];
-
-      const res = await fetch(`/api/admin/get-weekly-schedule?start=${startDateStr}&end=${endDateStr}`);
-      if (!res.ok) throw new Error("Erro ao buscar dados");
-      
-      const data = await res.json();
-      const shifts = data.shifts || [];
-
-      if (shifts.length === 0) {
-        showToast("Não existe nenhum horário guardado para esta semana.", "info");
-        setIsLoadingSchedule(false);
-        setHasUnsavedChanges(false);
-        return;
-      }
-
-      const newSchedule: Schedule = {};
-      TIME_SLOTS.forEach(slot => {
-        newSchedule[slot] = {};
-        WEEK_DAYS.forEach(day => { newSchedule[slot][day] = []; });
-      });
-
-      shifts.forEach((shift: any) => {
-        try {
-          const shiftDate = new Date(shift.date);
-          const dayIndex = shiftDate.getDay();
-          const jsDay = dayIndex === 0 ? 6 : dayIndex - 1;
-          const dayName = WEEK_DAYS[jsDay];
-          if (!dayName) return;
-          const startMin = timeToMin(shift.startTime);
-          const endMin = timeToMin(shift.endTime);
-
-          TIME_SLOTS.forEach((slot) => {
-            const [sStart] = slot.split(' - ');
-            const slotMin = timeToMin(sStart);
-            if (slotMin >= startMin && slotMin < endMin) {
-              if (newSchedule[slot] && newSchedule[slot][dayName]) {
-                newSchedule[slot][dayName].push(shift.employeeCode);
-              }
-            }
-          });
-        } catch (error) { 
-          console.error(error); 
-        }
-      });
-
-      TIME_SLOTS.forEach(slot => {
-        WEEK_DAYS.forEach(day => {
-          newSchedule[slot][day] = Array.from(new Set(newSchedule[slot][day])).sort();
-        });
-      });
-
-      setSchedule(newSchedule);
-      setHasUnsavedChanges(false);
-      showToast("Horário carregado da base de dados!", "success");
-
-    } catch (error) {
-      console.error("Erro ao carregar horário:", error);
-      showToast("Erro ao comunicar com o servidor.", "error");
-    } finally {
-      setIsLoadingSchedule(false);
-      setSavePrompt(null);
-    }
-  }, [selectedDate, showToast]);
+  }, [selectedDate, hasUnsavedChanges, handleSaveToDatabase, loadScheduleFromDatabase, t]);
 
   const handleLoadClick = useCallback(() => {
     executeLoadSchedule();
   }, [executeLoadSchedule]);
 
-  // --- DESCARREGAR E GERAR NOVAMENTE ---
   const handleDiscardAndRegenerate = useCallback(() => {
     if (hasUnsavedChanges) {
       setSavePrompt({
         show: true,
-        title: "Descartar alterações?",
-        message: "Tem alterações não guardadas. Se gerar um novo horário, perderá todas as alterações feitas. Deseja guardar primeiro?",
+        title: t.discard_changes_title,
+        message: t.discard_changes_message,
         onSave: () => {
           handleSaveToDatabase(() => {
             setSchedule(null);
@@ -934,12 +868,44 @@ export default function GeradorHorariosPage() {
     } else {
       setSchedule(null);
     }
-  }, [hasUnsavedChanges, handleSaveToDatabase]);
+  }, [hasUnsavedChanges, handleSaveToDatabase, t]);
 
-  // --- ALGORITMO JUSTO ---
+  const handleExit = useCallback(() => {
+    if (hasUnsavedChanges) {
+      setSavePrompt({
+        show: true,
+        title: t.save_prompt_title,
+        message: t.save_prompt_message,
+        onSave: () => {
+          handleSaveToDatabase(() => {
+            window.location.href = '/portal';
+          });
+        },
+        onDiscard: () => {
+          window.location.href = '/portal';
+        },
+        onCancel: () => {
+          setSavePrompt(null);
+        }
+      });
+    } else {
+      window.location.href = '/portal';
+    }
+  }, [hasUnsavedChanges, handleSaveToDatabase, t]);
+
+  const handleSaveClick = useCallback(() => {
+    if (!schedule) return;
+    
+    if (hasUnsavedChanges) {
+      handleSaveToDatabase();
+    } else {
+      showToast(t.no_changes, "info");
+    }
+  }, [schedule, hasUnsavedChanges, handleSaveToDatabase, showToast, t]);
+
   const handleGenerate = useCallback(() => {
     if (employees.length === 0) {
-      showToast("Não há funcionários disponíveis para gerar.", "error");
+      showToast(t.no_employees_generate, "error");
       return;
     }
     
@@ -949,10 +915,10 @@ export default function GeradorHorariosPage() {
     setProgress(0);
 
     const steps = [
-      { pct: 10, txt: 'A calcular procura...' },
-      { pct: 30, txt: 'A construir camadas de turnos...' },
-      { pct: 60, txt: 'A otimizar blocos sólidos...' },
-      { pct: 90, txt: 'A preencher equipas...' },
+      { pct: 10, txt: t.calculating_demand },
+      { pct: 30, txt: t.building_layers },
+      { pct: 60, txt: t.optimizing_blocks },
+      { pct: 90, txt: t.filling_teams },
     ];
 
     let stepIndex = 0;
@@ -1164,11 +1130,10 @@ export default function GeradorHorariosPage() {
 
       setSchedule(newSchedule);
       setIsGenerating(false);
-      showToast("Horário gerado com sucesso!", "success");
+      showToast(t.schedule_generated, "success");
     };
-  }, [employees, reservations, selectedDate, showToast]);
+  }, [employees, reservations, selectedDate, showToast, t, WEEK_DAYS]);
 
-  // --- RENDERIZAÇÃO ---
   if (accessDenied) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
@@ -1176,13 +1141,13 @@ export default function GeradorHorariosPage() {
           <div className="bg-red-50 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6">
             <ShieldExclamationIcon className="w-10 h-10 text-red-600" />
           </div>
-          <h1 className="text-2xl font-bold text-gray-800 mb-4">Acesso Restrito</h1>
+          <h1 className="text-2xl font-bold text-gray-800 mb-4">{t.access_denied}</h1>
           <p className="text-gray-600 mb-6">
-            Esta área é reservada apenas para administradores.
+            {t.access_denied_message}
           </p>
           <Link href="/portal" className="inline-flex items-center gap-2 bg-blue-600 text-white px-6 py-3 rounded-lg font-medium hover:bg-blue-700 transition-colors">
             <ArrowLeftIcon className="w-5 h-5" />
-            Voltar ao Portal
+            {t.back_to_portal}
           </Link>
         </div>
       </div>
@@ -1192,7 +1157,6 @@ export default function GeradorHorariosPage() {
   return (
     <div className="min-h-screen bg-gray-50 font-sans text-gray-900 pb-20">
       
-      {/* 🟢 COMPONENTE DE NOTIFICAÇÃO (TOAST) */}
       {notification?.show && (
         <div className={`fixed top-4 right-4 z-50 p-4 rounded-xl shadow-2xl flex items-center gap-3 animate-in slide-in-from-right duration-300 max-w-sm border ${
             notification.type === 'success' ? 'bg-white border-green-200 text-green-800' :
@@ -1212,11 +1176,9 @@ export default function GeradorHorariosPage() {
         </div>
       )}
 
-      {/* 🟡 PROMPT DE GUARDAR (TIPO WORD) */}
       {savePrompt?.show && (
         <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/40 backdrop-blur-sm p-4 animate-in fade-in duration-200">
           <div className="bg-white rounded-xl shadow-2xl max-w-md w-full animate-in zoom-in-95 duration-200 scale-100 border border-gray-200">
-            {/* Header */}
             <div className="flex items-center justify-between p-4 border-b border-gray-100">
               <div className="flex items-center gap-3">
                 <div className="p-2 bg-amber-50 rounded-full">
@@ -1232,18 +1194,16 @@ export default function GeradorHorariosPage() {
               </button>
             </div>
             
-            {/* Message */}
             <div className="p-6">
               <p className="text-gray-600 mb-2">{savePrompt.message}</p>
               <div className="mt-4 p-3 bg-gray-50 rounded-lg border border-gray-200">
                 <div className="flex items-center gap-2 text-sm text-gray-500">
                   <InformationCircleIcon className="w-4 h-4" />
-                  <span>As suas alterações serão perdidas se não as guardar.</span>
+                  <span>{t.save_prompt_warning}</span>
                 </div>
               </div>
             </div>
             
-            {/* Actions */}
             <div className="flex flex-col sm:flex-row gap-2 p-4 border-t border-gray-100 bg-gray-50/50">
               <button 
                 onClick={savePrompt.onSave}
@@ -1253,12 +1213,12 @@ export default function GeradorHorariosPage() {
                 {isSaving ? (
                   <>
                     <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                    <span>A guardar...</span>
+                    <span>{t.saving}</span>
                   </>
                 ) : (
                   <>
                     <DocumentArrowDownIcon className="w-5 h-5" />
-                    <span>Guardar</span>
+                    <span>{t.save_official}</span>
                   </>
                 )}
               </button>
@@ -1268,7 +1228,7 @@ export default function GeradorHorariosPage() {
                 className="flex items-center justify-center gap-2 px-4 py-3 bg-white border border-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-50 transition-colors flex-1"
               >
                 <XCircleIcon className="w-5 h-5" />
-                <span>Sair sem guardar</span>
+                <span>{t.exit_without_saving}</span>
               </button>
               
               <button 
@@ -1276,20 +1236,19 @@ export default function GeradorHorariosPage() {
                 className="flex items-center justify-center gap-2 px-4 py-3 bg-white border border-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-50 transition-colors flex-1"
               >
                 <ArrowLeftIcon className="w-5 h-5" />
-                <span>Cancelar</span>
+                <span>{t.cancel_selection}</span>
               </button>
             </div>
           </div>
         </div>
       )}
 
-      {/* HEADER */}
       <div className="bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between sticky top-0 z-20 shadow-sm">
         <div className="flex items-center gap-4">
           <button 
             onClick={handleExit}
             className="p-2 hover:bg-gray-100 rounded-full transition-colors text-gray-600"
-            title="Voltar ao Portal"
+            title={t.back_to_portal}
           >
             <ArrowLeftIcon className="w-6 h-6" />
           </button>
@@ -1297,19 +1256,18 @@ export default function GeradorHorariosPage() {
           <div>
             <h1 className="text-xl font-bold text-gray-800 flex items-center gap-2">
               <SparklesIcon className="w-5 h-5 text-pink-500" />
-              Gerador de Horários
+              {t.generate_schedule_title}
             </h1>
             <p className="text-xs text-gray-500 hidden sm:block">
-              Área Administrativa • {currentUser?.name} ({currentUser?.code})
+              {t.admin_area.replace('{name}', currentUser?.name || '').replace('{code}', currentUser?.code || '')}
             </p>
           </div>
         </div>
         
-        {/* INDICADOR DE ALTERAÇÕES NÃO GUARDADAS */}
         {hasUnsavedChanges && (
           <div className="absolute top-4 left-1/2 transform -translate-x-1/2 flex items-center gap-2 px-3 py-1 bg-amber-50 border border-amber-200 rounded-full">
             <div className="w-2 h-2 bg-amber-500 rounded-full animate-pulse"></div>
-            <span className="text-sm font-medium text-amber-700">Alterações não guardadas</span>
+            <span className="text-sm font-medium text-amber-700">{t.unsaved_changes}</span>
           </div>
         )}
         
@@ -1331,7 +1289,7 @@ export default function GeradorHorariosPage() {
                         <DocumentArrowDownIcon className="w-4 h-4" />
                     )}
                     <span className="hidden sm:inline">
-                      {hasUnsavedChanges ? "Guardar *" : "Guardar"}
+                      {hasUnsavedChanges ? t.save_unsaved : t.save_official}
                     </span>
                 </button>
 
@@ -1340,28 +1298,28 @@ export default function GeradorHorariosPage() {
                   className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors shadow-sm"
                 >
                   <Squares2X2Icon className="w-4 h-4" /> 
-                  <span className="hidden sm:inline">Seleção Múltipla</span>
+                  <span className="hidden sm:inline">{t.multi_select_mode}</span>
                 </button>
             </>
           )}
           {schedule && isMultiSelectMode && (
             <div className="flex items-center gap-2">
               <span className="text-sm text-gray-600">
-                {selectedCells.length} célula(s) selecionada(s)
+                {t.cells_selected.replace('{count}', selectedCells.length.toString())}
               </span>
               <button 
                 onClick={openMultiEditModal}
                 className="flex items-center gap-2 bg-green-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-green-700 transition-colors shadow-sm"
               >
                 <PencilSquareIcon className="w-4 h-4" /> 
-                Editar Seleção
+                {t.edit_selection_title.replace('{count}', '')}
               </button>
               <button 
                 onClick={cancelMultiSelect}
                 className="flex items-center gap-2 bg-gray-500 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-gray-600 transition-colors shadow-sm"
               >
                 <XMarkIcon className="w-4 h-4" /> 
-                Cancelar
+                {t.cancel_selection}
               </button>
             </div>
           )}
@@ -1371,7 +1329,7 @@ export default function GeradorHorariosPage() {
               className="flex items-center gap-2 bg-green-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-green-700 transition-colors shadow-sm"
             >
               <ArrowDownTrayIcon className="w-4 h-4" /> 
-              <span className="hidden sm:inline">Exportar Excel</span>
+              <span className="hidden sm:inline">{t.export_excel}</span>
             </button>
           )}
         </div>
@@ -1381,7 +1339,7 @@ export default function GeradorHorariosPage() {
         {loadingData && (
           <div className="flex flex-col items-center justify-center py-20">
             <div className="w-8 h-8 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin mb-4"></div>
-            <p className="text-gray-500">A carregar dados...</p>
+            <p className="text-gray-500">{t.loading_data}</p>
           </div>
         )}
 
@@ -1392,16 +1350,15 @@ export default function GeradorHorariosPage() {
                 <div className="bg-pink-50 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6">
                   <ArrowPathIcon className="w-10 h-10 text-pink-600" />
                 </div>
-                <h2 className="text-2xl font-bold mb-2">Gerar Escala Semanal</h2>
-                <p className="text-gray-500 mb-8">
-                  Geração automática + Edição Manual.<br/>
-                  Distribuição justa de horas entre todos os funcionários.
+                <h2 className="text-2xl font-bold mb-2">{t.generate_weekly_schedule}</h2>
+                <p className="text-gray-500 mb-8 whitespace-pre-line">
+                  {t.generate_desc}
                 </p>
                 <div className="bg-gray-50 p-5 rounded-xl mb-8 inline-block text-left w-full max-w-md border border-gray-200">
-                  <label className="block text-sm font-bold text-gray-700 mb-2">Escolha a Semana (Segunda-feira):</label>
+                  <label className="block text-sm font-bold text-gray-700 mb-2">{t.choose_week}</label>
                   
                   <div className="mb-4">
-                    <PortugueseDatePicker 
+                    <LocalizedDatePicker 
                       selectedDate={selectedDate}
                       onDateChange={(date) => setSelectedDate(date)}
                     />
@@ -1412,17 +1369,17 @@ export default function GeradorHorariosPage() {
                       onClick={handleLoadClick}
                       disabled={isLoadingSchedule}
                       className="flex-1 flex items-center justify-center gap-2 p-3 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 text-gray-700 transition-colors shadow-sm"
-                      title="Ver horário guardado desta semana"
+                      title={t.view_saved_schedule}
                     >
                       {isLoadingSchedule ? (
                         <>
                           <div className="w-4 h-4 border-2 border-gray-500 border-t-transparent rounded-full animate-spin"></div>
-                          <span>A carregar...</span>
+                          <span>{t.verifying_session}</span>
                         </>
                       ) : (
                         <>
                           <DocumentArrowUpIcon className="w-5 h-5" />
-                          <span>Carregar Horário</span>
+                          <span>{t.load_schedule}</span>
                         </>
                       )}
                     </button>
@@ -1434,7 +1391,7 @@ export default function GeradorHorariosPage() {
                       <div>
                         <p className="font-medium text-sm">{getWeekRangeText()}</p>
                         <p className="text-xs text-blue-600 mt-1">
-                          Dias úteis: {weekDates[0]} a {weekDates[4]} • Fim de semana: {weekDates[5]} e {weekDates[6]}
+                          {t.week_days_range.replace('{start}', weekDates[0]).replace('{end}', weekDates[4])} • {t.weekend}: {weekDates[5]} & {weekDates[6]}
                         </p>
                       </div>
                     </div>
@@ -1445,7 +1402,7 @@ export default function GeradorHorariosPage() {
                   className="w-full py-4 bg-gradient-to-r from-pink-600 to-purple-600 text-white rounded-xl font-bold text-lg shadow-lg hover:shadow-xl hover:scale-[1.01] transition-all flex items-center justify-center gap-3"
                 >
                   <SparklesIcon className="w-6 h-6" />
-                  Gerar Horário Agora
+                  {t.generate_now}
                 </button>
               </div>
             )}
@@ -1470,18 +1427,18 @@ export default function GeradorHorariosPage() {
               <div className="animate-in slide-in-from-bottom-8 duration-700">
                 <div className="flex flex-col sm:flex-row justify-between items-end mb-4 gap-4">
                   <div>
-                    <h2 className="text-2xl font-bold text-gray-900">Planeamento: {getWeekRangeText()}</h2>
+                    <h2 className="text-2xl font-bold text-gray-900">{t.planning}: {getWeekRangeText()}</h2>
                     <p className="text-gray-500 text-sm">
                       {isMultiSelectMode 
-                        ? "Modo seleção múltipla ativo - clique nas células para selecionar" 
-                        : "Clique em qualquer célula para editar manualmente."}
+                        ? t.multi_select_help
+                        : t.click_to_edit}
                     </p>
                   </div>
                   <button 
                     onClick={handleDiscardAndRegenerate}
                     className="text-sm text-gray-500 hover:text-red-600 underline"
                   >
-                    Descartar e Gerar Novamente
+                    {t.discard_regenerate}
                   </button>
                 </div>
 
@@ -1490,7 +1447,7 @@ export default function GeradorHorariosPage() {
                     <table className="w-full text-sm text-center border-collapse">
                       <thead>
                         <tr className="bg-gray-800 text-white">
-                          <th className="p-3 border-r border-gray-600 w-32 sticky left-0 bg-gray-800 z-10 font-semibold">Horário</th>
+                          <th className="p-3 border-r border-gray-600 w-32 sticky left-0 bg-gray-800 z-10 font-semibold">{t.schedule_header}</th>
                           {WEEK_DAYS.map((day, idx) => (
                             <th key={day} className="p-3 border-r border-gray-600 min-w-[130px]">
                               <div className="font-semibold text-base">{day}</div>
@@ -1562,7 +1519,6 @@ export default function GeradorHorariosPage() {
                   </div>
                 </div>
 
-                {/* MODAL DE EDIÇÃO MÚLTIPLA */}
                 {editingCells.length > 0 && schedule && (
                   <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
                     <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl overflow-hidden animate-in zoom-in-95 duration-200">
@@ -1570,8 +1526,8 @@ export default function GeradorHorariosPage() {
                         <div>
                           <h3 className="font-bold text-lg">
                             {editingCells.length === 1 
-                              ? `Editar ${editingCells[0].day} - ${editingCells[0].slot}`
-                              : `Editar ${editingCells.length} Células Selecionadas`
+                              ? t.edit_single_title.replace('{day}', editingCells[0].day).replace('{slot}', editingCells[0].slot)
+                              : t.edit_selection_title.replace('{count}', editingCells.length.toString())
                             }
                           </h3>
                           <p className="text-xs text-gray-300">
@@ -1592,16 +1548,15 @@ export default function GeradorHorariosPage() {
                       <div className="p-4 max-h-[60vh] overflow-y-auto">
                         <div className="mb-4">
                           <p className="text-sm font-medium text-gray-500 mb-2">
-                            Funcionários disponíveis ({editingCells.length} célula(s) selecionada(s))
+                            {t.available_employees.replace('{count}', editingCells.length.toString())}
                           </p>
                           
-                          {/* Ações em lote */}
                           <div className="flex gap-2 mb-4 flex-wrap">
                             <button
                               onClick={() => setEmployeesInMultipleCells([])}
                               className="px-3 py-1 bg-red-100 text-red-700 rounded text-xs font-medium hover:bg-red-200"
                             >
-                              Limpar Todas
+                              {t.clear_all}
                             </button>
                             <button
                               onClick={() => {
@@ -1613,7 +1568,7 @@ export default function GeradorHorariosPage() {
                               }}
                               className="px-3 py-1 bg-blue-100 text-blue-700 rounded text-xs font-medium hover:bg-blue-200"
                             >
-                              Manter Apenas Comuns
+                              {t.keep_common}
                             </button>
                           </div>
                         </div>
@@ -1653,7 +1608,7 @@ export default function GeradorHorariosPage() {
                                   </div>
                                   <div className="flex items-center gap-1">
                                     {isInSomeCells && !isInAllCells && (
-                                      <span className="text-[10px] text-blue-500 font-medium">algumas</span>
+                                      <span className="text-[10px] text-blue-500 font-medium">{t.some_cells}</span>
                                     )}
                                     {isInAllCells ? (
                                       <CheckCircleIcon className="w-5 h-5 text-blue-600" />
@@ -1669,22 +1624,21 @@ export default function GeradorHorariosPage() {
 
                       <div className="p-4 border-t border-gray-100 bg-gray-50 flex justify-between items-center">
                         <span className="text-sm text-gray-500">
-                          {editingCells.length} célula(s) selecionada(s)
+                          {t.cells_selected.replace('{count}', selectedCells.length.toString())}
                         </span>
                         <button 
                           onClick={() => setEditingCells([])}
                           className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-medium shadow-sm"
                         >
-                          Concluir Edição
+                          {t.finish_editing}
                         </button>
                       </div>
                     </div>
                   </div>
                 )}
 
-                {/* Estatísticas */}
                 <div className="mt-8 bg-white p-6 rounded-xl shadow-sm border border-gray-200">
-                  <h3 className="text-sm font-bold text-gray-500 uppercase tracking-wider mb-4">Horas Atribuídas (Atualizado em Tempo Real)</h3>
+                  <h3 className="text-sm font-bold text-gray-500 uppercase tracking-wider mb-4">{t.assigned_hours}</h3>
                   <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 gap-4">
                     {employees.map(emp => {
                       const hours = stats[emp.id] || 0;
@@ -1696,7 +1650,7 @@ export default function GeradorHorariosPage() {
                         <div key={emp.id} className="bg-gray-50 p-3 rounded-lg border border-gray-100">
                           <div className="flex justify-between items-center mb-1">
                             <span className="font-bold text-sm" title={emp.name}>{emp.code}</span>
-                            <span className={`text-xs font-bold ${textColor}`}>{hours}h</span>
+                            <span className={`text-xs font-bold ${textColor}`}>{hours}{t.hours_abbrev}</span>
                           </div>
                           <div className="w-full bg-gray-200 h-1.5 rounded-full mb-1 overflow-hidden">
                             <div 
@@ -1717,4 +1671,4 @@ export default function GeradorHorariosPage() {
       </main>
     </div>
   );
-}
+} 

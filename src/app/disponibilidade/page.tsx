@@ -1,7 +1,9 @@
 'use client'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
+import { useLanguage } from '@/context/LanguageContext'
+import { translations } from '@/lib/translations'
 
 interface TimeSlot {
   date: string // YYYY-MM-DD
@@ -30,6 +32,9 @@ const timeOptions = generateTimeOptions()
 export default function DisponibilidadePage() {
   const { data: session, status } = useSession()
   const router = useRouter()
+  const { language, setLanguage } = useLanguage()
+  const t = translations[language]
+
   const [currentMonth, setCurrentMonth] = useState(new Date())
   const [timeSlots, setTimeSlots] = useState<TimeSlot[]>([])
   
@@ -40,6 +45,26 @@ export default function DisponibilidadePage() {
   const [allDay, setAllDay] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
+
+  // Dynamic Date Helpers
+  const locale = language === 'pt' ? 'pt-PT' : 'en-US'
+  
+  const weekdays = useMemo(() => {
+    const formatter = new Intl.DateTimeFormat(locale, { weekday: 'short' })
+    // Jan 1 2024 is Monday
+    return Array.from({length: 7}, (_, i) => {
+        const d = new Date(2024, 0, i + 1)
+        return formatter.format(d).replace('.', '')
+    })
+  }, [locale])
+
+  const monthNames = useMemo(() => {
+    const formatter = new Intl.DateTimeFormat(locale, { month: 'long' })
+    return Array.from({length: 12}, (_, i) => {
+        const d = new Date(2024, i, 1)
+        return formatter.format(d)
+    })
+  }, [locale])
 
   // Debug da sessão
   useEffect(() => {
@@ -194,7 +219,7 @@ export default function DisponibilidadePage() {
     // Adiciona T12:00:00 para garantir que a data seja interpretada localmente
     // e evitar problemas de fuso horário que mudem o dia.
     const stableDate = new Date(date.getFullYear(), date.getMonth(), date.getDate(), 12, 0, 0);
-    return stableDate.toLocaleDateString('pt-PT', { 
+    return stableDate.toLocaleDateString(locale, { 
       weekday: 'long', 
       day: 'numeric', 
       month: 'long' 
@@ -276,7 +301,7 @@ export default function DisponibilidadePage() {
       
       const success = await saveUnavailableSlots(uniqueSlots)
       if (!success) {
-        throw new Error('Erro ao guardar na base de dados')
+        throw new Error(t.error_saving_db)
       }
       
       console.log('✅ Sucesso - resetando formulário')
@@ -285,10 +310,10 @@ export default function DisponibilidadePage() {
       setAllDay(false)
       setSelectedDates([])
       
-      alert(`Indisponibilidade adicionada para ${selectedDates.length} dia(s) com sucesso!`)
+      alert(t.success_add_unavailability.replace('{count}', selectedDates.length.toString()))
     } catch (error) {
       console.error('❌ Erro ao adicionar indisponibilidade:', error)
-      alert('Erro ao adicionar indisponibilidade: ' + (error as Error).message)
+      alert(`${t.error_add_unavailability}: ${(error as Error).message}`)
       loadUnavailableSlots() // Recarregar dados para garantir consistência
     } finally {
       setIsLoading(false)
@@ -308,16 +333,10 @@ export default function DisponibilidadePage() {
     
     const success = await saveUnavailableSlots(updatedSlots)
     if (!success) {
-      alert('Erro ao remover indisponibilidade')
+      alert(t.error_remove_unavailability)
       loadUnavailableSlots() // Recarregar se falhar
     }
   }
-
-  const weekdays = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom']
-  const monthNames = [
-    'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
-    'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'
-  ]
 
   // ⬇️ ALTERAÇÃO: Filtrar os slots apenas para o mês atual ⬇️
   const currentYear = currentMonth.getFullYear();
@@ -339,7 +358,7 @@ export default function DisponibilidadePage() {
       <div className="min-h-screen bg-gray-50 p-8 flex items-center justify-center">
         <div className="text-center">
             <div className="w-10 h-10 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin mx-auto"></div>
-            <p className="mt-4 text-gray-600">A verificar sessão...</p>
+            <p className="mt-4 text-gray-600">{t.verifying_session}</p>
         </div>
       </div>
     )
@@ -354,21 +373,40 @@ export default function DisponibilidadePage() {
         <header className="flex justify-between items-center mb-8">
           <div>
             <h1 className="text-3xl font-bold text-gray-800">
-              Gerir Minha Disponibilidade
+              {t.availability_title}
             </h1>
             <p className="text-gray-600 mt-2">
-              Marque os horários em que não está disponível para trabalhar
+              {t.availability_subtitle}
             </p>
             {isSaving && (
-              <p className="text-sm text-blue-600 mt-1">💾 A guardar na base de dados...</p>
+              <p className="text-sm text-blue-600 mt-1">💾 {t.saving_db}</p>
             )}
           </div>
-          <button
-            onClick={() => router.push('/portal')}
-            className="hidden sm:inline-block px-4 py-2 bg-gray-500 text-white rounded-md hover:bg-gray-600 transition-colors"
-          >
-            Voltar
-          </button>
+          <div className="flex gap-4 items-center">
+            {/* Language Toggle */}
+            <div className="flex space-x-2">
+                <button 
+                onClick={() => setLanguage('pt')} 
+                className={`text-2xl hover:scale-110 transition-transform ${language === 'pt' ? 'opacity-100' : 'opacity-50'}`}
+                title="Português"
+                >
+                🇵🇹
+                </button>
+                <button 
+                onClick={() => setLanguage('en')} 
+                className={`text-2xl hover:scale-110 transition-transform ${language === 'en' ? 'opacity-100' : 'opacity-50'}`}
+                title="English"
+                >
+                🇬🇧
+                </button>
+            </div>
+            <button
+                onClick={() => router.push('/portal')}
+                className="hidden sm:inline-block px-4 py-2 bg-gray-500 text-white rounded-md hover:bg-gray-600 transition-colors"
+            >
+                {t.back}
+            </button>
+          </div>
         </header>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -400,14 +438,14 @@ export default function DisponibilidadePage() {
                   <div className="flex items-center space-x-2">
                     <div className="w-3 h-3 bg-blue-500 rounded-full"></div>
                     <span className="text-blue-800 font-medium">
-                      {selectedDates.length} {selectedDates.length === 1 ? 'dia selecionado' : 'dias selecionados'}
+                      {selectedDates.length} {selectedDates.length === 1 ? t.day_selected : t.days_selected}
                     </span>
                   </div>
                   <button
                     onClick={() => setSelectedDates([])}
                     className="text-blue-600 hover:text-blue-800 text-sm font-medium"
                   >
-                    Limpar seleção
+                    {t.clear_selection}
                   </button>
                 </div>
               </div>
@@ -462,12 +500,12 @@ export default function DisponibilidadePage() {
                     
                     {isAllDay && (
                       <div className="hidden sm:block text-[10px] sm:text-xs text-red-700 mt-0.5 sm:mt-1 font-medium">
-                        Dia Todo
+                        {t.all_day}
                       </div>
                     )}
                     {unavailableSlots.length > 0 && !isAllDay && (
                       <div className="hidden sm:block text-[10px] sm:text-xs text-red-600 mt-0.5 sm:mt-1">
-                        {unavailableSlots.length} horário(s)
+                        {unavailableSlots.length} {t.slots}
                       </div>
                     )}
                     
@@ -482,11 +520,11 @@ export default function DisponibilidadePage() {
             <div className="mt-6 grid grid-cols-2 gap-4 text-xs">
               <div className="flex items-center space-x-2">
                 <div className="w-3 h-3 bg-blue-100 border-2 border-blue-500 rounded"></div>
-                <span>Dia selecionado</span>
+                <span>{t.legend_selected}</span>
               </div>
               <div className="flex items-center space-x-2">
                 <div className="w-3 h-3 bg-red-100 border-2 border-red-300 rounded"></div>
-                <span>Indisponível</span>
+                <span>{t.legend_unavailable}</span>
               </div>
             </div>
           </div>
@@ -494,9 +532,9 @@ export default function DisponibilidadePage() {
           {/* Painel de gestão */}
           <div className="bg-white p-4 sm:p-6 rounded-lg shadow-md">
             <h3 className="text-lg font-semibold mb-4">
-              {selectedDates.length === 0 && 'Selecione um ou mais dias'}
-              {selectedDates.length === 1 && `Gestão para ${formatDate(new Date(selectedDates[0] + 'T12:00:00'))}`}
-              {selectedDates.length > 1 && `Gestão para ${selectedDates.length} dias selecionados`}
+              {selectedDates.length === 0 && t.select_days_help}
+              {selectedDates.length === 1 && `${t.managing_for} ${formatDate(new Date(selectedDates[0] + 'T12:00:00'))}`}
+              {selectedDates.length > 1 && `${t.managing_for} ${selectedDates.length} ${t.days_selected_suffix}`}
             </h3>
 
             {selectedDates.length > 0 && (
@@ -504,16 +542,16 @@ export default function DisponibilidadePage() {
                 {/* Lista de dias selecionados - NOVO */}
                 {selectedDates.length > 1 && (
                   <div className="bg-blue-50 p-3 rounded border border-blue-200">
-                    <h4 className="font-medium text-blue-800 mb-2 text-sm">Dias selecionados:</h4>
+                    <h4 className="font-medium text-blue-800 mb-2 text-sm">{t.selected_days_list}:</h4>
                     <div className="max-h-32 overflow-y-auto">
                       {selectedDates.map(date => (
                         <div key={date} className="flex items-center justify-between py-1 text-sm">
-                          <span>{new Date(date + 'T12:00:00').toLocaleDateString('pt-PT')}</span>
+                          <span>{new Date(date + 'T12:00:00').toLocaleDateString(locale)}</span>
                           <button
                             onClick={() => setSelectedDates(prev => prev.filter(d => d !== date))}
                             className="text-blue-600 hover:text-blue-800 text-xs"
                           >
-                            Remover
+                            {t.remove}
                           </button>
                         </div>
                       ))}
@@ -531,18 +569,18 @@ export default function DisponibilidadePage() {
                     className="w-4 h-4 text-red-600 rounded"
                   />
                   <label htmlFor="allDay" className="text-sm font-medium text-gray-700">
-                    Não posso trabalhar o dia todo
+                    {t.cant_work_all_day}
                   </label>
                 </div>
 
                 {!allDay && (
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Horário Indisponível
+                      {t.unavailable_time}
                     </label>
                     <div className="grid grid-cols-2 gap-3">
                       <div>
-                        <label className="block text-xs text-gray-500 mb-1">Início</label>
+                        <label className="block text-xs text-gray-500 mb-1">{t.start}</label>
                         <select
                           value={startTime}
                           onChange={(e) => setStartTime(e.target.value)}
@@ -556,7 +594,7 @@ export default function DisponibilidadePage() {
                         </select>
                       </div>
                       <div>
-                        <label className="block text-xs text-gray-500 mb-1">Fim</label>
+                        <label className="block text-xs text-gray-500 mb-1">{t.end}</label>
                         <select
                           value={endTime}
                           onChange={(e) => setEndTime(e.target.value)}
@@ -571,7 +609,7 @@ export default function DisponibilidadePage() {
                       </div>
                     </div>
                     <p className="text-xs text-gray-500 mt-1">
-                      Horário de trabalho: 10:00 - 20:00
+                      {t.work_hours_help}
                     </p>
                   </div>
                 )}
@@ -581,12 +619,12 @@ export default function DisponibilidadePage() {
                   disabled={isLoading || (!allDay && startTime >= endTime)}
                   className="w-full bg-red-500 text-white py-2 rounded hover:bg-red-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                 >
-                  {isLoading ? 'A adicionar...' : allDay ? 'Marcar Dia Todo como Indisponível' : 'Marcar como Indisponível'}
+                  {isLoading ? t.adding : allDay ? t.mark_all_day_unavailable : t.mark_unavailable}
                 </button>
 
                 {selectedDates.length === 1 && getUnavailableSlotsForDate(selectedDates[0]).length > 0 && (
                   <div className="mt-6">
-                    <h4 className="font-medium mb-3 text-gray-800">Horários Indisponíveis:</h4>
+                    <h4 className="font-medium mb-3 text-gray-800">{t.unavailable_slots}:</h4>
                     <div className="space-y-2">
                       {getUnavailableSlotsForDate(selectedDates[0]).map((slot, index) => (
                         <div
@@ -595,7 +633,7 @@ export default function DisponibilidadePage() {
                         >
                           <div>
                             <span className="font-medium">
-                              {slot.allDay ? 'Dia Todo' : `${slot.startTime} - ${slot.endTime}`}
+                              {slot.allDay ? t.all_day : `${slot.startTime} - ${slot.endTime}`}
                             </span>
                             {slot.allDay && (
                               <span className="text-xs text-red-600 ml-2">(10:00 - 20:00)</span>
@@ -605,7 +643,7 @@ export default function DisponibilidadePage() {
                             onClick={() => removeUnavailability(slot)}
                             className="text-red-600 hover:text-red-800 transition-colors"
                           >
-                            Remover
+                            {t.remove}
                           </button>
                         </div>
                       ))}
@@ -617,7 +655,7 @@ export default function DisponibilidadePage() {
 
             {selectedDates.length === 0 && (
               <p className="text-gray-500 text-center py-8">
-                Selecione um ou mais dias no calendário para gerir a disponibilidade.
+                {t.select_days_placeholder}
               </p>
             )}
           </div>
@@ -625,35 +663,31 @@ export default function DisponibilidadePage() {
 
         {/* Resumo do mês */}
         <div className="mt-8 bg-white p-4 sm:p-6 rounded-lg shadow-md">
-          <h3 className="text-lg font-semibold mb-4">Resumo do Mês</h3>
+          <h3 className="text-lg font-semibold mb-4">{t.month_summary}</h3>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <div className="text-center p-4 bg-green-50 rounded border border-green-200">
               <div className="text-2xl font-bold text-green-600">
-                {/* ⬇️ ALTERAÇÃO: Usar 'slotsForThisMonth' ⬇️ */}
                 {calendarGridDays.filter(d => d).length - new Set(slotsForThisMonth.map(s => s.date)).size}
               </div>
-              <div className="text-sm text-green-600">Dias Disponíveis</div>
+              <div className="text-sm text-green-600">{t.days_available}</div>
             </div>
             <div className="text-center p-4 bg-red-50 rounded border border-red-200">
               <div className="text-2xl font-bold text-red-600">
-                {/* ⬇️ ALTERAÇÃO: Usar 'slotsForThisMonth' ⬇️ */}
                 {new Set(slotsForThisMonth.map(s => s.date)).size}
               </div>
-              <div className="text-sm text-red-600">Dias com Indisponibilidade</div>
+              <div className="text-sm text-red-600">{t.days_unavailable}</div>
             </div>
             <div className="text-center p-4 bg-blue-50 rounded border border-blue-200">
               <div className="text-2xl font-bold text-blue-600">
-                {/* ⬇️ ALTERAÇÃO: Usar 'slotsForThisMonth' ⬇️ */}
                 {slotsForThisMonth.filter(slot => !slot.allDay).length}
               </div>
-              <div className="text-sm text-blue-600">Horários Indisponíveis</div>
+              <div className="text-sm text-blue-600">{t.slots_unavailable}</div>
             </div>
             <div className="text-center p-4 bg-orange-50 rounded border border-orange-200">
               <div className="text-2xl font-bold text-orange-600">
-                {/* ⬇️ ALTERAÇÃO: Usar 'slotsForThisMonth' ⬇️ */}
                 {slotsForThisMonth.filter(slot => slot.allDay).length}
               </div>
-              <div className="text-sm text-orange-600">Dias Completos</div>
+              <div className="text-sm text-orange-600">{t.full_days}</div>
             </div>
           </div>
         </div>
@@ -663,7 +697,7 @@ export default function DisponibilidadePage() {
               onClick={() => router.push('/portal')}
               className="px-4 py-2 bg-gray-500 text-white rounded-md hover:bg-gray-600 transition-colors"
             >
-              Voltar ao Portal
+              {t.back_to_portal}
             </button>
         </div>
 

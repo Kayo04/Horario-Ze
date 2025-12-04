@@ -3,6 +3,8 @@ import { useState, useEffect } from 'react'
 import { signIn, useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import { LockClosedIcon, ArrowRightIcon } from '@heroicons/react/24/solid'
+import { useLanguage } from '@/context/LanguageContext'
+import { translations } from '@/lib/translations'
 
 export default function LoginPage() {
   const [name, setName] = useState('')
@@ -11,6 +13,8 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false)
   const router = useRouter()
   const { data: session, status } = useSession()
+  const { language, setLanguage } = useLanguage()
+  const t = translations[language]
 
   // Redireciona se já estiver logado
   useEffect(() => {
@@ -32,13 +36,13 @@ export default function LoginPage() {
       })
 
       if (result?.error) {
-        setError('Nome ou password inválidos.')
+        setError(t.login_error)
         setLoading(false)
       } else if (result?.ok) {
         router.push('/portal') 
       }
     } catch (err) {
-      setError('Erro ao tentar fazer login. Tente novamente.')
+      setError(t.login_error_generic)
       setLoading(false)
     }
   }
@@ -54,7 +58,26 @@ export default function LoginPage() {
 
   // Se não está logado, mostra o formulário de login
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 p-4 font-sans">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 p-4 font-sans relative">
+      
+      {/* Language Toggle */}
+      <div className="absolute top-4 right-4 flex space-x-2">
+        <button 
+          onClick={() => setLanguage('pt')} 
+          className={`text-2xl hover:scale-110 transition-transform ${language === 'pt' ? 'opacity-100' : 'opacity-50'}`}
+          title="Português"
+        >
+          🇵🇹
+        </button>
+        <button 
+          onClick={() => setLanguage('en')} 
+          className={`text-2xl hover:scale-110 transition-transform ${language === 'en' ? 'opacity-100' : 'opacity-50'}`}
+          title="English"
+        >
+          🇬🇧
+        </button>
+      </div>
+
       <div className="bg-white p-10 rounded-2xl shadow-xl w-full max-w-sm border border-gray-200">
         
         {/* Cabeçalho com Ícone */}
@@ -62,8 +85,8 @@ export default function LoginPage() {
           <div className="bg-indigo-100 p-4 rounded-full mb-4">
             <LockClosedIcon className="h-10 w-10 text-indigo-600" />
           </div>
-          <h1 className="text-3xl font-bold text-gray-900 text-center">Login</h1>
-          <p className="text-gray-500 mt-1 text-sm">Bem-vindo de volta.</p>
+          <h1 className="text-3xl font-bold text-gray-900 text-center">{t.login_title}</h1>
+          <p className="text-gray-500 mt-1 text-sm">{t.login_subtitle}</p>
         </div>
         
         {error && (
@@ -74,25 +97,25 @@ export default function LoginPage() {
         
         <form onSubmit={handleSubmit} className="space-y-6">
           <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-1">Nome</label>
+            <label className="block text-sm font-semibold text-gray-700 mb-1">{t.login_name_label}</label>
             <input
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
               required
               className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all duration-200"
-              placeholder="O seu nome"
+              placeholder={t.login_name_placeholder}
             />
           </div>
           <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-1">Password</label>
+            <label className="block text-sm font-semibold text-gray-700 mb-1">{t.login_password_label}</label>
             <input
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
               className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all duration-200"
-              placeholder="••••••••"
+              placeholder={t.login_password_placeholder}
             />
           </div>
           <button
@@ -103,11 +126,11 @@ export default function LoginPage() {
             {loading ? (
               <>
                 <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                <span>A entrar...</span>
+                <span>{t.login_loading}</span>
               </>
             ) : (
               <>
-                <span>Entrar</span>
+                <span>{t.login_button}</span>
                 <ArrowRightIcon className="h-5 w-5" />
               </>
             )}
