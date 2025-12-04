@@ -352,6 +352,8 @@ export const translations = {
     generate_now: "Gerar Agora",
     multi_select_help: "Selecione múltiplas células para editar em conjunto.",
     discard_and_regenerate: "Descartar e Regenerar",
+    events: "Eventos", // ✅ ADICIONADO
+    import_button: "Importar Ficheiro (.xlsx, .csv)", // ✅ ADICIONADO
   },
   en: {
     // Portal
@@ -706,6 +708,8 @@ export const translations = {
     generate_now: "Generate Now",
     multi_select_help: "Select multiple cells to edit together.",
     discard_and_regenerate: "Discard and Regenerate",
+    events: "Events", 
+    import_button: "Import File (.xlsx, .csv)", 
   }
 };
 

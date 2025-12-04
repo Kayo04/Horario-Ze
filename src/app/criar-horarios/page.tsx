@@ -19,8 +19,8 @@ import {
   XCircleIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
-  ChevronDownIcon, // ✅ Novo
-  ChevronUpIcon    // ✅ Novo
+  ChevronDownIcon, 
+  ChevronUpIcon    
 } from '@heroicons/react/24/outline';
 import { useLanguage } from '@/context/LanguageContext';
 import { translations } from '@/lib/translations';
@@ -356,7 +356,7 @@ export default function GeradorHorariosPage() {
   const [currentUser, setCurrentUser] = useState<Employee | null>(null);
   const [accessDenied, setAccessDenied] = useState(false);
   
-  // ✅ NOVO ESTADO: Controla quais dias estão expandidos
+  // ✅ Estado para controlar quais colunas estão expandidas
   const [expandedCols, setExpandedCols] = useState<number[]>([]);
 
   const [selectedDate, setSelectedDate] = useState(() => {
@@ -1524,7 +1524,7 @@ export default function GeradorHorariosPage() {
                                       onClick={() => toggleColumn(idx)}
                                       className="text-xs flex items-center gap-1 text-indigo-600 font-medium hover:text-indigo-800 bg-indigo-50 px-2 py-1 rounded w-full justify-center transition-colors"
                                     >
-                                      {dayReservations.length} {t.events || "Eventos"}
+                                      {dayReservations.length} {t.events}
                                       {expandedCols.includes(idx) ? <ChevronUpIcon className="w-3 h-3"/> : <ChevronDownIcon className="w-3 h-3"/>}
                                     </button>
 
