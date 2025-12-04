@@ -18,7 +18,9 @@ import {
   DocumentArrowUpIcon,
   XCircleIcon,
   ChevronLeftIcon,
-  ChevronRightIcon
+  ChevronRightIcon,
+  ChevronDownIcon, // ✅ Novo
+  ChevronUpIcon    // ✅ Novo
 } from '@heroicons/react/24/outline';
 import { useLanguage } from '@/context/LanguageContext';
 import { translations } from '@/lib/translations';
@@ -51,6 +53,7 @@ type Reservation = {
   startTime: string;
   endTime: string;
   people: number;
+  eventType: string; 
 };
 
 type Schedule = Record<string, Record<string, string[]>>;
@@ -353,6 +356,9 @@ export default function GeradorHorariosPage() {
   const [currentUser, setCurrentUser] = useState<Employee | null>(null);
   const [accessDenied, setAccessDenied] = useState(false);
   
+  // ✅ NOVO ESTADO: Controla quais dias estão expandidos
+  const [expandedCols, setExpandedCols] = useState<number[]>([]);
+
   const [selectedDate, setSelectedDate] = useState(() => {
     const today = new Date();
     const day = today.getDay();
@@ -401,6 +407,13 @@ export default function GeradorHorariosPage() {
     window.addEventListener('beforeunload', handleBeforeUnload);
     return () => window.removeEventListener('beforeunload', handleBeforeUnload);
   }, [hasUnsavedChanges]);
+
+  // ✅ Função para abrir/fechar a lista de eventos
+  const toggleColumn = (idx: number) => {
+    setExpandedCols(prev => 
+        prev.includes(idx) ? prev.filter(i => i !== idx) : [...prev, idx]
+    );
+  };
 
   const stats = useMemo(() => {
     const newStats: Record<string, number> = {};
@@ -619,43 +632,31 @@ export default function GeradorHorariosPage() {
     setSchedule(newSchedule);
   }, [schedule, editingCells]);
 
-  // ✅ FUNÇÃO PARA FILTRAR DISPONIBILIDADE NO MODAL
   const isEmployeeAvailable = useCallback((emp: Employee) => {
-    // 1. Admin normal não conta (exceto TR)
     if (emp.role === 'admin' && emp.code !== 'TR') return false;
 
-    // 2. Verificar disponibilidade para CADA célula selecionada
     return editingCells.every(cell => {
-        // Encontrar a data real desta célula
         const dayIndex = WEEK_DAYS.indexOf(cell.day);
-        const dayOfWeekJS = (dayIndex + 1) % 7; // Ajuste para 0=Dom, 1=Seg...
+        const dayOfWeekJS = (dayIndex + 1) % 7; 
         
-        // Calcular data YYYY-MM-DD
         const d = new Date(selectedDate);
-        // O selectedDate é Segunda-feira. dayIndex 0 é Segunda.
         d.setDate(d.getDate() + dayIndex); 
         const dateString = d.toISOString().split('T')[0];
 
-        // Calcular minutos de início/fim do slot
         const [startStr, endStr] = cell.slot.split(' - ');
         const slotStart = timeToMin(startStr);
         const slotEnd = timeToMin(endStr);
 
-        // A. Verificar Indisponibilidade de Dia da Semana
         if (emp.unavailable?.weekdays) {
             const weekdayBlock = emp.unavailable.weekdays.find(w => w.day === dayOfWeekJS);
             if (weekdayBlock) {
-                // Se tem bloqueio nesse dia
-                if (!weekdayBlock.start || !weekdayBlock.end) return false; // Bloqueio total
-                // Bloqueio parcial: verificar sobreposição
+                if (!weekdayBlock.start || !weekdayBlock.end) return false; 
                 const blockStart = timeToMin(weekdayBlock.start);
                 const blockEnd = timeToMin(weekdayBlock.end);
-                // Se o slot toca no bloqueio
                 if (slotStart < blockEnd && slotEnd > blockStart) return false;
             }
         }
 
-        // B. Verificar Indisponibilidade de Data Específica
         if (emp.unavailable?.specificDates) {
             const specificBlock = emp.unavailable.specificDates.find(s => s.date === dateString);
             if (specificBlock) {
@@ -668,9 +669,18 @@ export default function GeradorHorariosPage() {
             }
         }
 
-        return true; // Se passou tudo, está disponível
+        return true; 
     });
   }, [editingCells, WEEK_DAYS, selectedDate]);
+
+  const getEventColor = (eventType: string) => {
+    switch(eventType?.toLowerCase()) {
+        case 'birthday': return 'bg-green-100 text-green-800 border-green-200';
+        case 'teambuilding': return 'bg-blue-100 text-blue-800 border-blue-200';
+        case 'vrlocal': return 'bg-purple-100 text-purple-800 border-purple-200';
+        default: return 'bg-gray-100 text-gray-800 border-gray-200';
+    }
+  };
 
   const handleExportExcel = useCallback(() => {
     if (!schedule || !(window as any).XLSX) return;
@@ -1494,14 +1504,49 @@ export default function GeradorHorariosPage() {
                       <thead>
                         <tr className="bg-gray-800 text-white">
                           <th className="p-3 border-r border-gray-600 w-32 sticky left-0 bg-gray-800 z-10 font-semibold">{t.schedule_header}</th>
-                          {WEEK_DAYS.map((day, idx) => (
-                            <th key={day} className="p-3 border-r border-gray-600 min-w-[130px]">
-                              <div className="font-semibold text-base">{day}</div>
-                              <div className="text-[11px] font-normal text-gray-300 mt-0.5">
-                                {weekDates[idx]}
-                              </div>
-                            </th>
-                          ))}
+                          {WEEK_DAYS.map((day, idx) => {
+                            // ✅ Lógica para encontrar reservas deste dia
+                            const currentColumnDate = new Date(selectedDate);
+                            currentColumnDate.setDate(currentColumnDate.getDate() + idx);
+                            const dateStr = currentColumnDate.toISOString().split('T')[0];
+                            const dayReservations = reservations.filter(r => r.date === dateStr);
+
+                            return (
+                              <th key={day} className="p-3 border-r border-gray-600 min-w-[130px] align-top">
+                                <div className="font-semibold text-base">{day}</div>
+                                <div className="text-[11px] font-normal text-gray-300 mt-0.5">
+                                  {weekDates[idx]}
+                                </div>
+                                {/* ✅ Botão de Toggle para ver eventos */}
+                                {dayReservations.length > 0 && (
+                                  <div className="mt-2">
+                                    <button 
+                                      onClick={() => toggleColumn(idx)}
+                                      className="text-xs flex items-center gap-1 text-indigo-600 font-medium hover:text-indigo-800 bg-indigo-50 px-2 py-1 rounded w-full justify-center transition-colors"
+                                    >
+                                      {dayReservations.length} {t.events || "Eventos"}
+                                      {expandedCols.includes(idx) ? <ChevronUpIcon className="w-3 h-3"/> : <ChevronDownIcon className="w-3 h-3"/>}
+                                    </button>
+
+                                    {/* Lista Expansível */}
+                                    {expandedCols.includes(idx) && (
+                                      <div className="flex flex-col gap-1 mt-2 animate-in fade-in zoom-in-95 duration-200">
+                                        {dayReservations.map(res => (
+                                          <div 
+                                            key={res.id} 
+                                            className={`text-[10px] p-1 rounded border text-left leading-tight ${getEventColor(res.eventType)}`}
+                                          >
+                                            <div className="font-bold">{res.startTime}-{res.endTime}</div>
+                                            <div>{res.people}p - {res.eventType}</div>
+                                          </div>
+                                        ))}
+                                      </div>
+                                    )}
+                                  </div>
+                                )}
+                              </th>
+                            );
+                          })}
                         </tr>
                       </thead>
                       <tbody>
