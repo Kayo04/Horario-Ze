@@ -108,9 +108,7 @@ const LocalizedDatePicker = ({
   const [showPicker, setShowPicker] = useState(false);
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const { language } = useLanguage();
-  const t = translations[language]; // Para usar o botão "Go to this week"
-  
-  // Define o locale (pt-PT ou en-US)
+  const t = translations[language];
   const locale = language === 'pt' ? 'pt-PT' : 'en-US';
 
   const selectedDateObj = useMemo(() => 
@@ -280,7 +278,6 @@ const LocalizedDatePicker = ({
                 <div className="font-bold text-lg text-gray-800 capitalize">
                   {monthNames[currentMonth.getMonth()]} {currentMonth.getFullYear()}
                 </div>
-                {/* Tradução: Semana de ... */}
                 <div className="text-sm text-gray-500">
                   {dayNames[0]}: {formatDateToEuropean(selectedDateObj)}
                 </div>
@@ -339,16 +336,12 @@ export default function GeradorHorariosPage() {
   const { language } = useLanguage(); 
   const t = translations[language];
   
-  // ✅ Array de dias dinâmico usando o Intl para tradução automática
   const locale = language === 'pt' ? 'pt-PT' : 'en-US';
   const WEEK_DAYS = useMemo(() => {
     const formatter = new Intl.DateTimeFormat(locale, { weekday: 'long' });
-    // Começa na segunda-feira
     return Array.from({ length: 7 }, (_, i) => {
-        // 2024-01-01 foi segunda-feira
         const d = new Date(2024, 0, i + 1); 
         const dayName = formatter.format(d);
-        // Capitalizar a primeira letra
         return dayName.charAt(0).toUpperCase() + dayName.slice(1);
     });
   }, [locale]);
@@ -625,6 +618,59 @@ export default function GeradorHorariosPage() {
     });
     setSchedule(newSchedule);
   }, [schedule, editingCells]);
+
+  // ✅ FUNÇÃO PARA FILTRAR DISPONIBILIDADE NO MODAL
+  const isEmployeeAvailable = useCallback((emp: Employee) => {
+    // 1. Admin normal não conta (exceto TR)
+    if (emp.role === 'admin' && emp.code !== 'TR') return false;
+
+    // 2. Verificar disponibilidade para CADA célula selecionada
+    return editingCells.every(cell => {
+        // Encontrar a data real desta célula
+        const dayIndex = WEEK_DAYS.indexOf(cell.day);
+        const dayOfWeekJS = (dayIndex + 1) % 7; // Ajuste para 0=Dom, 1=Seg...
+        
+        // Calcular data YYYY-MM-DD
+        const d = new Date(selectedDate);
+        // O selectedDate é Segunda-feira. dayIndex 0 é Segunda.
+        d.setDate(d.getDate() + dayIndex); 
+        const dateString = d.toISOString().split('T')[0];
+
+        // Calcular minutos de início/fim do slot
+        const [startStr, endStr] = cell.slot.split(' - ');
+        const slotStart = timeToMin(startStr);
+        const slotEnd = timeToMin(endStr);
+
+        // A. Verificar Indisponibilidade de Dia da Semana
+        if (emp.unavailable?.weekdays) {
+            const weekdayBlock = emp.unavailable.weekdays.find(w => w.day === dayOfWeekJS);
+            if (weekdayBlock) {
+                // Se tem bloqueio nesse dia
+                if (!weekdayBlock.start || !weekdayBlock.end) return false; // Bloqueio total
+                // Bloqueio parcial: verificar sobreposição
+                const blockStart = timeToMin(weekdayBlock.start);
+                const blockEnd = timeToMin(weekdayBlock.end);
+                // Se o slot toca no bloqueio
+                if (slotStart < blockEnd && slotEnd > blockStart) return false;
+            }
+        }
+
+        // B. Verificar Indisponibilidade de Data Específica
+        if (emp.unavailable?.specificDates) {
+            const specificBlock = emp.unavailable.specificDates.find(s => s.date === dateString);
+            if (specificBlock) {
+                if (specificBlock.allDay) return false;
+                if (specificBlock.startTime && specificBlock.endTime) {
+                    const blockStart = timeToMin(specificBlock.startTime);
+                    const blockEnd = timeToMin(specificBlock.endTime);
+                    if (slotStart < blockEnd && slotEnd > blockStart) return false;
+                }
+            }
+        }
+
+        return true; // Se passou tudo, está disponível
+    });
+  }, [editingCells, WEEK_DAYS, selectedDate]);
 
   const handleExportExcel = useCallback(() => {
     if (!schedule || !(window as any).XLSX) return;
@@ -1312,7 +1358,7 @@ export default function GeradorHorariosPage() {
                 className="flex items-center gap-2 bg-green-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-green-700 transition-colors shadow-sm"
               >
                 <PencilSquareIcon className="w-4 h-4" /> 
-                {t.edit_selection_title.replace('{count}', '')}
+                {t.edit_selected.replace('{count}', '')}
               </button>
               <button 
                 onClick={cancelMultiSelect}
@@ -1391,7 +1437,7 @@ export default function GeradorHorariosPage() {
                       <div>
                         <p className="font-medium text-sm">{getWeekRangeText()}</p>
                         <p className="text-xs text-blue-600 mt-1">
-                          {t.week_days_range.replace('{start}', weekDates[0]).replace('{end}', weekDates[4])} • {t.weekend}: {weekDates[5]} & {weekDates[6]}
+                          {t.week_days_range.replace('{start}', weekDates[0]).replace('{end}', weekDates[6])} • {t.weekend}: {weekDates[5]} & {weekDates[6]}
                         </p>
                       </div>
                     </div>
@@ -1575,7 +1621,8 @@ export default function GeradorHorariosPage() {
                         
                         <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
                           {employees
-                            .filter(e => e.role !== 'admin' || e.code === 'TR')
+                            // ✅ Filtrar apenas disponíveis usando a nova lógica
+                            .filter(isEmployeeAvailable)
                             .map(emp => {
                               const isInAllCells = editingCells.every(cell => 
                                 schedule[cell.slot]?.[cell.day]?.includes(emp.code)
@@ -1671,4 +1718,4 @@ export default function GeradorHorariosPage() {
       </main>
     </div>
   );
-} 
+}
