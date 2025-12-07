@@ -653,7 +653,10 @@ export default function GeradorHorariosPage() {
                 if (!weekdayBlock.start || !weekdayBlock.end) return false; 
                 const blockStart = timeToMin(weekdayBlock.start);
                 const blockEnd = timeToMin(weekdayBlock.end);
-                if (slotStart < blockEnd && slotEnd > blockStart) return false;
+                // 🛑 ALTERAÇÃO: Se o turno acabar DEPOIS ou À MESMA HORA que começa a indisponibilidade
+                // Ex: Turno 09:30-10:00 (Fim 600). Bloqueio começa 10:00 (600).
+                // 570 < 660 && 600 >= 600 -> TRUE -> Indisponível
+                if (slotStart < blockEnd && slotEnd >= blockStart) return false;
             }
         }
 
@@ -664,7 +667,8 @@ export default function GeradorHorariosPage() {
                 if (specificBlock.startTime && specificBlock.endTime) {
                     const blockStart = timeToMin(specificBlock.startTime);
                     const blockEnd = timeToMin(specificBlock.endTime);
-                    if (slotStart < blockEnd && slotEnd > blockStart) return false;
+                    // 🛑 ALTERAÇÃO: Mesma lógica para datas específicas
+                    if (slotStart < blockEnd && slotEnd >= blockStart) return false;
                 }
             }
         }
@@ -1133,7 +1137,8 @@ export default function GeradorHorariosPage() {
                   if (specific.startTime && specific.endTime) {
                     const uStart = timeToMin(specific.startTime);
                     const uEnd = timeToMin(specific.endTime);
-                    if (shiftStartMin < uEnd && shiftEndMin > uStart) return false;
+                    // 🛑 ALTERAÇÃO AQUI TAMBÉM: Regra de buffer
+                    if (shiftStartMin < uEnd && shiftEndMin >= uStart) return false;
                   }
                 }
                 
@@ -1142,7 +1147,8 @@ export default function GeradorHorariosPage() {
                   if (weekdayUn.start && weekdayUn.end) {
                     const wStart = timeToMin(weekdayUn.start);
                     const wEnd = timeToMin(weekdayUn.end);
-                    if (shiftStartMin < wEnd && shiftEndMin > wStart) return false;
+                    // 🛑 ALTERAÇÃO AQUI TAMBÉM: Regra de buffer
+                    if (shiftStartMin < wEnd && shiftEndMin >= wStart) return false;
                   } else { 
                     return false; 
                   }
@@ -1151,11 +1157,31 @@ export default function GeradorHorariosPage() {
               });
 
               candidates.sort((a, b) => {
+                // ✅ LÓGICA DA VANTAGEM DISCRETA PARA O TR
+                
+                // Definir o "Fator Vantagem" (quantas horas o algoritmo "ignora" para o TR)
+                // 4 horas de vantagem por semana
+                const advantage = 4; 
+
+                const offsetA = a.code === 'TR' ? advantage : 0;
+                const offsetB = b.code === 'TR' ? advantage : 0;
+
+                // Calculamos as horas "virtuais" para a comparação
+                const virtualHoursA = employeeHours[a.id] - offsetA;
+                const virtualHoursB = employeeHours[b.id] - offsetB;
+
+                // 1. Critério Principal: Equilíbrio de horas (com a vantagem aplicada)
+                // Se a diferença for maior que 2 horas, damos prioridade a quem tem menos
+                if (Math.abs(virtualHoursA - virtualHoursB) > 2) {
+                  return virtualHoursA - virtualHoursB;
+                }
+
+                // 2. Critério de Desempate: Se as horas virtuais forem próximas...
+                // Damos um ligeiro empurrão extra para o TR
                 if (a.code === 'TR') return -1;
                 if (b.code === 'TR') return 1;
-                const hoursA = employeeHours[a.id];
-                const hoursB = employeeHours[b.id];
-                if (Math.abs(hoursA - hoursB) > 2) return hoursA - hoursB;
+
+                // 3. Critério Final: Aleatório para o resto da equipa não ficar sempre na mesma ordem
                 return 0.5 - Math.random();
               });
 
@@ -1711,7 +1737,7 @@ export default function GeradorHorariosPage() {
                                 </button>
                               );
                             })}
-                        </div>
+                        </div>  
                       </div>
 
                       <div className="p-4 border-t border-gray-100 bg-gray-50 flex justify-between items-center">
