@@ -994,226 +994,248 @@ export default function GeradorHorariosPage() {
     }, 400);
 
     const runAlgorithm = () => {
-      const newSchedule: Schedule = {};
-      TIME_SLOTS.forEach(slot => {
-        newSchedule[slot] = {};
-        WEEK_DAYS.forEach(day => newSchedule[slot][day] = []);
-      });
+    // Inicializar grelha
+    const newSchedule: Schedule = {};
+    TIME_SLOTS.forEach(slot => {
+      newSchedule[slot] = {};
+      WEEK_DAYS.forEach(day => newSchedule[slot][day] = []);
+    });
 
-      const employeeHours: Record<string, number> = {};
-      employees.forEach(emp => employeeHours[emp.id] = 0);
+    const employeeHours: Record<string, number> = {};
+    employees.forEach(emp => employeeHours[emp.id] = 0);
 
-      const startOfWeek = new Date(selectedDate);
-      const demandMap: Record<string, number[]> = {};
+    const startOfWeek = new Date(selectedDate);
+    const demandMap: Record<string, number[]> = {};
 
-      const STORE_OPEN_MIN = 9 * 60 + 30;
-      const MIN_SHIFT_SLOTS = 4;
-      const MAX_SHIFT_SLOTS = 12;
+    const STORE_OPEN_MIN = 9 * 60 + 30; 
+    const MIN_SHIFT_SLOTS = 4;
+    const MAX_SHIFT_SLOTS = 12;
 
-      WEEK_DAYS.forEach((_, dayIdx) => {
-        const currentDate = new Date(startOfWeek);
-        currentDate.setDate(startOfWeek.getDate() + dayIdx);
-        const dateString = currentDate.toISOString().split('T')[0];
-        demandMap[dateString] = new Array(TIME_SLOTS.length).fill(0);
+    // --- PASSO 1: CALCULAR PROCURA ---
+    WEEK_DAYS.forEach((_, dayIdx) => {
+      const currentDate = new Date(startOfWeek);
+      currentDate.setDate(startOfWeek.getDate() + dayIdx);
+      const dateString = currentDate.toISOString().split('T')[0];
+      demandMap[dateString] = new Array(TIME_SLOTS.length).fill(0);
 
-        const daysReservations = reservations.filter(r => r.date === dateString);
-        const isWeekend = dayIdx === 5 || dayIdx === 6;
+      const daysReservations = reservations.filter(r => r.date === dateString);
+      const isWeekend = dayIdx === 5 || dayIdx === 6;
 
-        if (isWeekend) {
-          TIME_SLOTS.forEach((slot, i) => {
-            const [sStart] = slot.split(' - ');
-            const slotStartMin = timeToMin(sStart);
-            const WEEKEND_LIMIT_MIN = 20 * 60;
-            if (slotStartMin >= STORE_OPEN_MIN && slotStartMin < WEEKEND_LIMIT_MIN) {
-              demandMap[dateString][i] = 3;
-            }
-          });
-        }
-
-        daysReservations.forEach(res => {
-          const rawStart = timeToMin(res.startTime) - 30;
-          const rawEnd = timeToMin(res.endTime) + 30;
-          let staffNeeded = 2;
-          if (res.people >= 12) staffNeeded = 3;
-          if (res.people >= 17) staffNeeded = 4;
-          if (res.people >= 20) staffNeeded = 5;
-          if (res.people >= 30) staffNeeded = 7;
-          
-          TIME_SLOTS.forEach((slot, i) => {
-            const [sStart, sEnd] = slot.split(' - ');
-            const slotStartMin = timeToMin(sStart);
-            const slotEndMin = timeToMin(sEnd);
-            if (slotStartMin < rawEnd && slotEndMin > rawStart) {
-              demandMap[dateString][i] = Math.max(demandMap[dateString][i], staffNeeded);
-            }
-          });
-        });
-
-        if (isWeekend) {
+      if (isWeekend) {
+        TIME_SLOTS.forEach((slot, i) => {
+          const [sStart] = slot.split(' - ');
+          const slotStartMin = timeToMin(sStart);
           const WEEKEND_LIMIT_MIN = 20 * 60;
-          TIME_SLOTS.forEach((slot, i) => {
-            const [sStart] = slot.split(' - ');
-            const slotStartMin = timeToMin(sStart);
-            if (slotStartMin >= WEEKEND_LIMIT_MIN) {
-              demandMap[dateString][i] = 0;
-            }
-          });
-        }
+          if (slotStartMin >= STORE_OPEN_MIN && slotStartMin < WEEKEND_LIMIT_MIN) {
+            demandMap[dateString][i] = 3;
+          }
+        });
+      }
+
+      daysReservations.forEach(res => {
+        const rawStart = timeToMin(res.startTime) - 30;
+        const rawEnd = timeToMin(res.endTime) + 30;
+        const cleanPeopleString = String(res.people || '0').replace(/\D/g, ''); 
+        const peopleCount = parseInt(cleanPeopleString, 10) || 0;
+
+        let staffNeeded = 2;
+        if (peopleCount >= 12) staffNeeded = 3;
+        if (peopleCount >= 17) staffNeeded = 4;
+        if (peopleCount >= 20) staffNeeded = 5;
+        if (peopleCount >= 24) staffNeeded = 6;
+        if (peopleCount >= 30) staffNeeded = 7;
+
+        TIME_SLOTS.forEach((slot, i) => {
+          const [sStart, sEnd] = slot.split(' - ');
+          const slotStartMin = timeToMin(sStart);
+          const slotEndMin = timeToMin(sEnd);
+          if (slotStartMin < rawEnd && slotEndMin > rawStart) {
+            demandMap[dateString][i] = Math.max(demandMap[dateString][i], staffNeeded);
+          }
+        });
       });
 
-      WEEK_DAYS.forEach((dayName, dayIdx) => {
-        const currentDate = new Date(startOfWeek);
-        currentDate.setDate(startOfWeek.getDate() + dayIdx);
-        const dateString = currentDate.toISOString().split('T')[0];
-        const jsDay = (dayIdx + 1) % 7;
-        const demandArr = demandMap[dateString];
-        const maxDemand = Math.max(...demandArr);
+      if (isWeekend) {
+        const WEEKEND_LIMIT_MIN = 20 * 60;
+        TIME_SLOTS.forEach((slot, i) => {
+          const [sStart] = slot.split(' - ');
+          const slotStartMin = timeToMin(sStart);
+          if (slotStartMin >= WEEKEND_LIMIT_MIN && demandMap[dateString][i] <= 3) {
+              const activeRes = daysReservations.some(r => {
+                   const rEnd = timeToMin(r.endTime) + 30;
+                   return rEnd > slotStartMin;
+              });
+              if (!activeRes) demandMap[dateString][i] = 0;
+          }
+        });
+      }
+    });
+
+    // --- PASSO 2: ATRIBUIR STAFF ---
+    WEEK_DAYS.forEach((dayName, dayIdx) => {
+      const currentDate = new Date(startOfWeek);
+      currentDate.setDate(startOfWeek.getDate() + dayIdx);
+      const dateString = currentDate.toISOString().split('T')[0];
+      const jsDay = (dayIdx + 1) % 7;
+      
+      const demandArr = demandMap[dateString];
+      const maxDemand = Math.max(...demandArr);
+      
+      const dailyHours: Record<string, number> = {};
+      employees.forEach(emp => dailyHours[emp.id] = 0);
+
+      for (let level = 1; level <= maxDemand; level++) {
+        let inShift = false;
+        let startIdx = -1;
+        const shiftRequests: {start: number; end: number}[] = [];
         
-        const dailyHours: Record<string, number> = {};
-        employees.forEach(emp => dailyHours[emp.id] = 0);
-        const assignedInSlot = new Array(TIME_SLOTS.length).fill(0);
-
-        for (let level = 1; level <= maxDemand; level++) {
-          let inShift = false;
-          let startIdx = -1;
-          const shiftRequests: {start: number; end: number}[] = [];
-          
-          for (let i = 0; i < TIME_SLOTS.length; i++) {
-            if (demandArr[i] >= level) {
-              if (!inShift) {
-                startIdx = i;
-                inShift = true;
-              }
-            } else {
-              if (inShift) {
-                shiftRequests.push({ start: startIdx, end: i });
-                inShift = false;
-              }
+        for (let i = 0; i < TIME_SLOTS.length; i++) {
+          if (demandArr[i] >= level) {
+            if (!inShift) {
+              startIdx = i;
+              inShift = true;
+            }
+          } else {
+            if (inShift) {
+              shiftRequests.push({ start: startIdx, end: i });
+              inShift = false;
             }
           }
-          if (inShift) {
-            shiftRequests.push({ start: startIdx, end: TIME_SLOTS.length });
+        }
+        if (inShift) {
+          shiftRequests.push({ start: startIdx, end: TIME_SLOTS.length });
+        }
+
+        shiftRequests.forEach(req => {
+          let duration = req.end - req.start;
+          let currentStart = req.start;
+          let currentEnd = req.end;
+
+          if (duration < MIN_SHIFT_SLOTS) {
+            const missing = MIN_SHIFT_SLOTS - duration;
+            currentStart = Math.max(0, currentStart - Math.floor(missing / 2));
+            currentEnd = Math.min(TIME_SLOTS.length, currentStart + MIN_SHIFT_SLOTS);
+            if (currentEnd - currentStart < MIN_SHIFT_SLOTS) {
+              currentStart = Math.max(0, currentEnd - MIN_SHIFT_SLOTS);
+            }
+            duration = currentEnd - currentStart;
           }
 
-          shiftRequests.forEach(req => {
-            let duration = req.end - req.start;
-            let currentStart = req.start;
-            let currentEnd = req.end;
+          const shiftsToFill: {s: number; e: number}[] = [];
+          if (duration > MAX_SHIFT_SLOTS) {
+            const midPoint = currentStart + Math.floor(duration / 2);
+            shiftsToFill.push({ s: currentStart, e: midPoint });
+            shiftsToFill.push({ s: midPoint, e: currentEnd });
+          } else {
+            shiftsToFill.push({ s: currentStart, e: currentEnd });
+          }
 
-            if (duration < MIN_SHIFT_SLOTS) {
-              const missing = MIN_SHIFT_SLOTS - duration;
-              currentStart = Math.max(0, currentStart - Math.floor(missing / 2));
-              currentEnd = Math.min(TIME_SLOTS.length, currentStart + MIN_SHIFT_SLOTS);
-              if (currentEnd - currentStart < MIN_SHIFT_SLOTS) {
-                currentStart = Math.max(0, currentEnd - MIN_SHIFT_SLOTS);
-              }
-              duration = currentEnd - currentStart;
-            }
+          shiftsToFill.forEach(shift => {
+            const [tStartStr] = TIME_SLOTS[shift.s].split(' - ');
+            const shiftStartMin = timeToMin(tStartStr);
+            const endSlotIdx = Math.min(shift.e - 1, TIME_SLOTS.length - 1);
+            const [_, tEndStr] = TIME_SLOTS[endSlotIdx].split(' - ');
+            const shiftEndMin = timeToMin(tEndStr);
+            
+            // Calculamos as horas que este turno vai adicionar
+            const shiftDurationHours = (shift.e - shift.s) * 0.5;
 
-            const shiftsToFill: {s: number; e: number}[] = [];
-            if (duration > MAX_SHIFT_SLOTS) {
-              const midPoint = currentStart + Math.floor(duration / 2);
-              shiftsToFill.push({ s: currentStart, e: midPoint });
-              shiftsToFill.push({ s: midPoint, e: currentEnd });
-            } else {
-              shiftsToFill.push({ s: currentStart, e: currentEnd });
-            }
-
-            shiftsToFill.forEach(shift => {
-              const [tStartStr] = TIME_SLOTS[shift.s].split(' - ');
-              const shiftStartMin = timeToMin(tStartStr);
-              const endSlotIdx = Math.min(shift.e - 1, TIME_SLOTS.length - 1);
-              const [_, tEndStr] = TIME_SLOTS[endSlotIdx].split(' - ');
-              const shiftEndMin = timeToMin(tEndStr);
-
-              const candidates = employees.filter(emp => {
+            // Função auxiliar para encontrar candidatos com um limite de horas específico
+            const findCandidatesWithLimit = (limitHours: number) => {
+              return employees.filter(emp => {
                 if (emp.role === 'admin' && emp.code !== 'TR') return false;
-                if (dailyHours[emp.id] > 0) return false;
-                if (!emp.unavailable) return true;
                 
+                // ✅ VERIFICAÇÃO INTELIGENTE DE HORAS
+                // Verifica se, ao adicionar este turno, a pessoa ultrapassa o limite passado (6h ou 12h)
+                if ((dailyHours[emp.id] + shiftDurationHours) > limitHours) return false;
+
+                // Impedir duplicação no MESMO slot horário (TR+TR)
+                let isBusyNow = false;
+                for (let k = shift.s; k < shift.e; k++) {
+                    if (newSchedule[TIME_SLOTS[k]]?.[dayName]?.includes(emp.code)) {
+                        isBusyNow = true;
+                        break;
+                    }
+                }
+                if (isBusyNow) return false;
+
+                // Indisponibilidades normais
+                if (!emp.unavailable) return true;
                 const specific = emp.unavailable.specificDates?.find(s => s.date === dateString);
                 if (specific) {
                   if (specific.allDay) return false;
                   if (specific.startTime && specific.endTime) {
                     const uStart = timeToMin(specific.startTime);
                     const uEnd = timeToMin(specific.endTime);
-                    // 🛑 ALTERAÇÃO AQUI TAMBÉM: Regra de buffer
                     if (shiftStartMin < uEnd && shiftEndMin >= uStart) return false;
                   }
                 }
-                
                 const weekdayUn = emp.unavailable.weekdays?.find(w => w.day === jsDay);
                 if (weekdayUn) {
                   if (weekdayUn.start && weekdayUn.end) {
                     const wStart = timeToMin(weekdayUn.start);
                     const wEnd = timeToMin(weekdayUn.end);
-                    // 🛑 ALTERAÇÃO AQUI TAMBÉM: Regra de buffer
                     if (shiftStartMin < wEnd && shiftEndMin >= wStart) return false;
-                  } else { 
-                    return false; 
-                  }
+                  } else { return false; }
                 }
                 return true;
               });
+            };
 
-              candidates.sort((a, b) => {
-                // ✅ LÓGICA DA VANTAGEM DISCRETA PARA O TR
-                
-                // Definir o "Fator Vantagem" (quantas horas o algoritmo "ignora" para o TR)
-                // 4 horas de vantagem por semana
-                const advantage = 4; 
-
+            // Função de ordenação
+            const sortCandidates = (cands: Employee[]) => {
+              cands.sort((a, b) => {
+                const advantage = 4;
                 const offsetA = a.code === 'TR' ? advantage : 0;
                 const offsetB = b.code === 'TR' ? advantage : 0;
-
-                // Calculamos as horas "virtuais" para a comparação
                 const virtualHoursA = employeeHours[a.id] - offsetA;
                 const virtualHoursB = employeeHours[b.id] - offsetB;
-
-                // 1. Critério Principal: Equilíbrio de horas (com a vantagem aplicada)
-                // Se a diferença for maior que 2 horas, damos prioridade a quem tem menos
-                if (Math.abs(virtualHoursA - virtualHoursB) > 2) {
-                  return virtualHoursA - virtualHoursB;
-                }
-
-                // 2. Critério de Desempate: Se as horas virtuais forem próximas...
-                // Damos um ligeiro empurrão extra para o TR
+                if (Math.abs(virtualHoursA - virtualHoursB) > 2) return virtualHoursA - virtualHoursB;
                 if (a.code === 'TR') return -1;
                 if (b.code === 'TR') return 1;
-
-                // 3. Critério Final: Aleatório para o resto da equipa não ficar sempre na mesma ordem
                 return 0.5 - Math.random();
               });
+              return cands;
+            };
 
-              if (candidates.length > 0) {
-                const worker = candidates[0];
-                for (let k = shift.s; k < shift.e; k++) {
-                  if (!newSchedule[TIME_SLOTS[k]]) newSchedule[TIME_SLOTS[k]] = {};
-                  if (!newSchedule[TIME_SLOTS[k]][dayName]) newSchedule[TIME_SLOTS[k]][dayName] = [];
-                  newSchedule[TIME_SLOTS[k]][dayName].push(worker.code);
-                  assignedInSlot[k]++;
-                }
-                const hoursAdded = (shift.e - shift.s) * 0.5;
-                employeeHours[worker.id] += hoursAdded;
-                dailyHours[worker.id] += hoursAdded;
+            // 🔥 TENTATIVA 1: Tentar encontrar alguém que fique abaixo das 6 horas totais
+            let candidates = findCandidatesWithLimit(6);
+            
+            // 🔥 TENTATIVA 2 (O CASO ESPECIAL): Se não houver NINGUÉM disponível (lista vazia),
+            // então (e só então) procuramos alguém que possa fazer até 12h para preencher o buraco.
+            if (candidates.length === 0) {
+               candidates = findCandidatesWithLimit(12);
+            }
+
+            sortCandidates(candidates);
+
+            if (candidates.length > 0) {
+              const worker = candidates[0];
+              for (let k = shift.s; k < shift.e; k++) {
+                if (!newSchedule[TIME_SLOTS[k]]) newSchedule[TIME_SLOTS[k]] = {};
+                if (!newSchedule[TIME_SLOTS[k]][dayName]) newSchedule[TIME_SLOTS[k]][dayName] = [];
+                newSchedule[TIME_SLOTS[k]][dayName].push(worker.code);
               }
-            });
+              employeeHours[worker.id] += shiftDurationHours;
+              dailyHours[worker.id] += shiftDurationHours;
+            }
           });
+        });
+      }
+    });
+
+    TIME_SLOTS.forEach(slot => {
+      WEEK_DAYS.forEach(day => {
+        if (newSchedule[slot] && newSchedule[slot][day]) {
+          newSchedule[slot][day].sort();
         }
       });
+    });
 
-      TIME_SLOTS.forEach(slot => {
-        WEEK_DAYS.forEach(day => {
-          if (newSchedule[slot] && newSchedule[slot][day]) {
-            newSchedule[slot][day].sort();
-          }
-        });
-      });
-
-      setSchedule(newSchedule);
-      setIsGenerating(false);
-      showToast(t.schedule_generated, "success");
-    };
+    setSchedule(newSchedule);
+    setIsGenerating(false);
+    showToast(t.schedule_generated, "success");
+  };
   }, [employees, reservations, selectedDate, showToast, t, WEEK_DAYS]);
 
   if (accessDenied) {
