@@ -6,19 +6,19 @@ import {
   ArrowDownTrayIcon, 
   ArrowPathIcon, 
   CalendarDaysIcon, 
-  CheckCircleIcon,
-  PencilSquareIcon,
-  XMarkIcon,
-  PlusIcon,
-  Squares2X2Icon,
-  ShieldExclamationIcon,
-  ExclamationTriangleIcon,
-  InformationCircleIcon,
-  DocumentArrowDownIcon,
-  DocumentArrowUpIcon,
-  XCircleIcon,
-  ChevronLeftIcon,
-  ChevronRightIcon,
+  CheckCircleIcon, 
+  PencilSquareIcon, 
+  XMarkIcon, 
+  PlusIcon, 
+  Squares2X2Icon, 
+  ShieldExclamationIcon, 
+  ExclamationTriangleIcon, 
+  InformationCircleIcon, 
+  DocumentArrowDownIcon, 
+  DocumentArrowUpIcon, 
+  XCircleIcon, 
+  ChevronLeftIcon, 
+  ChevronRightIcon, 
   ChevronDownIcon, 
   ChevronUpIcon    
 } from '@heroicons/react/24/outline';
@@ -653,9 +653,7 @@ export default function GeradorHorariosPage() {
                 if (!weekdayBlock.start || !weekdayBlock.end) return false; 
                 const blockStart = timeToMin(weekdayBlock.start);
                 const blockEnd = timeToMin(weekdayBlock.end);
-                // 🛑 ALTERAÇÃO: Se o turno acabar DEPOIS ou À MESMA HORA que começa a indisponibilidade
-                // Ex: Turno 09:30-10:00 (Fim 600). Bloqueio começa 10:00 (600).
-                // 570 < 660 && 600 >= 600 -> TRUE -> Indisponível
+                
                 if (slotStart < blockEnd && slotEnd >= blockStart) return false;
             }
         }
@@ -667,7 +665,6 @@ export default function GeradorHorariosPage() {
                 if (specificBlock.startTime && specificBlock.endTime) {
                     const blockStart = timeToMin(specificBlock.startTime);
                     const blockEnd = timeToMin(specificBlock.endTime);
-                    // 🛑 ALTERAÇÃO: Mesma lógica para datas específicas
                     if (slotStart < blockEnd && slotEnd >= blockStart) return false;
                 }
             }
@@ -993,163 +990,167 @@ export default function GeradorHorariosPage() {
       }
     }, 400);
 
+    // =================================================================================
+    // 🔥 ALGORITMO FINAL COM TODAS AS CORREÇÕES:
+    // 1. Limpeza de "24p" -> 24
+    // 2. Staff: >= 24 pessoas -> 6 staff
+    // 3. Permite Split Shift (voltar no mesmo dia)
+    // 4. Impede Duplicação no mesmo turno (TR+TR)
+    // =================================================================================
     const runAlgorithm = () => {
-    // Inicializar grelha
-    const newSchedule: Schedule = {};
-    TIME_SLOTS.forEach(slot => {
-      newSchedule[slot] = {};
-      WEEK_DAYS.forEach(day => newSchedule[slot][day] = []);
-    });
-
-    const employeeHours: Record<string, number> = {};
-    employees.forEach(emp => employeeHours[emp.id] = 0);
-
-    const startOfWeek = new Date(selectedDate);
-    const demandMap: Record<string, number[]> = {};
-
-    const STORE_OPEN_MIN = 9 * 60 + 30; 
-    const MIN_SHIFT_SLOTS = 4;
-    const MAX_SHIFT_SLOTS = 12;
-
-    // --- PASSO 1: CALCULAR PROCURA ---
-    WEEK_DAYS.forEach((_, dayIdx) => {
-      const currentDate = new Date(startOfWeek);
-      currentDate.setDate(startOfWeek.getDate() + dayIdx);
-      const dateString = currentDate.toISOString().split('T')[0];
-      demandMap[dateString] = new Array(TIME_SLOTS.length).fill(0);
-
-      const daysReservations = reservations.filter(r => r.date === dateString);
-      const isWeekend = dayIdx === 5 || dayIdx === 6;
-
-      if (isWeekend) {
-        TIME_SLOTS.forEach((slot, i) => {
-          const [sStart] = slot.split(' - ');
-          const slotStartMin = timeToMin(sStart);
-          const WEEKEND_LIMIT_MIN = 20 * 60;
-          if (slotStartMin >= STORE_OPEN_MIN && slotStartMin < WEEKEND_LIMIT_MIN) {
-            demandMap[dateString][i] = 3;
-          }
-        });
-      }
-
-      daysReservations.forEach(res => {
-        const rawStart = timeToMin(res.startTime) - 30;
-        const rawEnd = timeToMin(res.endTime) + 30;
-        const cleanPeopleString = String(res.people || '0').replace(/\D/g, ''); 
-        const peopleCount = parseInt(cleanPeopleString, 10) || 0;
-
-        let staffNeeded = 2;
-        if (peopleCount >= 12) staffNeeded = 3;
-        if (peopleCount >= 17) staffNeeded = 4;
-        if (peopleCount >= 20) staffNeeded = 5;
-        if (peopleCount >= 24) staffNeeded = 6;
-        if (peopleCount >= 30) staffNeeded = 7;
-
-        TIME_SLOTS.forEach((slot, i) => {
-          const [sStart, sEnd] = slot.split(' - ');
-          const slotStartMin = timeToMin(sStart);
-          const slotEndMin = timeToMin(sEnd);
-          if (slotStartMin < rawEnd && slotEndMin > rawStart) {
-            demandMap[dateString][i] = Math.max(demandMap[dateString][i], staffNeeded);
-          }
-        });
+      const newSchedule: Schedule = {};
+      TIME_SLOTS.forEach(slot => {
+        newSchedule[slot] = {};
+        WEEK_DAYS.forEach(day => newSchedule[slot][day] = []);
       });
 
-      if (isWeekend) {
-        const WEEKEND_LIMIT_MIN = 20 * 60;
-        TIME_SLOTS.forEach((slot, i) => {
-          const [sStart] = slot.split(' - ');
-          const slotStartMin = timeToMin(sStart);
-          if (slotStartMin >= WEEKEND_LIMIT_MIN && demandMap[dateString][i] <= 3) {
-              const activeRes = daysReservations.some(r => {
-                   const rEnd = timeToMin(r.endTime) + 30;
-                   return rEnd > slotStartMin;
-              });
-              if (!activeRes) demandMap[dateString][i] = 0;
-          }
-        });
-      }
-    });
+      const employeeHours: Record<string, number> = {};
+      employees.forEach(emp => employeeHours[emp.id] = 0);
 
-    // --- PASSO 2: ATRIBUIR STAFF ---
-    WEEK_DAYS.forEach((dayName, dayIdx) => {
-      const currentDate = new Date(startOfWeek);
-      currentDate.setDate(startOfWeek.getDate() + dayIdx);
-      const dateString = currentDate.toISOString().split('T')[0];
-      const jsDay = (dayIdx + 1) % 7;
-      
-      const demandArr = demandMap[dateString];
-      const maxDemand = Math.max(...demandArr);
-      
-      const dailyHours: Record<string, number> = {};
-      employees.forEach(emp => dailyHours[emp.id] = 0);
+      const startOfWeek = new Date(selectedDate);
+      const demandMap: Record<string, number[]> = {};
 
-      for (let level = 1; level <= maxDemand; level++) {
-        let inShift = false;
-        let startIdx = -1;
-        const shiftRequests: {start: number; end: number}[] = [];
-        
-        for (let i = 0; i < TIME_SLOTS.length; i++) {
-          if (demandArr[i] >= level) {
-            if (!inShift) {
-              startIdx = i;
-              inShift = true;
+      const STORE_OPEN_MIN = 9 * 60 + 30; // 09:30
+      const MIN_SHIFT_SLOTS = 4;
+      const MAX_SHIFT_SLOTS = 12;
+
+      // 1. CALCULAR DEMAND
+      WEEK_DAYS.forEach((_, dayIdx) => {
+        const currentDate = new Date(startOfWeek);
+        currentDate.setDate(startOfWeek.getDate() + dayIdx);
+        const dateString = currentDate.toISOString().split('T')[0];
+        demandMap[dateString] = new Array(TIME_SLOTS.length).fill(0);
+
+        const daysReservations = reservations.filter(r => r.date === dateString);
+        const isWeekend = dayIdx === 5 || dayIdx === 6;
+
+        if (isWeekend) {
+          TIME_SLOTS.forEach((slot, i) => {
+            const [sStart] = slot.split(' - ');
+            const slotStartMin = timeToMin(sStart);
+            const WEEKEND_LIMIT_MIN = 20 * 60; // 20:00
+            if (slotStartMin >= STORE_OPEN_MIN && slotStartMin < WEEKEND_LIMIT_MIN) {
+              demandMap[dateString][i] = 3;
             }
-          } else {
-            if (inShift) {
-              shiftRequests.push({ start: startIdx, end: i });
-              inShift = false;
-            }
-          }
-        }
-        if (inShift) {
-          shiftRequests.push({ start: startIdx, end: TIME_SLOTS.length });
+          });
         }
 
-        shiftRequests.forEach(req => {
-          let duration = req.end - req.start;
-          let currentStart = req.start;
-          let currentEnd = req.end;
+        daysReservations.forEach(res => {
+          const rawStart = timeToMin(res.startTime) - 30;
+          const rawEnd = timeToMin(res.endTime) + 30;
 
-          if (duration < MIN_SHIFT_SLOTS) {
-            const missing = MIN_SHIFT_SLOTS - duration;
-            currentStart = Math.max(0, currentStart - Math.floor(missing / 2));
-            currentEnd = Math.min(TIME_SLOTS.length, currentStart + MIN_SHIFT_SLOTS);
-            if (currentEnd - currentStart < MIN_SHIFT_SLOTS) {
-              currentStart = Math.max(0, currentEnd - MIN_SHIFT_SLOTS);
-            }
-            duration = currentEnd - currentStart;
-          }
+          // 🔥 CORREÇÃO: Limpar string "24p" -> 24
+          const cleanPeopleString = String(res.people || '0').replace(/\D/g, ''); 
+          const peopleCount = parseInt(cleanPeopleString, 10) || 0;
 
-          const shiftsToFill: {s: number; e: number}[] = [];
-          if (duration > MAX_SHIFT_SLOTS) {
-            const midPoint = currentStart + Math.floor(duration / 2);
-            shiftsToFill.push({ s: currentStart, e: midPoint });
-            shiftsToFill.push({ s: midPoint, e: currentEnd });
-          } else {
-            shiftsToFill.push({ s: currentStart, e: currentEnd });
-          }
+          let staffNeeded = 2; 
+          if (peopleCount >= 12) staffNeeded = 3;
+          if (peopleCount >= 17) staffNeeded = 4;
+          if (peopleCount >= 20) staffNeeded = 5;
+          if (peopleCount >= 24) staffNeeded = 6; 
+          if (peopleCount >= 30) staffNeeded = 7;
 
-          shiftsToFill.forEach(shift => {
-            const [tStartStr] = TIME_SLOTS[shift.s].split(' - ');
-            const shiftStartMin = timeToMin(tStartStr);
-            const endSlotIdx = Math.min(shift.e - 1, TIME_SLOTS.length - 1);
-            const [_, tEndStr] = TIME_SLOTS[endSlotIdx].split(' - ');
-            const shiftEndMin = timeToMin(tEndStr);
+          TIME_SLOTS.forEach((slot, i) => {
+            const [sStart, sEnd] = slot.split(' - ');
+            const slotStartMin = timeToMin(sStart);
+            const slotEndMin = timeToMin(sEnd);
             
-            // Calculamos as horas que este turno vai adicionar
-            const shiftDurationHours = (shift.e - shift.s) * 0.5;
+            if (slotStartMin < rawEnd && slotEndMin > rawStart) {
+              demandMap[dateString][i] = Math.max(demandMap[dateString][i], staffNeeded);
+            }
+          });
+        });
 
-            // Função auxiliar para encontrar candidatos com um limite de horas específico
-            const findCandidatesWithLimit = (limitHours: number) => {
-              return employees.filter(emp => {
+        if (isWeekend) {
+          const WEEKEND_LIMIT_MIN = 20 * 60;
+          TIME_SLOTS.forEach((slot, i) => {
+            const [sStart] = slot.split(' - ');
+            const slotStartMin = timeToMin(sStart);
+            if (slotStartMin >= WEEKEND_LIMIT_MIN && demandMap[dateString][i] <= 3) {
+                const activeRes = daysReservations.some(r => {
+                     const rEnd = timeToMin(r.endTime) + 30;
+                     return rEnd > slotStartMin;
+                });
+                if (!activeRes) demandMap[dateString][i] = 0;
+            }
+          });
+        }
+      });
+
+      // 2. ATRIBUIR STAFF
+      WEEK_DAYS.forEach((dayName, dayIdx) => {
+        const currentDate = new Date(startOfWeek);
+        currentDate.setDate(startOfWeek.getDate() + dayIdx);
+        const dateString = currentDate.toISOString().split('T')[0];
+        const jsDay = (dayIdx + 1) % 7;
+        
+        const demandArr = demandMap[dateString];
+        const maxDemand = Math.max(...demandArr);
+        
+        const dailyHours: Record<string, number> = {};
+        employees.forEach(emp => dailyHours[emp.id] = 0);
+
+        for (let level = 1; level <= maxDemand; level++) {
+          let inShift = false;
+          let startIdx = -1;
+          const shiftRequests: {start: number; end: number}[] = [];
+          
+          for (let i = 0; i < TIME_SLOTS.length; i++) {
+            if (demandArr[i] >= level) {
+              if (!inShift) {
+                startIdx = i;
+                inShift = true;
+              }
+            } else {
+              if (inShift) {
+                shiftRequests.push({ start: startIdx, end: i });
+                inShift = false;
+              }
+            }
+          }
+          if (inShift) {
+            shiftRequests.push({ start: startIdx, end: TIME_SLOTS.length });
+          }
+
+          shiftRequests.forEach(req => {
+            let duration = req.end - req.start;
+            let currentStart = req.start;
+            let currentEnd = req.end;
+
+            if (duration < MIN_SHIFT_SLOTS) {
+              const missing = MIN_SHIFT_SLOTS - duration;
+              currentStart = Math.max(0, currentStart - Math.floor(missing / 2));
+              currentEnd = Math.min(TIME_SLOTS.length, currentStart + MIN_SHIFT_SLOTS);
+              if (currentEnd - currentStart < MIN_SHIFT_SLOTS) {
+                currentStart = Math.max(0, currentEnd - MIN_SHIFT_SLOTS);
+              }
+              duration = currentEnd - currentStart;
+            }
+
+            const shiftsToFill: {s: number; e: number}[] = [];
+            if (duration > MAX_SHIFT_SLOTS) {
+              const midPoint = currentStart + Math.floor(duration / 2);
+              shiftsToFill.push({ s: currentStart, e: midPoint });
+              shiftsToFill.push({ s: midPoint, e: currentEnd });
+            } else {
+              shiftsToFill.push({ s: currentStart, e: currentEnd });
+            }
+
+            shiftsToFill.forEach(shift => {
+              const [tStartStr] = TIME_SLOTS[shift.s].split(' - ');
+              const shiftStartMin = timeToMin(tStartStr);
+              const endSlotIdx = Math.min(shift.e - 1, TIME_SLOTS.length - 1);
+              const [_, tEndStr] = TIME_SLOTS[endSlotIdx].split(' - ');
+              const shiftEndMin = timeToMin(tEndStr);
+
+              const candidates = employees.filter(emp => {
                 if (emp.role === 'admin' && emp.code !== 'TR') return false;
                 
-                // ✅ VERIFICAÇÃO INTELIGENTE DE HORAS
-                // Verifica se, ao adicionar este turno, a pessoa ultrapassa o limite passado (6h ou 12h)
-                if ((dailyHours[emp.id] + shiftDurationHours) > limitHours) return false;
+                // 🔥 CORREÇÃO: Permitir voltar no mesmo dia (Split Shift)
+                // Só bloqueia se já tiver 12h no dia. Removemos o > 0.
+                if (dailyHours[emp.id] >= 12) return false; 
 
-                // Impedir duplicação no MESMO slot horário (TR+TR)
+                // 🔥 CORREÇÃO: Impedir TR+TR no mesmo slot
                 let isBusyNow = false;
                 for (let k = shift.s; k < shift.e; k++) {
                     if (newSchedule[TIME_SLOTS[k]]?.[dayName]?.includes(emp.code)) {
@@ -1159,8 +1160,8 @@ export default function GeradorHorariosPage() {
                 }
                 if (isBusyNow) return false;
 
-                // Indisponibilidades normais
                 if (!emp.unavailable) return true;
+                
                 const specific = emp.unavailable.specificDates?.find(s => s.date === dateString);
                 if (specific) {
                   if (specific.allDay) return false;
@@ -1170,72 +1171,63 @@ export default function GeradorHorariosPage() {
                     if (shiftStartMin < uEnd && shiftEndMin >= uStart) return false;
                   }
                 }
+                
                 const weekdayUn = emp.unavailable.weekdays?.find(w => w.day === jsDay);
                 if (weekdayUn) {
                   if (weekdayUn.start && weekdayUn.end) {
                     const wStart = timeToMin(weekdayUn.start);
                     const wEnd = timeToMin(weekdayUn.end);
                     if (shiftStartMin < wEnd && shiftEndMin >= wStart) return false;
-                  } else { return false; }
+                  } else { 
+                    return false; 
+                  }
                 }
                 return true;
               });
-            };
 
-            // Função de ordenação
-            const sortCandidates = (cands: Employee[]) => {
-              cands.sort((a, b) => {
-                const advantage = 4;
+              candidates.sort((a, b) => {
+                const advantage = 4; 
                 const offsetA = a.code === 'TR' ? advantage : 0;
                 const offsetB = b.code === 'TR' ? advantage : 0;
                 const virtualHoursA = employeeHours[a.id] - offsetA;
                 const virtualHoursB = employeeHours[b.id] - offsetB;
-                if (Math.abs(virtualHoursA - virtualHoursB) > 2) return virtualHoursA - virtualHoursB;
+
+                if (Math.abs(virtualHoursA - virtualHoursB) > 2) {
+                  return virtualHoursA - virtualHoursB;
+                }
                 if (a.code === 'TR') return -1;
                 if (b.code === 'TR') return 1;
                 return 0.5 - Math.random();
               });
-              return cands;
-            };
 
-            // 🔥 TENTATIVA 1: Tentar encontrar alguém que fique abaixo das 6 horas totais
-            let candidates = findCandidatesWithLimit(6);
-            
-            // 🔥 TENTATIVA 2 (O CASO ESPECIAL): Se não houver NINGUÉM disponível (lista vazia),
-            // então (e só então) procuramos alguém que possa fazer até 12h para preencher o buraco.
-            if (candidates.length === 0) {
-               candidates = findCandidatesWithLimit(12);
-            }
-
-            sortCandidates(candidates);
-
-            if (candidates.length > 0) {
-              const worker = candidates[0];
-              for (let k = shift.s; k < shift.e; k++) {
-                if (!newSchedule[TIME_SLOTS[k]]) newSchedule[TIME_SLOTS[k]] = {};
-                if (!newSchedule[TIME_SLOTS[k]][dayName]) newSchedule[TIME_SLOTS[k]][dayName] = [];
-                newSchedule[TIME_SLOTS[k]][dayName].push(worker.code);
+              if (candidates.length > 0) {
+                const worker = candidates[0];
+                for (let k = shift.s; k < shift.e; k++) {
+                  if (!newSchedule[TIME_SLOTS[k]]) newSchedule[TIME_SLOTS[k]] = {};
+                  if (!newSchedule[TIME_SLOTS[k]][dayName]) newSchedule[TIME_SLOTS[k]][dayName] = [];
+                  newSchedule[TIME_SLOTS[k]][dayName].push(worker.code);
+                }
+                const hoursAdded = (shift.e - shift.s) * 0.5;
+                employeeHours[worker.id] += hoursAdded;
+                dailyHours[worker.id] += hoursAdded;
               }
-              employeeHours[worker.id] += shiftDurationHours;
-              dailyHours[worker.id] += shiftDurationHours;
-            }
+            });
           });
-        });
-      }
-    });
-
-    TIME_SLOTS.forEach(slot => {
-      WEEK_DAYS.forEach(day => {
-        if (newSchedule[slot] && newSchedule[slot][day]) {
-          newSchedule[slot][day].sort();
         }
       });
-    });
 
-    setSchedule(newSchedule);
-    setIsGenerating(false);
-    showToast(t.schedule_generated, "success");
-  };
+      TIME_SLOTS.forEach(slot => {
+        WEEK_DAYS.forEach(day => {
+          if (newSchedule[slot] && newSchedule[slot][day]) {
+            newSchedule[slot][day].sort();
+          }
+        });
+      });
+
+      setSchedule(newSchedule);
+      setIsGenerating(false);
+      showToast(t.schedule_generated, "success");
+    };
   }, [employees, reservations, selectedDate, showToast, t, WEEK_DAYS]);
 
   if (accessDenied) {
@@ -1546,120 +1538,161 @@ export default function GeradorHorariosPage() {
                   </button>
                 </div>
 
-                <div className="bg-white border border-gray-300 shadow-xl overflow-hidden rounded-lg relative">
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-sm text-center border-collapse">
-                      <thead>
-                        <tr className="bg-gray-800 text-white">
-                          <th className="p-3 border-r border-gray-600 w-32 sticky left-0 bg-gray-800 z-10 font-semibold">{t.schedule_header}</th>
-                          {WEEK_DAYS.map((day, idx) => {
-                            // ✅ Lógica para encontrar reservas deste dia
-                            const currentColumnDate = new Date(selectedDate);
-                            currentColumnDate.setDate(currentColumnDate.getDate() + idx);
-                            const dateStr = currentColumnDate.toISOString().split('T')[0];
-                            const dayReservations = reservations.filter(r => r.date === dateStr);
+                {/* ========================================================================================= */}
+                {/* 🚀 LAYOUT FLEX PARA TER O DASHBOARD LADO A LADO */}
+                {/* ========================================================================================= */}
+                <div className="flex flex-col 2xl:flex-row gap-6 items-start">
+                  
+                  {/* --- TABELA DE HORÁRIOS (ESQUERDA) --- */}
+                  <div className="flex-1 w-full min-w-0 bg-white border border-gray-300 shadow-xl overflow-hidden rounded-lg relative">
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-sm text-center border-collapse">
+                        <thead>
+                          <tr className="bg-gray-800 text-white">
+                            <th className="p-3 border-r border-gray-600 w-32 sticky left-0 bg-gray-800 z-10 font-semibold">{t.schedule_header}</th>
+                            {WEEK_DAYS.map((day, idx) => {
+                              const currentColumnDate = new Date(selectedDate);
+                              currentColumnDate.setDate(currentColumnDate.getDate() + idx);
+                              const dateStr = currentColumnDate.toISOString().split('T')[0];
+                              const dayReservations = reservations.filter(r => r.date === dateStr);
 
-                            return (
-                              <th key={day} className="p-3 border-r border-gray-600 min-w-[130px] align-top">
-                                <div className="font-semibold text-base">{day}</div>
-                                <div className="text-[11px] font-normal text-gray-300 mt-0.5">
-                                  {weekDates[idx]}
-                                </div>
-                                {/* ✅ Botão de Toggle para ver eventos */}
-                                {dayReservations.length > 0 && (
-                                  <div className="mt-2">
-                                    <button 
-                                      onClick={() => toggleColumn(idx)}
-                                      className="text-xs flex items-center gap-1 text-indigo-600 font-medium hover:text-indigo-800 bg-indigo-50 px-2 py-1 rounded w-full justify-center transition-colors"
-                                    >
-                                      {dayReservations.length} {t.events}
-                                      {expandedCols.includes(idx) ? <ChevronUpIcon className="w-3 h-3"/> : <ChevronDownIcon className="w-3 h-3"/>}
-                                    </button>
-
-                                    {/* Lista Expansível */}
-                                    {expandedCols.includes(idx) && (
-                                      <div className="flex flex-col gap-1 mt-2 animate-in fade-in zoom-in-95 duration-200">
-                                        {dayReservations.map(res => (
-                                          <div 
-                                            key={res.id} 
-                                            className={`text-[10px] p-1 rounded border text-left leading-tight ${getEventColor(res.eventType)}`}
-                                          >
-                                            <div className="font-bold">{res.startTime}-{res.endTime}</div>
-                                            <div>{res.people}p - {res.eventType}</div>
-                                          </div>
-                                        ))}
-                                      </div>
-                                    )}
-                                  </div>
-                                )}
-                              </th>
-                            );
-                          })}
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {TIME_SLOTS.map((slot, idx) => (
-                          <tr key={slot} className={`${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'} hover:bg-blue-50 transition-colors`}>
-                            <td className="p-2 border-r border-gray-300 border-b border-gray-200 font-mono text-xs text-gray-600 font-medium sticky left-0 bg-inherit z-10">
-                              {slot}
-                            </td>
-                            {WEEK_DAYS.map(day => {
-                              const staffCodes = schedule[slot]?.[day] || [];
-                              const hasStaff = staffCodes.length > 0;
-                              const isSelected = selectedCells.some(c => c.slot === slot && c.day === day);
-                              
                               return (
-                                <td 
-                                  key={day} 
-                                  onClick={() => {
-                                    if (isMultiSelectMode) {
-                                      toggleCellSelection(slot, day);
-                                    } else {
-                                      setEditingCells([{ slot, day }]);
-                                    }
-                                  }}
-                                  className={`p-1 border-r border-b border-gray-200 h-10 cursor-pointer transition-colors relative group ${
-                                    isSelected 
-                                      ? 'bg-blue-200 ring-2 ring-blue-500' 
-                                      : hasStaff 
-                                      ? '' 
-                                      : 'bg-gray-50/50'
-                                  } ${!isMultiSelectMode ? 'hover:bg-blue-100' : ''}`}
-                                >
-                                  {hasStaff ? (
-                                    <div className="flex items-center justify-center gap-1">
-                                      <span className="font-bold text-gray-800 text-xs tracking-wide block">
-                                        {staffCodes.join('+')}
-                                      </span>
-                                      {!isMultiSelectMode && (
-                                        <PencilSquareIcon className="w-3 h-3 text-blue-400 opacity-0 group-hover:opacity-100" />
+                                <th key={day} className="p-3 border-r border-gray-600 min-w-[130px] align-top">
+                                  <div className="font-semibold text-base">{day}</div>
+                                  <div className="text-[11px] font-normal text-gray-300 mt-0.5">
+                                    {weekDates[idx]}
+                                  </div>
+                                  {dayReservations.length > 0 && (
+                                    <div className="mt-2">
+                                      <button 
+                                        onClick={() => toggleColumn(idx)}
+                                        className="text-xs flex items-center gap-1 text-indigo-600 font-medium hover:text-indigo-800 bg-indigo-50 px-2 py-1 rounded w-full justify-center transition-colors"
+                                      >
+                                        {dayReservations.length} {t.events}
+                                        {expandedCols.includes(idx) ? <ChevronUpIcon className="w-3 h-3"/> : <ChevronDownIcon className="w-3 h-3"/>}
+                                      </button>
+                                      {expandedCols.includes(idx) && (
+                                        <div className="flex flex-col gap-1 mt-2 animate-in fade-in zoom-in-95 duration-200">
+                                          {dayReservations.map(res => (
+                                            <div 
+                                              key={res.id} 
+                                              className={`text-[10px] p-1 rounded border text-left leading-tight ${getEventColor(res.eventType)}`}
+                                            >
+                                              <div className="font-bold">{res.startTime}-{res.endTime}</div>
+                                              <div>{res.people}p - {res.eventType}</div>
+                                            </div>
+                                          ))}
+                                        </div>
                                       )}
                                     </div>
-                                  ) : (
-                                    <div className="flex items-center justify-center h-full w-full">
-                                        <span className="text-gray-300 text-xs">-</span>
-                                        {!isMultiSelectMode && (
-                                          <PlusIcon className="w-3 h-3 text-green-400 opacity-0 group-hover:opacity-100 absolute" />
-                                        )}
-                                    </div>
                                   )}
-                                  {isSelected && (
-                                    <div className="absolute inset-0 flex items-center justify-center">
-                                      <div className="w-4 h-4 bg-blue-500 rounded-sm"></div>
-                                    </div>
-                                  )}
-                                </td>
+                                </th>
                               );
                             })}
                           </tr>
-                        ))}
-                      </tbody>
-                    </table>
+                        </thead>
+                        <tbody>
+                          {TIME_SLOTS.map((slot, idx) => (
+                            <tr key={slot} className={`${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'} hover:bg-blue-50 transition-colors`}>
+                              <td className="p-2 border-r border-gray-300 border-b border-gray-200 font-mono text-xs text-gray-600 font-medium sticky left-0 bg-inherit z-10">
+                                {slot}
+                              </td>
+                              {WEEK_DAYS.map(day => {
+                                const staffCodes = schedule[slot]?.[day] || [];
+                                const hasStaff = staffCodes.length > 0;
+                                const isSelected = selectedCells.some(c => c.slot === slot && c.day === day);
+                                
+                                return (
+                                  <td 
+                                    key={day} 
+                                    onClick={() => {
+                                      if (isMultiSelectMode) {
+                                        toggleCellSelection(slot, day);
+                                      } else {
+                                        setEditingCells([{ slot, day }]);
+                                      }
+                                    }}
+                                    className={`p-1 border-r border-b border-gray-200 h-10 cursor-pointer transition-colors relative group ${
+                                      isSelected 
+                                        ? 'bg-blue-200 ring-2 ring-blue-500' 
+                                        : hasStaff 
+                                        ? '' 
+                                        : 'bg-gray-50/50'
+                                    } ${!isMultiSelectMode ? 'hover:bg-blue-100' : ''}`}
+                                  >
+                                    {hasStaff ? (
+                                      <div className="flex items-center justify-center gap-1">
+                                        <span className="font-bold text-gray-800 text-xs tracking-wide block">
+                                          {staffCodes.join('+')}
+                                        </span>
+                                        {!isMultiSelectMode && (
+                                          <PencilSquareIcon className="w-3 h-3 text-blue-400 opacity-0 group-hover:opacity-100" />
+                                        )}
+                                      </div>
+                                    ) : (
+                                      <div className="flex items-center justify-center h-full w-full">
+                                          <span className="text-gray-300 text-xs">-</span>
+                                          {!isMultiSelectMode && (
+                                            <PlusIcon className="w-3 h-3 text-green-400 opacity-0 group-hover:opacity-100 absolute" />
+                                          )}
+                                      </div>
+                                    )}
+                                    {isSelected && (
+                                      <div className="absolute inset-0 flex items-center justify-center">
+                                        <div className="w-4 h-4 bg-blue-500 rounded-sm"></div>
+                                      </div>
+                                    )}
+                                  </td>
+                                );
+                              })}
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
                   </div>
+
+                  {/* --- SIDEBAR DAS HORAS (DIREITA) --- */}
+                  <div className="w-full 2xl:w-80 shrink-0">
+                    <div className="bg-white p-4 rounded-xl shadow-lg border border-gray-200 sticky top-24 max-h-[85vh] overflow-y-auto">
+                      <div className="flex items-center justify-between mb-4">
+                        <h3 className="text-sm font-bold text-gray-700 uppercase tracking-wider">{t.assigned_hours}</h3>
+                        <span className="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded-full">{employees.length} Staff</span>
+                      </div>
+                      
+                      <div className="grid grid-cols-2 sm:grid-cols-3 2xl:grid-cols-1 gap-3">
+                        {employees.map(emp => {
+                          const hours = stats[emp.id] || 0;
+                          let barColor = 'bg-blue-500';
+                          let textColor = 'text-gray-900';
+                          if (hours > 40) { barColor = 'bg-red-500'; textColor = 'text-red-600'; }
+                          
+                          return (
+                            <div key={emp.id} className="bg-gray-50 p-3 rounded-lg border border-gray-100 hover:border-blue-200 transition-colors">
+                              <div className="flex justify-between items-center mb-1">
+                                <div className="flex flex-col">
+                                  <span className="font-bold text-sm text-gray-800">{emp.code}</span>
+                                  <span className="text-[10px] text-gray-400 truncate w-24">{emp.name}</span>
+                                </div>
+                                <span className={`text-sm font-bold ${textColor}`}>{hours}h</span>
+                              </div>
+                              <div className="w-full bg-gray-200 h-2 rounded-full overflow-hidden">
+                                <div 
+                                  className={`h-2 rounded-full ${barColor} transition-all duration-500`} 
+                                  style={{ width: `${Math.min((hours / 40) * 100, 100)}%` }}
+                                ></div>
+                              </div>
+                            </div>
+                          )
+                        })}
+                      </div>
+                    </div>
+                  </div>
+
                 </div>
 
                 {editingCells.length > 0 && schedule && (
-                  <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+                  <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
                     <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl overflow-hidden animate-in zoom-in-95 duration-200">
                       <div className="bg-gray-800 text-white p-4 flex justify-between items-center">
                         <div>
@@ -1689,121 +1722,54 @@ export default function GeradorHorariosPage() {
                           <p className="text-sm font-medium text-gray-500 mb-2">
                             {t.available_employees.replace('{count}', editingCells.length.toString())}
                           </p>
-                          
                           <div className="flex gap-2 mb-4 flex-wrap">
-                            <button
-                              onClick={() => setEmployeesInMultipleCells([])}
-                              className="px-3 py-1 bg-red-100 text-red-700 rounded text-xs font-medium hover:bg-red-200"
-                            >
+                            <button onClick={() => setEmployeesInMultipleCells([])} className="px-3 py-1 bg-red-100 text-red-700 rounded text-xs font-medium hover:bg-red-200">
                               {t.clear_all}
                             </button>
-                            <button
-                              onClick={() => {
+                            <button onClick={() => {
                                 const commonStaff = editingCells.reduce((common, cell) => {
                                   const cellStaff = schedule[cell.slot]?.[cell.day] || [];
                                   return common.filter(code => cellStaff.includes(code));
                                 }, schedule[editingCells[0].slot]?.[editingCells[0].day] || []);
                                 setEmployeesInMultipleCells(commonStaff);
-                              }}
-                              className="px-3 py-1 bg-blue-100 text-blue-700 rounded text-xs font-medium hover:bg-blue-200"
-                            >
+                              }} className="px-3 py-1 bg-blue-100 text-blue-700 rounded text-xs font-medium hover:bg-blue-200">
                               {t.keep_common}
                             </button>
                           </div>
                         </div>
                         
                         <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
-                          {employees
-                            // ✅ Filtrar apenas disponíveis usando a nova lógica
-                            .filter(isEmployeeAvailable)
-                            .map(emp => {
-                              const isInAllCells = editingCells.every(cell => 
-                                schedule[cell.slot]?.[cell.day]?.includes(emp.code)
-                              );
-                              const isInSomeCells = editingCells.some(cell =>
-                                schedule[cell.slot]?.[cell.day]?.includes(emp.code)
-                              );
-
+                          {employees.filter(isEmployeeAvailable).map(emp => {
+                              const isInAllCells = editingCells.every(cell => schedule[cell.slot]?.[cell.day]?.includes(emp.code));
+                              const isInSomeCells = editingCells.some(cell => schedule[cell.slot]?.[cell.day]?.includes(emp.code));
                               let buttonStyle = 'bg-white border-gray-200 hover:border-blue-300 hover:bg-gray-50';
-                              if (isInAllCells) {
-                                buttonStyle = 'bg-blue-50 border-blue-500 ring-2 ring-blue-500';
-                              } else if (isInSomeCells) {
-                                buttonStyle = 'bg-blue-50 border-blue-300 ring-1 ring-blue-300';
-                              }
+                              if (isInAllCells) { buttonStyle = 'bg-blue-50 border-blue-500 ring-2 ring-blue-500'; } 
+                              else if (isInSomeCells) { buttonStyle = 'bg-blue-50 border-blue-300 ring-1 ring-blue-300'; }
 
                               return (
-                                <button
-                                  key={emp.id}
-                                  onClick={() => toggleEmployeeInMultipleCells(emp.code)}
-                                  className={`flex items-center justify-between p-3 rounded-lg border transition-all ${buttonStyle}`}
-                                >
+                                <button key={emp.id} onClick={() => toggleEmployeeInMultipleCells(emp.code)} className={`flex items-center justify-between p-3 rounded-lg border transition-all ${buttonStyle}`}>
                                   <div className="text-left">
-                                    <div className={`font-bold text-sm ${
-                                      isInAllCells ? 'text-blue-700' : 
-                                      isInSomeCells ? 'text-blue-600' : 'text-gray-700'
-                                    }`}>
-                                      {emp.code}
-                                    </div>
+                                    <div className={`font-bold text-sm ${isInAllCells ? 'text-blue-700' : isInSomeCells ? 'text-blue-600' : 'text-gray-700'}`}>{emp.code}</div>
                                     <div className="text-[10px] text-gray-500 truncate w-24">{emp.name}</div>
                                   </div>
                                   <div className="flex items-center gap-1">
-                                    {isInSomeCells && !isInAllCells && (
-                                      <span className="text-[10px] text-blue-500 font-medium">{t.some_cells}</span>
-                                    )}
-                                    {isInAllCells ? (
-                                      <CheckCircleIcon className="w-5 h-5 text-blue-600" />
-                                    ) : (
-                                      <div className="w-5 h-5 rounded-full border-2 border-gray-300"></div>
-                                    )}
+                                    {isInSomeCells && !isInAllCells && <span className="text-[10px] text-blue-500 font-medium">{t.some_cells}</span>}
+                                    {isInAllCells ? <CheckCircleIcon className="w-5 h-5 text-blue-600" /> : <div className="w-5 h-5 rounded-full border-2 border-gray-300"></div>}
                                   </div>
                                 </button>
                               );
                             })}
                         </div>  
                       </div>
-
                       <div className="p-4 border-t border-gray-100 bg-gray-50 flex justify-between items-center">
-                        <span className="text-sm text-gray-500">
-                          {t.cells_selected.replace('{count}', selectedCells.length.toString())}
-                        </span>
-                        <button 
-                          onClick={() => setEditingCells([])}
-                          className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-medium shadow-sm"
-                        >
+                        <span className="text-sm text-gray-500">{t.cells_selected.replace('{count}', selectedCells.length.toString())}</span>
+                        <button onClick={() => setEditingCells([])} className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-medium shadow-sm">
                           {t.finish_editing}
                         </button>
                       </div>
                     </div>
                   </div>
                 )}
-
-                <div className="mt-8 bg-white p-6 rounded-xl shadow-sm border border-gray-200">
-                  <h3 className="text-sm font-bold text-gray-500 uppercase tracking-wider mb-4">{t.assigned_hours}</h3>
-                  <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 gap-4">
-                    {employees.map(emp => {
-                      const hours = stats[emp.id] || 0;
-                      let barColor = 'bg-blue-500';
-                      let textColor = 'text-gray-900';
-                      if (hours > 40) { barColor = 'bg-red-500'; textColor = 'text-red-600'; }
-                      
-                      return (
-                        <div key={emp.id} className="bg-gray-50 p-3 rounded-lg border border-gray-100">
-                          <div className="flex justify-between items-center mb-1">
-                            <span className="font-bold text-sm" title={emp.name}>{emp.code}</span>
-                            <span className={`text-xs font-bold ${textColor}`}>{hours}{t.hours_abbrev}</span>
-                          </div>
-                          <div className="w-full bg-gray-200 h-1.5 rounded-full mb-1 overflow-hidden">
-                            <div 
-                              className={`h-1.5 rounded-full ${barColor}`} 
-                              style={{ width: `${Math.min((hours / 40) * 100, 100)}%` }}
-                            ></div>
-                          </div>
-                          <div className="text-[10px] text-gray-400 truncate">{emp.name}</div>
-                        </div>
-                      )
-                    })}
-                  </div>
-                </div>
               </div>
             )}
           </>
@@ -1811,4 +1777,4 @@ export default function GeradorHorariosPage() {
       </main>
     </div>
   );
-}
+} 
