@@ -1,5 +1,5 @@
 'use client'
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { 
   ArrowLeftIcon, 
   SparklesIcon, 
@@ -20,7 +20,8 @@ import {
   ChevronLeftIcon, 
   ChevronRightIcon, 
   ChevronDownIcon, 
-  ChevronUpIcon    
+  ChevronUpIcon,
+  ClockIcon    
 } from '@heroicons/react/24/outline';
 import { useLanguage } from '@/context/LanguageContext';
 import { translations } from '@/lib/translations';
@@ -85,7 +86,7 @@ const TIME_SLOTS = [
   '23:30 - 00:00'
 ];
 
-// --- FUNÇÕES HELPER PARA DATAS ---
+// --- FUNÇÕES HELPER ---
 const formatDateToEuropean = (date: Date): string => {
   const day = String(date.getDate()).padStart(2, '0');
   const month = String(date.getMonth() + 1).padStart(2, '0');
@@ -98,6 +99,11 @@ const formatDateToInput = (date: Date): string => {
   const month = String(date.getMonth() + 1).padStart(2, '0');
   const day = String(date.getDate()).padStart(2, '0');
   return `${year}-${month}-${day}`;
+};
+
+const timeToMin = (time: string) => {
+  const [h, m] = time.split(':').map(Number);
+  return h * 60 + m;
 };
 
 // --- COMPONENTE SELETOR DE DATA LOCALIZADO ---
@@ -356,8 +362,13 @@ export default function GeradorHorariosPage() {
   const [currentUser, setCurrentUser] = useState<Employee | null>(null);
   const [accessDenied, setAccessDenied] = useState(false);
   
-  // ✅ Estado para controlar quais colunas estão expandidas
+  // ✅ Estados para seleção e Drag-and-Drop
   const [expandedCols, setExpandedCols] = useState<number[]>([]);
+  const [selectedCells, setSelectedCells] = useState<{slot: string; day: string}[]>([]);
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragStart, setDragStart] = useState<{slot: string; day: string} | null>(null);
+  // Snapshot para guardar a seleção antes do drag começar, permitindo adicionar ao que já existe
+  const selectionSnapshot = useRef<{slot: string; day: string}[]>([]);
 
   const [selectedDate, setSelectedDate] = useState(() => {
     const today = new Date();
@@ -381,7 +392,6 @@ export default function GeradorHorariosPage() {
 
   const [editingCells, setEditingCells] = useState<{slot: string; day: string}[]>([]);
   const [isMultiSelectMode, setIsMultiSelectMode] = useState(false);
-  const [selectedCells, setSelectedCells] = useState<{slot: string; day: string}[]>([]);
 
   const [notification, setNotification] = useState<NotificationType | null>(null);
   const [savePrompt, setSavePrompt] = useState<SavePromptType | null>(null);
@@ -434,6 +444,43 @@ export default function GeradorHorariosPage() {
     return newStats;
   }, [schedule, employees]);
 
+  // 🔥 Helper para verificar disponibilidade
+  const checkSpecificSlotAvailability = useCallback((emp: Employee, cell: {slot: string, day: string}) => {
+    if (emp.role === 'admin' && emp.code !== 'TR') return false;
+
+    const dayIndex = WEEK_DAYS.indexOf(cell.day);
+    const dayOfWeekJS = (dayIndex + 1) % 7; 
+    const d = new Date(selectedDate);
+    d.setDate(d.getDate() + dayIndex); 
+    const dateString = d.toISOString().split('T')[0];
+
+    const [startStr, endStr] = cell.slot.split(' - ');
+    const slotStart = timeToMin(startStr);
+    const slotEnd = timeToMin(endStr);
+
+    if (emp.unavailable?.weekdays) {
+        const weekdayBlock = emp.unavailable.weekdays.find(w => w.day === dayOfWeekJS);
+        if (weekdayBlock && weekdayBlock.start && weekdayBlock.end) {
+            const blockStart = timeToMin(weekdayBlock.start);
+            const blockEnd = timeToMin(weekdayBlock.end);
+            if (slotStart < blockEnd && slotEnd >= blockStart) return false;
+        }
+    }
+
+    if (emp.unavailable?.specificDates) {
+        const specificBlock = emp.unavailable.specificDates.find(s => s.date === dateString);
+        if (specificBlock) {
+            if (specificBlock.allDay) return false;
+            if (specificBlock.startTime && specificBlock.endTime) {
+                const blockStart = timeToMin(specificBlock.startTime);
+                const blockEnd = timeToMin(specificBlock.endTime);
+                if (slotStart < blockEnd && slotEnd >= blockStart) return false;
+            }
+        }
+    }
+    return true;
+  }, [WEEK_DAYS, selectedDate]);
+
   useEffect(() => {
     const checkAuth = async () => {
       try {
@@ -447,20 +494,14 @@ export default function GeradorHorariosPage() {
           }
         } else {
           setCurrentUser({
-            id: '4', 
-            name: 'Admin Local', 
-            code: 'AD', 
-            role: 'admin',
+            id: '4', name: 'Admin Local', code: 'AD', role: 'admin',
             unavailable: { weekdays: [], specificDates: [] }
           });
         }
       } catch (error) {
         console.warn('Erro auth, usando fallback:', error);
         setCurrentUser({
-          id: '4', 
-          name: 'Admin Local', 
-          code: 'AD', 
-          role: 'admin',
+          id: '4', name: 'Admin Local', code: 'AD', role: 'admin',
           unavailable: { weekdays: [], specificDates: [] }
         });
       }
@@ -488,7 +529,6 @@ export default function GeradorHorariosPage() {
       }
       try {
         setLoadingData(true);
-        
         let loadedEmployees: Employee[] = [];
         try {
           const resEmp = await fetch('/api/employees');
@@ -535,11 +575,6 @@ export default function GeradorHorariosPage() {
   const getInitials = (name: string) => 
     name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
 
-  const timeToMin = (time: string) => {
-    const [h, m] = time.split(':').map(Number);
-    return h * 60 + m;
-  };
-
   useEffect(() => {
     if (!selectedDate) return;
     const start = new Date(selectedDate);
@@ -559,18 +594,70 @@ export default function GeradorHorariosPage() {
     return t.week_days_range.replace('{start}', weekDates[0]).replace('{end}', weekDates[6]);
   }, [weekDates, t]);
 
-  const toggleCellSelection = useCallback((slot: string, day: string) => {
-    if (!isMultiSelectMode) return;
-    const cellKey = `${slot}-${day}`;
-    setSelectedCells(prev => {
-      const exists = prev.find(c => `${c.slot}-${c.day}` === cellKey);
-      if (exists) {
-        return prev.filter(c => `${c.slot}-${c.day}` !== cellKey);
-      } else {
-        return [...prev, { slot, day }];
+  // =================================================================================
+  // 🖱️ LÓGICA DE DRAG AND DROP SELECTION
+  // =================================================================================
+  
+  // Parar o drag se o utilizador largar o rato fora da tabela
+  useEffect(() => {
+    const handleWindowMouseUp = () => {
+      if (isDragging) {
+        setIsDragging(false);
+        setDragStart(null);
+        selectionSnapshot.current = [];
       }
+    };
+    window.addEventListener('mouseup', handleWindowMouseUp);
+    return () => window.removeEventListener('mouseup', handleWindowMouseUp);
+  }, [isDragging]);
+
+  const handleCellMouseDown = (slot: string, day: string) => {
+    if (!isMultiSelectMode) {
+      setEditingCells([{ slot, day }]);
+      return;
+    }
+    
+    setIsDragging(true);
+    setDragStart({ slot, day });
+    selectionSnapshot.current = [...selectedCells]; // Guarda o que já estava selecionado
+
+    // Seleciona a célula inicial imediatamente se não estiver selecionada
+    if (!selectedCells.some(c => c.slot === slot && c.day === day)) {
+      setSelectedCells(prev => [...prev, { slot, day }]);
+    }
+  };
+
+  const handleCellMouseEnter = (currentSlot: string, currentDay: string) => {
+    if (!isDragging || !isMultiSelectMode || !dragStart) return;
+
+    const startSlotIdx = TIME_SLOTS.indexOf(dragStart.slot);
+    const endSlotIdx = TIME_SLOTS.indexOf(currentSlot);
+    const startDayIdx = WEEK_DAYS.indexOf(dragStart.day);
+    const endDayIdx = WEEK_DAYS.indexOf(currentDay);
+
+    const minSlot = Math.min(startSlotIdx, endSlotIdx);
+    const maxSlot = Math.max(startSlotIdx, endSlotIdx);
+    const minDay = Math.min(startDayIdx, endDayIdx);
+    const maxDay = Math.max(startDayIdx, endDayIdx);
+
+    const newRangeCells: {slot: string, day: string}[] = [];
+
+    for (let s = minSlot; s <= maxSlot; s++) {
+      for (let d = minDay; d <= maxDay; d++) {
+         newRangeCells.push({ slot: TIME_SLOTS[s], day: WEEK_DAYS[d] });
+      }
+    }
+
+    // Combina o snapshot original com o novo range (evitando duplicados)
+    const combined = [...selectionSnapshot.current];
+    newRangeCells.forEach(newCell => {
+        if (!combined.some(existing => existing.slot === newCell.slot && existing.day === newCell.day)) {
+            combined.push(newCell);
+        }
     });
-  }, [isMultiSelectMode]);
+
+    setSelectedCells(combined);
+  };
 
   const startMultiSelect = useCallback(() => {
     setIsMultiSelectMode(true);
@@ -581,6 +668,8 @@ export default function GeradorHorariosPage() {
   const cancelMultiSelect = useCallback(() => {
     setIsMultiSelectMode(false);
     setSelectedCells([]);
+    setIsDragging(false);
+    setDragStart(null);
   }, []);
 
   const openMultiEditModal = useCallback(() => {
@@ -588,10 +677,16 @@ export default function GeradorHorariosPage() {
       showToast(t.select_cell_edit, 'error');
       return;
     }
-    setEditingCells(selectedCells);
+    // Ordenar células para a barra visual ficar correta
+    const sortedCells = [...selectedCells].sort((a, b) => {
+       const dayDiff = WEEK_DAYS.indexOf(a.day) - WEEK_DAYS.indexOf(b.day);
+       if(dayDiff !== 0) return dayDiff;
+       return TIME_SLOTS.indexOf(a.slot) - TIME_SLOTS.indexOf(b.slot);
+    });
+    setEditingCells(sortedCells);
     setIsMultiSelectMode(false);
     setSelectedCells([]);
-  }, [selectedCells, showToast, t]);
+  }, [selectedCells, showToast, t, WEEK_DAYS]);
 
   const toggleEmployeeInMultipleCells = useCallback((code: string) => {
     if (!schedule || editingCells.length === 0) return;
@@ -603,21 +698,28 @@ export default function GeradorHorariosPage() {
       newSchedule[cell.slot]?.[cell.day]?.includes(code)
     );
 
-    editingCells.forEach(cell => {
-      if (!newSchedule[cell.slot]) newSchedule[cell.slot] = {};
-      if (!newSchedule[cell.slot][cell.day]) newSchedule[cell.slot][cell.day] = [];
-      
-      const currentStaff = [...newSchedule[cell.slot][cell.day]];
-      if (isInAllCells) {
-        newSchedule[cell.slot][cell.day] = currentStaff.filter(c => c !== code).sort();
-      } else {
-        if (!currentStaff.includes(code)) {
-          newSchedule[cell.slot][cell.day] = [...currentStaff, code].sort();
+    if (isInAllCells) {
+      editingCells.forEach(cell => {
+        if (newSchedule[cell.slot]?.[cell.day]) {
+          newSchedule[cell.slot][cell.day] = newSchedule[cell.slot][cell.day].filter(c => c !== code).sort();
         }
-      }
-    });
+      });
+    } else {
+      editingCells.forEach(cell => {
+        if (!newSchedule[cell.slot]) newSchedule[cell.slot] = {};
+        if (!newSchedule[cell.slot][cell.day]) newSchedule[cell.slot][cell.day] = [];
+        
+        const emp = employees.find(e => e.code === code);
+        if (emp && checkSpecificSlotAvailability(emp, cell)) {
+            const currentStaff = [...newSchedule[cell.slot][cell.day]];
+            if (!currentStaff.includes(code)) {
+              newSchedule[cell.slot][cell.day] = [...currentStaff, code].sort();
+            }
+        }
+      });
+    }
     setSchedule(newSchedule);
-  }, [schedule, editingCells]);
+  }, [schedule, editingCells, employees, checkSpecificSlotAvailability]);
 
   const setEmployeesInMultipleCells = useCallback((codes: string[]) => {
     if (!schedule || editingCells.length === 0) return;
@@ -632,47 +734,21 @@ export default function GeradorHorariosPage() {
     setSchedule(newSchedule);
   }, [schedule, editingCells]);
 
-  const isEmployeeAvailable = useCallback((emp: Employee) => {
-    if (emp.role === 'admin' && emp.code !== 'TR') return false;
+  // 🔥 Helper para % disponibilidade visual
+  const checkEmployeeAvailabilityRate = useCallback((emp: Employee) => {
+    if (emp.role === 'admin' && emp.code !== 'TR') return 0;
 
-    return editingCells.every(cell => {
-        const dayIndex = WEEK_DAYS.indexOf(cell.day);
-        const dayOfWeekJS = (dayIndex + 1) % 7; 
-        
-        const d = new Date(selectedDate);
-        d.setDate(d.getDate() + dayIndex); 
-        const dateString = d.toISOString().split('T')[0];
+    let availableCount = 0;
+    let totalCount = editingCells.length;
 
-        const [startStr, endStr] = cell.slot.split(' - ');
-        const slotStart = timeToMin(startStr);
-        const slotEnd = timeToMin(endStr);
-
-        if (emp.unavailable?.weekdays) {
-            const weekdayBlock = emp.unavailable.weekdays.find(w => w.day === dayOfWeekJS);
-            if (weekdayBlock) {
-                if (!weekdayBlock.start || !weekdayBlock.end) return false; 
-                const blockStart = timeToMin(weekdayBlock.start);
-                const blockEnd = timeToMin(weekdayBlock.end);
-                
-                if (slotStart < blockEnd && slotEnd >= blockStart) return false;
-            }
+    editingCells.forEach(cell => {
+        if (checkSpecificSlotAvailability(emp, cell)) {
+            availableCount++;
         }
-
-        if (emp.unavailable?.specificDates) {
-            const specificBlock = emp.unavailable.specificDates.find(s => s.date === dateString);
-            if (specificBlock) {
-                if (specificBlock.allDay) return false;
-                if (specificBlock.startTime && specificBlock.endTime) {
-                    const blockStart = timeToMin(specificBlock.startTime);
-                    const blockEnd = timeToMin(specificBlock.endTime);
-                    if (slotStart < blockEnd && slotEnd >= blockStart) return false;
-                }
-            }
-        }
-
-        return true; 
     });
-  }, [editingCells, WEEK_DAYS, selectedDate]);
+
+    return availableCount / totalCount;
+  }, [editingCells, checkSpecificSlotAvailability]);
 
   const getEventColor = (eventType: string) => {
     switch(eventType?.toLowerCase()) {
@@ -990,13 +1066,6 @@ export default function GeradorHorariosPage() {
       }
     }, 400);
 
-    // =================================================================================
-    // 🔥 ALGORITMO FINAL COM TODAS AS CORREÇÕES:
-    // 1. Limpeza de "24p" -> 24
-    // 2. Staff: >= 24 pessoas -> 6 staff
-    // 3. Permite Split Shift (voltar no mesmo dia)
-    // 4. Impede Duplicação no mesmo turno (TR+TR)
-    // =================================================================================
     const runAlgorithm = () => {
       const newSchedule: Schedule = {};
       TIME_SLOTS.forEach(slot => {
@@ -1039,7 +1108,6 @@ export default function GeradorHorariosPage() {
           const rawStart = timeToMin(res.startTime) - 30;
           const rawEnd = timeToMin(res.endTime) + 30;
 
-          // 🔥 CORREÇÃO: Limpar string "24p" -> 24
           const cleanPeopleString = String(res.people || '0').replace(/\D/g, ''); 
           const peopleCount = parseInt(cleanPeopleString, 10) || 0;
 
@@ -1145,12 +1213,8 @@ export default function GeradorHorariosPage() {
 
               const candidates = employees.filter(emp => {
                 if (emp.role === 'admin' && emp.code !== 'TR') return false;
-                
-                // 🔥 CORREÇÃO: Permitir voltar no mesmo dia (Split Shift)
-                // Só bloqueia se já tiver 12h no dia. Removemos o > 0.
                 if (dailyHours[emp.id] >= 12) return false; 
 
-                // 🔥 CORREÇÃO: Impedir TR+TR no mesmo slot
                 let isBusyNow = false;
                 for (let k = shift.s; k < shift.e; k++) {
                     if (newSchedule[TIME_SLOTS[k]]?.[dayName]?.includes(emp.code)) {
@@ -1538,13 +1602,10 @@ export default function GeradorHorariosPage() {
                   </button>
                 </div>
 
-                {/* ========================================================================================= */}
-                {/* 🚀 LAYOUT FLEX PARA TER O DASHBOARD LADO A LADO */}
-                {/* ========================================================================================= */}
                 <div className="flex flex-col 2xl:flex-row gap-6 items-start">
                   
                   {/* --- TABELA DE HORÁRIOS (ESQUERDA) --- */}
-                  <div className="flex-1 w-full min-w-0 bg-white border border-gray-300 shadow-xl overflow-hidden rounded-lg relative">
+                  <div className="flex-1 w-full min-w-0 bg-white border border-gray-300 shadow-xl overflow-hidden rounded-lg relative select-none">
                     <div className="overflow-x-auto">
                       <table className="w-full text-sm text-center border-collapse">
                         <thead>
@@ -1605,10 +1666,10 @@ export default function GeradorHorariosPage() {
                                 return (
                                   <td 
                                     key={day} 
+                                    onMouseDown={() => handleCellMouseDown(slot, day)}
+                                    onMouseEnter={() => handleCellMouseEnter(slot, day)}
                                     onClick={() => {
-                                      if (isMultiSelectMode) {
-                                        toggleCellSelection(slot, day);
-                                      } else {
+                                      if (!isMultiSelectMode) {
                                         setEditingCells([{ slot, day }]);
                                       }
                                     }}
@@ -1638,7 +1699,7 @@ export default function GeradorHorariosPage() {
                                       </div>
                                     )}
                                     {isSelected && (
-                                      <div className="absolute inset-0 flex items-center justify-center">
+                                      <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
                                         <div className="w-4 h-4 bg-blue-500 rounded-sm"></div>
                                       </div>
                                     )}
@@ -1739,23 +1800,68 @@ export default function GeradorHorariosPage() {
                         </div>
                         
                         <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
-                          {employees.filter(isEmployeeAvailable).map(emp => {
+                          {employees.map(emp => {
+                              // 🔥 LÓGICA DE BARRA VISUAL (MINI-TIMELINE)
+                              const availabilityMap = editingCells.map(cell => {
+                                  return checkSpecificSlotAvailability(emp, cell);
+                              });
+
+                              const totalSlots = availabilityMap.length;
+                              const availableCount = availabilityMap.filter(Boolean).length;
+                              const isFullyAvailable = availableCount === totalSlots;
+                              const isUnavailable = availableCount === 0;
+
+                              if (isUnavailable) return null;
+
                               const isInAllCells = editingCells.every(cell => schedule[cell.slot]?.[cell.day]?.includes(emp.code));
                               const isInSomeCells = editingCells.some(cell => schedule[cell.slot]?.[cell.day]?.includes(emp.code));
+                              
                               let buttonStyle = 'bg-white border-gray-200 hover:border-blue-300 hover:bg-gray-50';
                               if (isInAllCells) { buttonStyle = 'bg-blue-50 border-blue-500 ring-2 ring-blue-500'; } 
                               else if (isInSomeCells) { buttonStyle = 'bg-blue-50 border-blue-300 ring-1 ring-blue-300'; }
 
+                              // Texto descritivo da disponibilidade
+                              let timeRangeText = "";
+                              if (!isFullyAvailable) {
+                                  const firstAvailableIdx = availabilityMap.indexOf(true);
+                                  const lastAvailableIdx = availabilityMap.lastIndexOf(true);
+                                  if (firstAvailableIdx !== -1) {
+                                      const start = editingCells[firstAvailableIdx].slot.split(' - ')[0];
+                                      const end = editingCells[lastAvailableIdx].slot.split(' - ')[1];
+                                      timeRangeText = `${start} - ${end}`;
+                                  }
+                              }
+
                               return (
-                                <button key={emp.id} onClick={() => toggleEmployeeInMultipleCells(emp.code)} className={`flex items-center justify-between p-3 rounded-lg border transition-all ${buttonStyle}`}>
-                                  <div className="text-left">
-                                    <div className={`font-bold text-sm ${isInAllCells ? 'text-blue-700' : isInSomeCells ? 'text-blue-600' : 'text-gray-700'}`}>{emp.code}</div>
-                                    <div className="text-[10px] text-gray-500 truncate w-24">{emp.name}</div>
+                                <button key={emp.id} onClick={() => toggleEmployeeInMultipleCells(emp.code)} className={`flex flex-col p-2 rounded-lg border transition-all ${buttonStyle}`}>
+                                  
+                                  {/* Cabeçalho do Card */}
+                                  <div className="flex justify-between items-center w-full mb-1">
+                                    <div className="text-left">
+                                        <div className={`font-bold text-sm ${isInAllCells ? 'text-blue-700' : isInSomeCells ? 'text-blue-600' : 'text-gray-700'}`}>
+                                            {emp.code}
+                                        </div>
+                                        <div className="text-[10px] text-gray-500 truncate w-20">{emp.name}</div>
+                                    </div>
+                                    <div className="flex items-center gap-1">
+                                        {isInAllCells ? <CheckCircleIcon className="w-5 h-5 text-blue-600" /> : <div className="w-5 h-5 rounded-full border-2 border-gray-300"></div>}
+                                    </div>
                                   </div>
-                                  <div className="flex items-center gap-1">
-                                    {isInSomeCells && !isInAllCells && <span className="text-[10px] text-blue-500 font-medium">{t.some_cells}</span>}
-                                    {isInAllCells ? <CheckCircleIcon className="w-5 h-5 text-blue-600" /> : <div className="w-5 h-5 rounded-full border-2 border-gray-300"></div>}
+
+                                  {/* 🔥 BARRA VISUAL DE DISPONIBILIDADE */}
+                                  <div className="w-full flex gap-0.5 h-1.5 mt-1 rounded overflow-hidden bg-gray-100">
+                                      {availabilityMap.map((isAvail, idx) => (
+                                          <div key={idx} className={`flex-1 ${isAvail ? 'bg-green-500' : 'bg-red-300 opacity-50'}`} />
+                                      ))}
                                   </div>
+
+                                  {/* Texto de disponibilidade parcial */}
+                                  {!isFullyAvailable && (
+                                      <div className="text-[9px] text-amber-600 font-bold mt-1 w-full text-left flex items-center gap-1">
+                                          <ClockIcon className="w-3 h-3" />
+                                          Disp: {timeRangeText}
+                                      </div>
+                                  )}
                                 </button>
                               );
                             })}
@@ -1777,4 +1883,4 @@ export default function GeradorHorariosPage() {
       </main>
     </div>
   );
-} 
+}
