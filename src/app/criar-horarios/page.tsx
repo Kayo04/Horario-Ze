@@ -21,7 +21,8 @@ import {
   ChevronRightIcon, 
   ChevronDownIcon, 
   ChevronUpIcon,
-  ClockIcon    
+  ClockIcon,
+  UserGroupIcon    
 } from '@heroicons/react/24/outline';
 import { useLanguage } from '@/context/LanguageContext';
 import { translations } from '@/lib/translations';
@@ -694,6 +695,7 @@ export default function GeradorHorariosPage() {
     setHasUnsavedChanges(true);
     const newSchedule = { ...schedule };
     
+    // Verifica se está em TODOS os selecionados
     const isInAllCells = editingCells.every(cell => 
       newSchedule[cell.slot]?.[cell.day]?.includes(code)
     );
@@ -1066,6 +1068,14 @@ export default function GeradorHorariosPage() {
       }
     }, 400);
 
+    // =================================================================================
+    // 🔥 ALGORITMO FINAL COM TODAS AS CORREÇÕES:
+    // 1. Sem Vantagem para TR
+    // 2. Limpeza de "24p" -> 24
+    // 3. Staff: >= 24 pessoas -> 6 staff
+    // 4. Permite Split Shift (voltar no mesmo dia)
+    // 5. Impede Duplicação no mesmo turno (TR+TR)
+    // =================================================================================
     const runAlgorithm = () => {
       const newSchedule: Schedule = {};
       TIME_SLOTS.forEach(slot => {
@@ -1108,6 +1118,7 @@ export default function GeradorHorariosPage() {
           const rawStart = timeToMin(res.startTime) - 30;
           const rawEnd = timeToMin(res.endTime) + 30;
 
+          // 🔥 CORREÇÃO: Limpar string "24p" -> 24
           const cleanPeopleString = String(res.people || '0').replace(/\D/g, ''); 
           const peopleCount = parseInt(cleanPeopleString, 10) || 0;
 
@@ -1213,8 +1224,12 @@ export default function GeradorHorariosPage() {
 
               const candidates = employees.filter(emp => {
                 if (emp.role === 'admin' && emp.code !== 'TR') return false;
+                
+                // 🔥 CORREÇÃO: Permitir voltar no mesmo dia (Split Shift)
+                // Só bloqueia se já tiver 12h no dia. Removemos o > 0.
                 if (dailyHours[emp.id] >= 12) return false; 
 
+                // 🔥 CORREÇÃO: Impedir TR+TR no mesmo slot
                 let isBusyNow = false;
                 for (let k = shift.s; k < shift.e; k++) {
                     if (newSchedule[TIME_SLOTS[k]]?.[dayName]?.includes(emp.code)) {
@@ -1250,17 +1265,16 @@ export default function GeradorHorariosPage() {
               });
 
               candidates.sort((a, b) => {
-                const advantage = 4; 
-                const offsetA = a.code === 'TR' ? advantage : 0;
-                const offsetB = b.code === 'TR' ? advantage : 0;
-                const virtualHoursA = employeeHours[a.id] - offsetA;
-                const virtualHoursB = employeeHours[b.id] - offsetB;
+                // ✅ VANTAGEM REMOVIDA: Ordenação puramente aleatória ou baseada em equilíbrio
+                // Se a diferença de horas for grande, quem tem menos horas ganha
+                const virtualHoursA = employeeHours[a.id];
+                const virtualHoursB = employeeHours[b.id];
 
                 if (Math.abs(virtualHoursA - virtualHoursB) > 2) {
                   return virtualHoursA - virtualHoursB;
                 }
-                if (a.code === 'TR') return -1;
-                if (b.code === 'TR') return 1;
+                
+                // Se horas forem semelhantes, aleatório
                 return 0.5 - Math.random();
               });
 
@@ -1602,6 +1616,9 @@ export default function GeradorHorariosPage() {
                   </button>
                 </div>
 
+                {/* ========================================================================================= */}
+                {/* 🚀 LAYOUT FLEX PARA TER O DASHBOARD LADO A LADO */}
+                {/* ========================================================================================= */}
                 <div className="flex flex-col 2xl:flex-row gap-6 items-start">
                   
                   {/* --- TABELA DE HORÁRIOS (ESQUERDA) --- */}
@@ -1714,33 +1731,49 @@ export default function GeradorHorariosPage() {
                   </div>
 
                   {/* --- SIDEBAR DAS HORAS (DIREITA) --- */}
-                  <div className="w-full 2xl:w-80 shrink-0">
-                    <div className="bg-white p-4 rounded-xl shadow-lg border border-gray-200 sticky top-24 max-h-[85vh] overflow-y-auto">
-                      <div className="flex items-center justify-between mb-4">
-                        <h3 className="text-sm font-bold text-gray-700 uppercase tracking-wider">{t.assigned_hours}</h3>
-                        <span className="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded-full">{employees.length} Staff</span>
+                  {/* DESIGN CLEAN ATUALIZADO */}
+                  <div className="w-full 2xl:w-72 shrink-0">
+                    <div className="bg-white p-5 rounded-2xl shadow-lg border border-gray-100 sticky top-24 max-h-[85vh] overflow-y-auto">
+                      <div className="flex items-center justify-between mb-6 pb-4 border-b border-gray-100">
+                        <div className="flex items-center gap-2">
+                           <div className="p-1.5 bg-blue-50 rounded-lg">
+                             <ClockIcon className="w-5 h-5 text-blue-600" />
+                           </div>
+                           <h3 className="text-sm font-bold text-gray-800 tracking-tight">{t.assigned_hours}</h3>
+                        </div>
+                        <span className="text-[10px] font-semibold bg-gray-100 text-gray-500 px-2 py-1 rounded-md flex items-center gap-1">
+                           <UserGroupIcon className="w-3 h-3"/> {employees.length}
+                        </span>
                       </div>
                       
-                      <div className="grid grid-cols-2 sm:grid-cols-3 2xl:grid-cols-1 gap-3">
+                      <div className="space-y-3">
                         {employees.map(emp => {
                           const hours = stats[emp.id] || 0;
+                          const progress = Math.min((hours / 40) * 100, 100);
                           let barColor = 'bg-blue-500';
-                          let textColor = 'text-gray-900';
-                          if (hours > 40) { barColor = 'bg-red-500'; textColor = 'text-red-600'; }
+                          let textColor = 'text-gray-600';
+                          
+                          if (hours > 40) { 
+                              barColor = 'bg-red-500'; 
+                              textColor = 'text-red-600 font-bold'; 
+                          }
                           
                           return (
-                            <div key={emp.id} className="bg-gray-50 p-3 rounded-lg border border-gray-100 hover:border-blue-200 transition-colors">
-                              <div className="flex justify-between items-center mb-1">
-                                <div className="flex flex-col">
-                                  <span className="font-bold text-sm text-gray-800">{emp.code}</span>
-                                  <span className="text-[10px] text-gray-400 truncate w-24">{emp.name}</span>
+                            <div key={emp.id} className="group bg-white p-3 rounded-xl border border-gray-100 hover:border-blue-200 hover:shadow-sm transition-all duration-200">
+                              <div className="flex justify-between items-start mb-2">
+                                <div>
+                                  <div className="flex items-center gap-2">
+                                      <span className="font-bold text-sm text-gray-900">{emp.code}</span>
+                                      <span className="text-[10px] text-gray-400 bg-gray-50 px-1.5 rounded truncate max-w-[80px]">{emp.name.split(' ')[0]}</span>
+                                  </div>
                                 </div>
-                                <span className={`text-sm font-bold ${textColor}`}>{hours}h</span>
+                                <span className={`text-xs ${textColor}`}>{hours}h</span>
                               </div>
-                              <div className="w-full bg-gray-200 h-2 rounded-full overflow-hidden">
+                              
+                              <div className="w-full bg-gray-100 h-1.5 rounded-full overflow-hidden">
                                 <div 
-                                  className={`h-2 rounded-full ${barColor} transition-all duration-500`} 
-                                  style={{ width: `${Math.min((hours / 40) * 100, 100)}%` }}
+                                  className={`h-full rounded-full ${barColor} transition-all duration-500 ease-out group-hover:opacity-90`} 
+                                  style={{ width: `${progress}%` }}
                                 ></div>
                               </div>
                             </div>
