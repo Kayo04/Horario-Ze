@@ -1070,11 +1070,13 @@ export default function GeradorHorariosPage() {
 
     // =================================================================================
     // 🔥 ALGORITMO FINAL COM TODAS AS CORREÇÕES:
-    // 1. Sem Vantagem para TR
+    // 1. Vantagem para TR
     // 2. Limpeza de "24p" -> 24
     // 3. Staff: >= 24 pessoas -> 6 staff
     // 4. Permite Split Shift (voltar no mesmo dia)
     // 5. Impede Duplicação no mesmo turno (TR+TR)
+    // 6. Afinidade DO+MO e NR+HN
+    // 7. Rotação "Suave" no Fim de Semana (tenta trocar após 5h)
     // =================================================================================
     const runAlgorithm = () => {
       const newSchedule: Schedule = {};
@@ -1091,7 +1093,6 @@ export default function GeradorHorariosPage() {
 
       const STORE_OPEN_MIN = 9 * 60 + 30; // 09:30
       const MIN_SHIFT_SLOTS = 4;
-      const MAX_SHIFT_SLOTS = 12;
 
       // 1. CALCULAR DEMAND
       WEEK_DAYS.forEach((_, dayIdx) => {
@@ -1168,6 +1169,13 @@ export default function GeradorHorariosPage() {
         
         const dailyHours: Record<string, number> = {};
         employees.forEach(emp => dailyHours[emp.id] = 0);
+        
+        const isWeekend = dayIdx === 5 || dayIdx === 6;
+        
+        // 🛑 LÓGICA DE ROTAÇÃO SUAVE NO FIM DE SEMANA
+        // Tentamos mudar de staff a cada 5 horas (10 slots)
+        // Se for dia de semana, mantemos blocos maiores (12 slots / 6h)
+        const rotationThreshold = isWeekend ? 10 : 12;
 
         for (let level = 1; level <= maxDemand; level++) {
           let inShift = false;
@@ -1196,23 +1204,36 @@ export default function GeradorHorariosPage() {
             let currentStart = req.start;
             let currentEnd = req.end;
 
-            if (duration < MIN_SHIFT_SLOTS) {
-              const missing = MIN_SHIFT_SLOTS - duration;
-              currentStart = Math.max(0, currentStart - Math.floor(missing / 2));
-              currentEnd = Math.min(TIME_SLOTS.length, currentStart + MIN_SHIFT_SLOTS);
-              if (currentEnd - currentStart < MIN_SHIFT_SLOTS) {
-                currentStart = Math.max(0, currentEnd - MIN_SHIFT_SLOTS);
-              }
-              duration = currentEnd - currentStart;
+            // Mínimos
+            // Fim de semana: mínimo 6h (12 slots) se possível, senão o que der
+            // Semana: mínimo 2h (4 slots)
+            const minSlots = isWeekend ? 12 : MIN_SHIFT_SLOTS;
+
+            if (duration < minSlots) {
+               // Tentar expandir para cumprir o mínimo, mas sem ultrapassar limites do dia
+               const expandBy = minSlots - duration;
+               currentStart = Math.max(0, currentStart - Math.floor(expandBy/2));
+               currentEnd = Math.min(TIME_SLOTS.length, currentStart + minSlots);
+               duration = currentEnd - currentStart;
             }
 
+            // Dividir turno se for muito longo para rotação (especialmente FDS)
             const shiftsToFill: {s: number; e: number}[] = [];
-            if (duration > MAX_SHIFT_SLOTS) {
-              const midPoint = currentStart + Math.floor(duration / 2);
-              shiftsToFill.push({ s: currentStart, e: midPoint });
-              shiftsToFill.push({ s: midPoint, e: currentEnd });
+            
+            if (duration > rotationThreshold) {
+                // Partir em blocos de rotação
+                let s = currentStart;
+                while(s < currentEnd) {
+                    let e = Math.min(s + rotationThreshold, currentEnd);
+                    // Evitar sobras minúsculas (ex: turno de 1h no fim)
+                    if ((currentEnd - e) > 0 && (currentEnd - e) < 4) {
+                        e = currentEnd; // Junta o resto
+                    }
+                    shiftsToFill.push({ s, e });
+                    s = e;
+                }
             } else {
-              shiftsToFill.push({ s: currentStart, e: currentEnd });
+                shiftsToFill.push({ s: currentStart, e: currentEnd });
             }
 
             shiftsToFill.forEach(shift => {
@@ -1222,14 +1243,20 @@ export default function GeradorHorariosPage() {
               const [_, tEndStr] = TIME_SLOTS[endSlotIdx].split(' - ');
               const shiftEndMin = timeToMin(tEndStr);
 
+              // 1. Verificar se é "Grupo Grande" (5+ pessoas) para a lógica DO/MO
+              let shiftMaxDemand = 0;
+              for (let i = shift.s; i < shift.e; i++) {
+                  if (demandArr[i] > shiftMaxDemand) shiftMaxDemand = demandArr[i];
+              }
+              const isBigGroup = shiftMaxDemand >= 5;
+
               const candidates = employees.filter(emp => {
                 if (emp.role === 'admin' && emp.code !== 'TR') return false;
                 
-                // 🔥 CORREÇÃO: Permitir voltar no mesmo dia (Split Shift)
-                // Só bloqueia se já tiver 12h no dia. Removemos o > 0.
-                if (dailyHours[emp.id] >= 12) return false; 
+                // Permitir voltar no mesmo dia (Split Shift) - Limite 13h por segurança
+                if (dailyHours[emp.id] >= 13) return false; 
 
-                // 🔥 CORREÇÃO: Impedir TR+TR no mesmo slot
+                // Impedir duplicação no mesmo slot
                 let isBusyNow = false;
                 for (let k = shift.s; k < shift.e; k++) {
                     if (newSchedule[TIME_SLOTS[k]]?.[dayName]?.includes(emp.code)) {
@@ -1265,16 +1292,37 @@ export default function GeradorHorariosPage() {
               });
 
               candidates.sort((a, b) => {
-                // ✅ VANTAGEM REMOVIDA: Ordenação puramente aleatória ou baseada em equilíbrio
-                // Se a diferença de horas for grande, quem tem menos horas ganha
-                const virtualHoursA = employeeHours[a.id];
-                const virtualHoursB = employeeHours[b.id];
+                const currentStaffInSlot = newSchedule[TIME_SLOTS[shift.s]]?.[dayName] || [];
+                
+                let hoursA = employeeHours[a.id];
+                let hoursB = employeeHours[b.id];
 
-                if (Math.abs(virtualHoursA - virtualHoursB) > 2) {
-                  return virtualHoursA - virtualHoursB;
+                // 🔥 ROTAÇÃO FORÇADA: Se já trabalhou hoje, penalizamos as horas virtuais (só para ordenação)
+                // Isto faz com que quem ainda não trabalhou (0h hoje) apareça primeiro.
+                // Mas se não houver mais ninguém, quem já trabalhou é escolhido na mesma.
+                if (dailyHours[a.id] > 0) hoursA += 50; 
+                if (dailyHours[b.id] > 0) hoursB += 50;
+
+                // 🔥 LÓGICA DE VANTAGEM INDIVIDUAL (TR apenas)
+                if (a.code === 'TR') hoursA -= 4;
+                if (b.code === 'TR') hoursB -= 4;
+
+                // 🔥 LÓGICA DE AFINIDADE (DO+MO e NR+HN)
+                const affinityBonus = isBigGroup ? 100 : 4;
+
+                const isAMissingPartnerDO_MO = (a.code === 'DO' && currentStaffInSlot.includes('MO')) || (a.code === 'MO' && currentStaffInSlot.includes('DO'));
+                const isBMissingPartnerDO_MO = (b.code === 'DO' && currentStaffInSlot.includes('MO')) || (b.code === 'MO' && currentStaffInSlot.includes('DO'));
+
+                const isAMissingPartnerNR_HN = (a.code === 'NR' && currentStaffInSlot.includes('HN')) || (a.code === 'HN' && currentStaffInSlot.includes('NR'));
+                const isBMissingPartnerNR_HN = (b.code === 'NR' && currentStaffInSlot.includes('HN')) || (b.code === 'HN' && currentStaffInSlot.includes('NR'));
+                
+                if (isAMissingPartnerDO_MO || isAMissingPartnerNR_HN) hoursA -= affinityBonus;
+                if (isBMissingPartnerDO_MO || isBMissingPartnerNR_HN) hoursB -= affinityBonus;
+
+                if (Math.abs(hoursA - hoursB) > 2) {
+                  return hoursA - hoursB;
                 }
                 
-                // Se horas forem semelhantes, aleatório
                 return 0.5 - Math.random();
               });
 
