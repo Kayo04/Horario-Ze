@@ -1,60 +1,78 @@
 'use client'
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   ChartBarIcon, 
   CalendarDaysIcon, 
-  UserGroupIcon, 
   ArrowTrendingUpIcon,
-  GlobeAltIcon
+  GlobeAltIcon,
+  ArrowLeftIcon
 } from '@heroicons/react/24/outline';
 import Link from 'next/link';
 
 export default function EstatisticasPage() {
   // CONFIGURAÇÕES BASE
-  const DATA_LANCAMENTO = new Date('2024-11-27'); // Data de lançamento
-  const BASE_VISITAS = 4127; // O número base que pediste
+  const DATA_LANCAMENTO = new Date('2024-11-27'); 
+  const BASE_VISITAS = 4127; // O número onde o contador começa (historico)
 
-  const [visitCount, setVisitCount] = useState<number>(BASE_VISITAS);
+  // NOME ÚNICO PARA O TEU SITE
+  const NAMESPACE = "thepark_pt_portal_v1"; 
+  const KEY = "visitas_gerais";
+
+  const [visitCount, setVisitCount] = useState<number>(0);
   const [stats, setStats] = useState({
     diasAtivos: 0,
     mediaDiaria: "0"
   });
   const [isLoaded, setIsLoaded] = useState(false);
+  
+  const hasCounted = useRef(false);
 
   useEffect(() => {
-    // 1. LÓGICA DE DATAS E MÉDIA
+    // 1. CÁLCULO DE DATAS (Isto acontece sempre)
     const hoje = new Date();
+    // Diferença em milissegundos
     const diferencaTempo = Math.abs(hoje.getTime() - DATA_LANCAMENTO.getTime());
-    const diferencaDias = Math.ceil(diferencaTempo / (1000 * 60 * 60 * 24)); // Converter ms para dias
-    
-    // Evitar divisão por zero se for o mesmo dia
+    // Converter para dias (arredondar para cima)
+    const diferencaDias = Math.ceil(diferencaTempo / (1000 * 60 * 60 * 24));
+    // Garantir que é pelo menos 1 dia para não dividir por 0
     const diasReais = diferencaDias > 0 ? diferencaDias : 1;
-    
-    // 2. LÓGICA DO CONTADOR
-    // Num cenário real, aqui farias um fetch('/api/visitas') para buscar o total da BD.
-    // Aqui usamos LocalStorage para simular persistência.
-    const storedVisits = localStorage.getItem('total_visitas_site');
-    
-    let currentVisits;
 
-    if (storedVisits) {
-      // Se já visitou antes, pega o valor antigo e soma 1
-      currentVisits = parseInt(storedVisits) + 1;
-    } else {
-      // Se é a primeira vez (ou limpou cache), começa da base + 1
-      currentVisits = BASE_VISITAS + 1;
-    }
+    // Função auxiliar para atualizar o estado
+    const atualizarDados = (total: number) => {
+        setVisitCount(total);
+        setStats({
+          diasAtivos: diasReais,
+          mediaDiaria: (total / diasReais).toFixed(1) // Calcula a média aqui
+        });
+        setIsLoaded(true);
+    };
 
-    // Guardar o novo valor
-    localStorage.setItem('total_visitas_site', currentVisits.toString());
-    
-    // Atualizar Estado
-    setVisitCount(currentVisits);
-    setStats({
-      diasAtivos: diasReais,
-      mediaDiaria: (currentVisits / diasReais).toFixed(1) // 1 casa decimal
-    });
-    setIsLoaded(true);
+    // 2. CONTADOR GLOBAL (NA NUVEM)
+    const fetchGlobalCount = async () => {
+      if (hasCounted.current) return;
+      hasCounted.current = true;
+
+      try {
+        const response = await fetch(`https://api.counterapi.dev/v1/${NAMESPACE}/${KEY}/up`);
+        
+        if (response.ok) {
+          const data = await response.json();
+          // Sucesso: Soma a base + contador real
+          const totalReal = BASE_VISITAS + data.count;
+          atualizarDados(totalReal);
+        } else {
+            // Se a API der erro, usa apenas a BASE
+            console.warn("API respondeu com erro, usando base.");
+            atualizarDados(BASE_VISITAS);
+        }
+      } catch (error) {
+        // Se houver erro de rede (ex: AdBlock), usa apenas a BASE
+        console.error("Erro ao conectar ou bloqueado por AdBlock:", error);
+        atualizarDados(BASE_VISITAS);
+      }
+    };
+
+    fetchGlobalCount();
 
   }, []);
 
@@ -64,7 +82,8 @@ export default function EstatisticasPage() {
       {/* Botão Voltar */}
       <div className="w-full max-w-4xl mb-8 flex justify-start">
         <Link href="/portal" className="inline-flex items-center gap-2 text-gray-600 hover:text-blue-600 transition-colors font-medium">
-           ← Voltar ao Portal
+           <ArrowLeftIcon className="w-4 h-4" />
+           Voltar ao Portal
         </Link>
       </div>
 
@@ -74,9 +93,9 @@ export default function EstatisticasPage() {
         <div className="text-center mb-12">
           <h1 className="text-4xl font-bold text-gray-900 mb-4 flex items-center justify-center gap-3">
             <ChartBarIcon className="w-10 h-10 text-blue-600" />
-            Estatísticas de Tráfego
+            Estatísticas Globais
           </h1>
-          <p className="text-gray-500">Acompanhamento em tempo real desde o lançamento.</p>
+          <p className="text-gray-500">Monitorização de tráfego em tempo real.</p>
         </div>
 
         {/* Grid de Cartões */}
@@ -92,7 +111,7 @@ export default function EstatisticasPage() {
             <p className="text-sm text-gray-400 mt-1">{stats.diasAtivos} dias ativos</p>
           </div>
 
-          {/* Card 2: Média Diária (Retrospectiva) */}
+          {/* Card 2: Média Diária */}
           <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-200 flex flex-col items-center justify-center hover:shadow-md transition-shadow">
             <div className="p-3 bg-green-50 rounded-full mb-4">
               <ArrowTrendingUpIcon className="w-8 h-8 text-green-600" />
@@ -109,9 +128,9 @@ export default function EstatisticasPage() {
             <div className="p-3 bg-purple-50 rounded-full mb-4">
               <GlobeAltIcon className="w-8 h-8 text-purple-600" />
             </div>
-            <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wider">Tráfego Base</h3>
+            <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wider">Histórico Base</h3>
             <p className="text-2xl font-bold text-gray-900 mt-2">{BASE_VISITAS}</p>
-            <p className="text-sm text-gray-400 mt-1">Visitantes iniciais</p>
+            <p className="text-sm text-gray-400 mt-1">Antes do contador</p>
           </div>
 
         </div>
@@ -126,11 +145,14 @@ export default function EstatisticasPage() {
 
           <div className="relative z-10">
             <div className="inline-flex items-center gap-2 bg-white/10 backdrop-blur-sm px-4 py-2 rounded-full text-sm font-medium mb-6 border border-white/20">
-              <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
-              Contador em Tempo Real
+              <span className="relative flex h-3 w-3">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-3 w-3 bg-green-500"></span>
+              </span>
+              Live Counter
             </div>
 
-            <h2 className="text-lg sm:text-xl text-blue-200 font-medium mb-4">Total de Visitas Acumuladas</h2>
+            <h2 className="text-lg sm:text-xl text-blue-200 font-medium mb-4">Total Global de Visitas</h2>
             
             <div className="text-6xl sm:text-8xl font-black tracking-tight mb-4 tabular-nums">
               {isLoaded ? (
@@ -138,19 +160,18 @@ export default function EstatisticasPage() {
                   {visitCount.toLocaleString('pt-PT')}
                 </span>
               ) : (
-                <span className="opacity-50">----</span>
+                <span className="opacity-50 animate-pulse">....</span>
               )}
             </div>
             
             <p className="text-blue-200 max-w-lg mx-auto text-sm sm:text-base">
-              Este número atualiza automaticamente sempre que um novo utilizador acede à plataforma.
+              Contagem sincronizada em todos os dispositivos.
             </p>
           </div>
         </div>
 
         <div className="mt-8 text-center text-xs text-gray-400">
-          Dados calculados com base no início da operação (27/11). <br/>
-          O contador incrementa em tempo real a cada acesso único.
+          Powered by Global Counter API • Base calculada a partir de 27/11/2024
         </div>
 
       </div>
