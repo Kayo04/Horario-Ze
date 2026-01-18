@@ -12,11 +12,7 @@ import Link from 'next/link';
 export default function EstatisticasPage() {
   // CONFIGURAÇÕES BASE
   const DATA_LANCAMENTO = new Date('2024-11-27'); 
-  const BASE_VISITAS = 4127; // O número onde o contador começa (historico)
-
-  // NOME ÚNICO PARA O TEU SITE
-  const NAMESPACE = "thepark_pt_portal_v1"; 
-  const KEY = "visitas_gerais";
+  const BASE_VISITAS = 4127; 
 
   const [visitCount, setVisitCount] = useState<number>(0);
   const [stats, setStats] = useState({
@@ -25,54 +21,54 @@ export default function EstatisticasPage() {
   });
   const [isLoaded, setIsLoaded] = useState(false);
   
+  // Evitar contagem dupla no React Strict Mode
   const hasCounted = useRef(false);
 
   useEffect(() => {
-    // 1. CÁLCULO DE DATAS (Isto acontece sempre)
+    // 1. CÁLCULO DE DATAS
     const hoje = new Date();
-    // Diferença em milissegundos
     const diferencaTempo = Math.abs(hoje.getTime() - DATA_LANCAMENTO.getTime());
-    // Converter para dias (arredondar para cima)
     const diferencaDias = Math.ceil(diferencaTempo / (1000 * 60 * 60 * 24));
-    // Garantir que é pelo menos 1 dia para não dividir por 0
     const diasReais = diferencaDias > 0 ? diferencaDias : 1;
 
-    // Função auxiliar para atualizar o estado
     const atualizarDados = (total: number) => {
         setVisitCount(total);
         setStats({
           diasAtivos: diasReais,
-          mediaDiaria: (total / diasReais).toFixed(1) // Calcula a média aqui
+          mediaDiaria: (total / diasReais).toFixed(1)
         });
         setIsLoaded(true);
     };
 
-    // 2. CONTADOR GLOBAL (NA NUVEM)
-    const fetchGlobalCount = async () => {
+    // 2. PEDIR AO NOSSO SERVIDOR (O TÚNEL)
+    const fetchCount = async () => {
       if (hasCounted.current) return;
       hasCounted.current = true;
 
       try {
-        const response = await fetch(`https://api.counterapi.dev/v1/${NAMESPACE}/${KEY}/up`);
+        // Agora chamamos a NOSSA API, não a externa diretamente
+        const response = await fetch('/api/visitas', {
+            cache: 'no-store'
+        });
         
         if (response.ok) {
           const data = await response.json();
-          // Sucesso: Soma a base + contador real
-          const totalReal = BASE_VISITAS + data.count;
+          // Se a API devolver 0 por erro, assumimos que pelo menos 1 pessoa (tu) entrou
+          const countDaNuvem = data.count > 0 ? data.count : 1;
+          
+          const totalReal = BASE_VISITAS + countDaNuvem;
           atualizarDados(totalReal);
         } else {
-            // Se a API der erro, usa apenas a BASE
-            console.warn("API respondeu com erro, usando base.");
-            atualizarDados(BASE_VISITAS);
+            console.warn("Falha no túnel API");
+            atualizarDados(BASE_VISITAS); // Fallback seguro
         }
       } catch (error) {
-        // Se houver erro de rede (ex: AdBlock), usa apenas a BASE
-        console.error("Erro ao conectar ou bloqueado por AdBlock:", error);
+        console.error("Erro interno:", error);
         atualizarDados(BASE_VISITAS);
       }
     };
 
-    fetchGlobalCount();
+    fetchCount();
 
   }, []);
 
@@ -95,13 +91,13 @@ export default function EstatisticasPage() {
             <ChartBarIcon className="w-10 h-10 text-blue-600" />
             Estatísticas Globais
           </h1>
-          <p className="text-gray-500">Monitorização de tráfego em tempo real.</p>
+          <p className="text-gray-500">Monitorização de tráfego blindada.</p>
         </div>
 
         {/* Grid de Cartões */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
           
-          {/* Card 1: Data Lançamento */}
+          {/* Card 1 */}
           <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-200 flex flex-col items-center justify-center hover:shadow-md transition-shadow">
             <div className="p-3 bg-blue-50 rounded-full mb-4">
               <CalendarDaysIcon className="w-8 h-8 text-blue-600" />
@@ -111,7 +107,7 @@ export default function EstatisticasPage() {
             <p className="text-sm text-gray-400 mt-1">{stats.diasAtivos} dias ativos</p>
           </div>
 
-          {/* Card 2: Média Diária */}
+          {/* Card 2 */}
           <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-200 flex flex-col items-center justify-center hover:shadow-md transition-shadow">
             <div className="p-3 bg-green-50 rounded-full mb-4">
               <ArrowTrendingUpIcon className="w-8 h-8 text-green-600" />
@@ -123,7 +119,7 @@ export default function EstatisticasPage() {
             <p className="text-sm text-gray-400 mt-1">visitas por dia</p>
           </div>
 
-          {/* Card 3: Base Inicial */}
+          {/* Card 3 */}
           <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-200 flex flex-col items-center justify-center hover:shadow-md transition-shadow">
             <div className="p-3 bg-purple-50 rounded-full mb-4">
               <GlobeAltIcon className="w-8 h-8 text-purple-600" />
@@ -137,7 +133,6 @@ export default function EstatisticasPage() {
 
         {/* O Grande Contador Live */}
         <div className="bg-gradient-to-br from-blue-900 to-indigo-900 rounded-3xl p-8 sm:p-12 text-center text-white shadow-2xl relative overflow-hidden">
-          {/* Efeitos de fundo */}
           <div className="absolute top-0 left-0 w-full h-full opacity-10 pointer-events-none">
              <div className="absolute top-10 left-10 w-32 h-32 bg-white rounded-full blur-3xl"></div>
              <div className="absolute bottom-10 right-10 w-40 h-40 bg-pink-500 rounded-full blur-3xl"></div>
@@ -149,7 +144,7 @@ export default function EstatisticasPage() {
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
                 <span className="relative inline-flex rounded-full h-3 w-3 bg-green-500"></span>
               </span>
-              Live Counter
+              Contador Real
             </div>
 
             <h2 className="text-lg sm:text-xl text-blue-200 font-medium mb-4">Total Global de Visitas</h2>
@@ -165,13 +160,13 @@ export default function EstatisticasPage() {
             </div>
             
             <p className="text-blue-200 max-w-lg mx-auto text-sm sm:text-base">
-              Contagem sincronizada em todos os dispositivos.
+              A contar todas as visitas, independentemente da rede ou dispositivo.
             </p>
           </div>
         </div>
 
         <div className="mt-8 text-center text-xs text-gray-400">
-          Powered by Global Counter API • Base calculada a partir de 27/11/2024
+          Sistema de contagem via Proxy • Base calculada a partir de 27/11/2024
         </div>
 
       </div>
