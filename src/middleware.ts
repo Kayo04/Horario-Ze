@@ -9,23 +9,27 @@ export async function middleware(req: NextRequest) {
   // 2. Ver o caminho que o utilizador está a tentar aceder
   const { pathname } = req.nextUrl
 
-  // 3. Definir qual é a nossa página de login (que é pública)
-  const isPublicPage = pathname === '/'
+  // 3. DEFINIÇÕES DE PÁGINAS
+  const isLoginPage = pathname === '/'
+  
+  // 🔥 ALTERAÇÃO AQUI: Definimos que as rotas de checkin são públicas
+  // Isto permite que o cliente aceda ao formulário no telemóvel sem login
+  const isPublicPath = pathname.startsWith('/checkin') || pathname.startsWith('/api/checkin')
 
   // --- REGRAS DE REDIRECIONAMENTO ---
 
   // REGRA A: Proteger páginas privadas
-  // Se a página NÃO é pública E o utilizador NÃO está logado
-  if (!isPublicPage && !token) {
+  // Se NÃO é a página de login, E NÃO é uma rota pública (checkin), E NÃO tem token
+  if (!isLoginPage && !isPublicPath && !token) {
     // Redireciona-o para a página de login (/)
     const url = new URL('/', req.url)
-    url.searchParams.set('callbackUrl', pathname) // Guarda onde ele queria ir
+    url.searchParams.set('callbackUrl', pathname)
     return NextResponse.redirect(url)
   }
 
   // REGRA B: Impedir loop de login
-  // Se a página É pública (login) E o utilizador JÁ está logado
-  if (isPublicPage && token) {
+  // Se está na página de Login (/) E o utilizador JÁ está logado
+  if (isLoginPage && token) {
     // Redireciona-o para o portal
     return NextResponse.redirect(new URL('/portal', req.url))
   }
@@ -33,8 +37,8 @@ export async function middleware(req: NextRequest) {
   // REGRA C: Proteger páginas de Admin
   // Se ele tenta aceder a /funcionarios E NÃO é um admin
   if (pathname.startsWith('/funcionarios') && token?.role !== 'admin') {
-     // Redireciona-o para o portal com um aviso
-     return NextResponse.redirect(new URL('/portal?error=NaoAutorizado', req.url))
+      // Redireciona-o para o portal com um aviso
+      return NextResponse.redirect(new URL('/portal?error=NaoAutorizado', req.url))
   }
 
   // Se nenhuma regra for ativada, deixa o utilizador passar
@@ -42,7 +46,6 @@ export async function middleware(req: NextRequest) {
 }
 
 // Configuração:
-// O 'matcher' define quais páginas vão ativar o 'middleware'
 export const config = { 
   matcher: [
     /*
