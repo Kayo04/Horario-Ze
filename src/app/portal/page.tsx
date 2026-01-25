@@ -6,10 +6,11 @@ import {
   UsersIcon,
   UserGroupIcon,
   ClockIcon,
-  ArrowRightOnRectangleIcon, // Ícone para Sair
+  ArrowRightOnRectangleIcon,
   ChartBarSquareIcon,
-  PlusCircleIcon, // ⬅️ 1. ADICIONAR O ÍCONE NOVO
-} from '@heroicons/react/24/outline' // Ícones de exemplo
+  PlusCircleIcon,
+  CheckBadgeIcon, // ⬅️ 1. IMPORTAR O ÍCONE DE CHECK-IN
+} from '@heroicons/react/24/outline'
 import { useLanguage } from '@/context/LanguageContext'
 import { translations } from '@/lib/translations'
 
@@ -89,6 +90,18 @@ export default function PortalPage() {
               </span>
             </Link>
 
+            {/* ⬅️ NOVO BOTÃO: CHECK-IN DIÁRIO */}
+            <Link
+              href="/portal/checkin"
+              className="flex flex-col items-center justify-center p-6 bg-gradient-to-br from-teal-500 to-teal-700 text-white rounded-xl shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-300 ease-in-out group"
+            >
+              <CheckBadgeIcon className="h-12 w-12 mb-3 text-teal-200 group-hover:text-white transition-colors duration-300" />
+              <span className="text-lg font-semibold">Check-in Diário</span>
+              <span className="text-sm text-teal-100 group-hover:text-teal-50 mt-1">
+                Entradas e QR Code
+              </span>
+            </Link>
+
             {/* Botão 3 - Gerir Funcionários (SÓ PARA ADMINS) */}
             {session?.user?.role === 'admin' && (
               <Link
@@ -103,7 +116,6 @@ export default function PortalPage() {
               </Link>
             )}
 
-            {/* ⬅️ 2. ADICIONAR O NOVO BOTÃO AQUI */}
             {/* Botão 5 - Painel de Admin (SÓ PARA ADMINS) */}
             {session?.user?.role === 'admin' && (
               <Link
@@ -129,23 +141,24 @@ export default function PortalPage() {
                 {t.my_availability_desc}
               </span>
             </Link>
+
             {/* Botão - Criar Horários (SÓ PARA ADMINS) */}
-{session?.user?.role === 'admin' && (
-  <Link
-    href="/criar-horarios"
-    className="flex flex-col items-center justify-center p-6 bg-gradient-to-br from-pink-500 to-pink-700 text-white rounded-xl shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-300 ease-in-out group"
-  >
-    <PlusCircleIcon className="h-12 w-12 mb-3 text-pink-200 group-hover:text-white transition-colors duration-300" />
-    <span className="text-lg font-semibold">{t.create_schedules}</span>
-    <span className="text-sm text-pink-100 group-hover:text-pink-50 mt-1">
-      {t.create_schedules_desc}
-    </span>
-  </Link>
-)}
+            {session?.user?.role === 'admin' && (
+              <Link
+                href="/criar-horarios"
+                className="flex flex-col items-center justify-center p-6 bg-gradient-to-br from-pink-500 to-pink-700 text-white rounded-xl shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-300 ease-in-out group"
+              >
+                <PlusCircleIcon className="h-12 w-12 mb-3 text-pink-200 group-hover:text-white transition-colors duration-300" />
+                <span className="text-lg font-semibold">{t.create_schedules}</span>
+                <span className="text-sm text-pink-100 group-hover:text-pink-50 mt-1">
+                  {t.create_schedules_desc}
+                </span>
+              </Link>
+            )}
 
           </div>
         </div>
       </div>
     </div>
   )
-}
+} 

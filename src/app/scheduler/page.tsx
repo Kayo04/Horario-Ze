@@ -6,17 +6,23 @@ import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import { useLanguage } from '@/context/LanguageContext'
 import { translations } from '@/lib/translations'
+// 🔥 IMPORTAÇÃO CENTRALIZADA (Isto resolve os conflitos de tipos)
+import { Reservation as IReservation, EventType } from '@/types/reservation'
 
-/* ---------- Tipos ---------- */
-type EventType = 'teambuilding' | 'birthday' | 'vrlocal' | 'experiencia'
+/* ---------- Tipos Locais (apenas para UI) ---------- */
 
-type Reservation = {
+// Adaptamos a interface para a UI, usando o EventType central
+// Tornamos adults e children opcionais para compatibilidade
+type SchedulerReservation = {
   id: string
   eventType: EventType
-  date: string
-  startTime: string
-  endTime: string
+  date: string      // YYYY-MM-DD
+  startTime: string // HH:MM
+  endTime: string   // HH:MM
   people: number
+  customerName?: string 
+  adults?: number
+  children?: number
 }
 
 type UnavailableWeekday = { day: number; start: string; end: string }
@@ -47,7 +53,7 @@ type Employee = {
 type Assigned = { id: string; name: string; code?: string }
 
 type Slot = {
-  reservation: Reservation
+  reservation: SchedulerReservation
   required: number
   available: Assigned[]
   assignedCount: number
@@ -77,7 +83,7 @@ export default function SchedulerPage(): JSX.Element {
   const { language, setLanguage } = useLanguage()
   const t = translations[language]
 
-  const [reservations, setReservations] = useState<Reservation[]>([])
+  const [reservations, setReservations] = useState<SchedulerReservation[]>([])
   const [employees, setEmployees] = useState<Employee[]>([])
   const [loading, setLoading] = useState(true) 
   const [eventType, setEventType] = useState<EventType>('teambuilding')
@@ -91,6 +97,15 @@ export default function SchedulerPage(): JSX.Element {
   const [isUploading, setIsUploading] = useState(false)
   const [isSheetJSLoaded, setIsSheetJSLoaded] = useState(false)
   const [editingReservationId, setEditingReservationId] = useState<string | null>(null)
+
+  // 🔥 Objeto de detalhes mapeado corretamente
+  const eventTypeDetails: Record<string, { subtitle: string }> = {
+    teambuilding: { subtitle: t.corporate },
+    birthday: { subtitle: t.celebrations },
+    vrlocal: { subtitle: t.virtual_reality }, 
+    experiencia: { subtitle: t.escape_rooms }, 
+    walkin: { subtitle: "Walk-in" } 
+  }
 
   /* ---------- Carregamento da Biblioteca de Excel (SheetJS) ---------- */
   useEffect(() => {
@@ -137,7 +152,30 @@ export default function SchedulerPage(): JSX.Element {
       ]);
 
       if (employeesRes.ok) setEmployees(await employeesRes.json());
-      if (reservationsRes.ok) setReservations(await reservationsRes.json());
+      if (reservationsRes.ok) {
+        const data = await reservationsRes.json();
+        const mappedReservations: SchedulerReservation[] = data.map((res: any) => {
+            let d = res.date;
+            let t = res.startTime;
+            
+            if (res.datetime && res.datetime.includes('T')) {
+                [d, t] = res.datetime.split('T');
+            }
+            
+            return {
+                id: res._id || res.id,
+                eventType: res.eventType as EventType,
+                date: d,
+                startTime: t, 
+                endTime: res.endTime || calculateEndTime(t), 
+                people: (res.adults || 0) + (res.children || 0) || res.people,
+                customerName: res.customerName,
+                adults: res.adults,
+                children: res.children
+            };
+        });
+        setReservations(mappedReservations);
+      }
 
     } catch (error) {
       console.error('Erro ao carregar dados:', error)
@@ -147,7 +185,15 @@ export default function SchedulerPage(): JSX.Element {
     }
   }
 
-  /* ---------- Funções do formulário (com Edição) ---------- */
+  const calculateEndTime = (start: string) => {
+      if(!start) return "20:00";
+      const [h, m] = start.split(':').map(Number);
+      const endH = h + 1; 
+      return `${endH.toString().padStart(2,'0')}:${m.toString().padStart(2,'0')}`;
+  }
+
+
+  /* ---------- Funções do formulário ---------- */
   
   const clearForm = () => {
     setEditingReservationId(null)
@@ -182,7 +228,15 @@ export default function SchedulerPage(): JSX.Element {
 
   const createReservation = async () => {
     try {
-      const newRes = { eventType, date, startTime, endTime, people: Number(people) }
+      const newRes = { 
+          eventType, 
+          datetime: `${date}T${startTime}`, 
+          adults: Number(people),
+          children: 0,
+          startTime, endTime, people: Number(people), date,
+          customerName: "Manual"
+      }
+      
       const response = await fetch('/api/reservations', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -204,7 +258,13 @@ export default function SchedulerPage(): JSX.Element {
   
   const updateReservation = async (id: string) => {
      try {
-      const updatedRes = { eventType, date, startTime, endTime, people: Number(people) }
+      const updatedRes = { 
+          eventType, 
+          datetime: `${date}T${startTime}`,
+          adults: Number(people),
+          children: 0,
+          startTime, endTime, people: Number(people), date
+      }
       const response = await fetch(`/api/reservations/${id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
@@ -224,7 +284,7 @@ export default function SchedulerPage(): JSX.Element {
     }
   }
 
-  const handleEditClick = (reservation: Reservation) => {
+  const handleEditClick = (reservation: SchedulerReservation) => {
     setEditingReservationId(reservation.id)
     setEventType(reservation.eventType)
     setDate(reservation.date) 
@@ -263,7 +323,7 @@ export default function SchedulerPage(): JSX.Element {
     }
   }
   
-  /* ---------- LÓGICA DE IMPORTAÇÃO (ATUALIZADA) ---------- */
+  /* ---------- LÓGICA DE IMPORTAÇÃO (CORRIGIDA) ---------- */
 
   const triggerFileInput = () => {
     if (!isSheetJSLoaded) {
@@ -293,7 +353,7 @@ export default function SchedulerPage(): JSX.Element {
         const worksheet = workbook.Sheets[firstSheetName];
         const json = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: "" });
         toast.dismiss(toastId);
-        processParsedData(json as string[][]); 
+        processParsedData(json as any[][]); // Cast para any[][] para evitar erros de TS
       } catch (error: any) {
         toast.dismiss(toastId);
         toast.error(`${t.file_read_error}: ${error.message}`);
@@ -309,7 +369,7 @@ export default function SchedulerPage(): JSX.Element {
     if (e.target) e.target.value = '';
   }
 
-  const processParsedData = (data: string[][]) => {
+  const processParsedData = (data: any[][]) => {
     const headerIndex = data.findIndex(row => row && row.includes('Customer Email'))
     if (headerIndex === -1) {
       toast.error('Formato inválido. Não foi possível encontrar a coluna "Customer Email".')
@@ -318,21 +378,30 @@ export default function SchedulerPage(): JSX.Element {
     }
     const headerRow = data[headerIndex];
     const colMap: { [key: string]: number } = {
-      date: headerRow.findIndex(h => h && h.startsWith('Date')),
+      date: headerRow.findIndex((h: any) => h && h.toString().startsWith('Date')),
       email: headerRow.indexOf('Customer Email'),
+      // Mapeamento robusto para encontrar o nome
+      name: headerRow.findIndex((h: any) => h && (
+          h === 'Customer Name' || 
+          h === 'Customer: Account Name' || 
+          h === 'Nome do Cliente'
+      )),
       time: headerRow.indexOf('Booking Time'),
       description: headerRow.indexOf('Booking Description'),
       endTime: headerRow.indexOf('Party Departure Time'),
       notes: headerRow.indexOf('Booking Notes')
     };
+
     if (colMap.date === -1 || colMap.email === -1 || colMap.time === -1) {
       toast.error("Colunas essenciais (Date, Customer Email, Booking Time) não encontradas.");
       setIsUploading(false);
       return
     }
+
     const dataRows = data.slice(headerIndex + 1)
-    const reservationsToUpload: Omit<Reservation, 'id'>[] = []
+    const reservationsToUpload: any[] = []
     let currentDate = ''; 
+
     for (const row of dataRows) {
       if (!row || row.length < headerRow.length) continue; 
       const email = row[colMap.email]
@@ -353,13 +422,27 @@ export default function SchedulerPage(): JSX.Element {
         const finalEndTime = parseEndTimeFromCSV(startTime, endTime)
         const eventType = parseEventTypeFromCSV(description, notes) 
         const people = parsePeopleFromCSV(description, notes)
+        
+        // EXTRAIR NOME (Lógica Melhorada)
+        let customerName = "Cliente";
+        if (colMap.name !== -1 && row[colMap.name]) {
+            customerName = row[colMap.name];
+        } else if (description && !/^\d+x/.test(description)) {
+            // Só usa descrição se não parecer uma contagem de items ("3x Mask...")
+            customerName = description.split('-')[0].trim();
+        }
+
         if (currentDate && startTime && finalEndTime && people > 0) {
           reservationsToUpload.push({
             eventType,
+            datetime: `${currentDate}T${startTime}`, 
+            adults: people,
+            children: 0,
             date: currentDate,
             startTime,
             endTime: finalEndTime,
-            people
+            people,
+            customerName: customerName
           })
         }
       }
@@ -372,7 +455,7 @@ export default function SchedulerPage(): JSX.Element {
     startBatchUpload(reservationsToUpload)
   }
 
-  const startBatchUpload = async (reservationsToUpload: Omit<Reservation, 'id'>[]) => {
+  const startBatchUpload = async (reservationsToUpload: any[]) => {
     const existingKeys = new Set(
       reservations.map(res => 
         `${res.date}_${res.startTime}_${res.eventType}_${res.people}`
@@ -570,13 +653,6 @@ export default function SchedulerPage(): JSX.Element {
       case 'experiencia': return t.experiencia
       default: return type
     }
-  }
-
-  const eventTypeDetails: Record<EventType, { subtitle: string }> = {
-    teambuilding: { subtitle: t.corporate },
-    birthday: { subtitle: t.celebrations },
-    vrlocal: { subtitle: t.virtual_reality },
-    experiencia: { subtitle: t.escape_rooms },
   }
 
   const formatDateBlock = (dateStr: string) => {
@@ -810,6 +886,10 @@ export default function SchedulerPage(): JSX.Element {
                                 </div>
 
                                 <div className="text-sm text-gray-600 space-y-1">
+                                  {/* MOSTRAR NOME DO CLIENTE SE EXISTIR */}
+                                  {reservation.customerName && (
+                                    <div className="font-bold text-gray-800">{reservation.customerName}</div>
+                                  )}
                                   <div><span className="font-medium">{t.start_time.split(' ')[0]}:</span> {reservation.startTime} - {reservation.endTime} <span className="text-gray-500 ml-2">({calculateDuration(reservation.startTime, reservation.endTime)} {t.hours})</span></div>
                                   <div><span className="font-medium">{t.people_label.split(' ')[0]}:</span> {reservation.people}</div>
                                 </div>
@@ -837,7 +917,7 @@ export default function SchedulerPage(): JSX.Element {
                         </div>
                       </div>
                     )
-                  })}
+                 })}
               </div>
             )}
           </section>
