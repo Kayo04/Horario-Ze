@@ -16,6 +16,16 @@ interface IReservationDocument extends Document {
   
   customerName?: string;
   marketingSource?: string;
+
+  // 🔥 NOVO CAMPO: Lista de clientes que fizeram check-in
+  clients?: {
+    firstName: string;
+    lastName: string;
+    email: string;
+    phone: string;
+    dob: string;
+    checkInTime: Date;
+  }[];
 }
 
 const ReservationSchema = new Schema<IReservationDocument>({
@@ -34,6 +44,16 @@ const ReservationSchema = new Schema<IReservationDocument>({
   
   customerName: { type: String },
   marketingSource: { type: String },
+
+  // 🔥 NOVO CAMPO NO SCHEMA
+  clients: [{
+    firstName: String,
+    lastName: String,
+    email: String,
+    phone: String,
+    dob: String,
+    checkInTime: { type: Date, default: Date.now } // Guarda a hora do registo automaticamente
+  }],
 }, {
   timestamps: true,
   strict: false // IMPORTANTE: Isto permite ler campos que não definimos rigorosamente

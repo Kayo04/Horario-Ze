@@ -141,7 +141,17 @@ export default function PortalPage() {
                 {t.my_availability_desc}
               </span>
             </Link>
-
+{/* Botão 6 - Base de Dados de Clientes (NOVO) */}
+<Link
+  href="/portal/clientes"
+  className="flex flex-col items-center justify-center p-6 bg-gradient-to-br from-gray-700 to-gray-900 text-white rounded-xl shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-300 ease-in-out group"
+>
+  <UserGroupIcon className="h-12 w-12 mb-3 text-gray-300 group-hover:text-white transition-colors duration-300" />
+  <span className="text-lg font-semibold">Base de Dados</span>
+  <span className="text-sm text-gray-300 group-hover:text-gray-100 mt-1">
+    Ver todos os registos
+  </span>
+</Link>
             {/* Botão - Criar Horários (SÓ PARA ADMINS) */}
             {session?.user?.role === 'admin' && (
               <Link
