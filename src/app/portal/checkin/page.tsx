@@ -10,12 +10,10 @@ import {
   ChevronLeftIcon,
   ChevronRightIcon,
   CalendarDaysIcon,
-  ChartBarIcon,
-  EyeIcon // <--- Ícone Novo
+  ChartBarIcon
 } from '@heroicons/react/24/outline';
 import { Reservation as IReservation, EventType } from '@/types/reservation';
 
-// Interface atualizada com a lista de clientes
 interface CheckInReservation {
   _id: string; 
   eventType: EventType;
@@ -26,6 +24,7 @@ interface CheckInReservation {
   marketingSource?: string;
   date?: string;
   startTime?: string;
+  endTime?: string;
   people?: number;
   // Lista de quem já fez check-in
   clients?: {
@@ -39,12 +38,8 @@ interface CheckInReservation {
 export default function CheckInDashboard() {
   const [reservations, setReservations] = useState<CheckInReservation[]>([]);
   const [selectedRes, setSelectedRes] = useState<CheckInReservation | null>(null);
-  
-  // Estados dos Modais
-  const [showQRModal, setShowQRModal] = useState(false);
-  const [showClientsModal, setShowClientsModal] = useState(false); // Novo Modal
-
   const [marketingSource, setMarketingSource] = useState("");
+  const [showQR, setShowQR] = useState(false);
   const [siteUrl, setSiteUrl] = useState("");
   const [loading, setLoading] = useState(true);
 
@@ -83,7 +78,6 @@ export default function CheckInDashboard() {
     setSelectedDate(current.toISOString().split('T')[0]);
   };
 
-  // --- LÓGICA DO QR CODE ---
   const handleSourceSubmit = async () => {
     if (!selectedRes || !marketingSource) return;
     try {
@@ -94,31 +88,25 @@ export default function CheckInDashboard() {
        });
        if (res.ok) {
            selectedRes.marketingSource = marketingSource;
-           setShowQRModal(true); // Abre só o QR
+           setShowQR(true);
        } else { alert("Erro ao gravar."); }
     } catch (err) { alert("Erro de conexão."); }
   };
 
-  const openQRModal = (res: CheckInReservation) => {
+  const openModal = (res: CheckInReservation) => {
     setSelectedRes(res);
+    // Se já tiver marketing preenchido, mostra logo o QR Code
     if (res.marketingSource) {
       setMarketingSource(res.marketingSource);
-      setShowQRModal(true);
+      setShowQR(true);
     } else {
       setMarketingSource("");
-      setShowQRModal(false); // Fica na parte do input
+      setShowQR(false);
     }
   };
 
-  // --- LÓGICA DE VER CLIENTES ---
-  const openClientsList = (res: CheckInReservation) => {
-    setSelectedRes(res);
-    setShowClientsModal(true);
-  };
-
   const closeModal = () => {
-    setShowQRModal(false);
-    setShowClientsModal(false);
+    setShowQR(false);
     setSelectedRes(null);
     setMarketingSource("");
   };
@@ -141,10 +129,15 @@ export default function CheckInDashboard() {
 
   const getDisplayName = (name?: string) => {
       if (!name) return "Cliente (Sem Nome)";
-      if (/^\d+x/.test(name) || name.includes('Mask of') || name.includes('Mission')) {
+      if (/^\d+x/.test(name) || name.includes('Mask of') || name.includes('Mission') || name.includes('Don\'t Scream')) {
           return "Cliente (Ver Detalhes)";
       }
       return name;
+  };
+
+  const isGameDescription = (name?: string) => {
+      if (!name) return false;
+      return /^\d+x/.test(name) || name.includes('Mask of') || name.includes('Mission');
   };
 
   return (
@@ -198,119 +191,116 @@ export default function CheckInDashboard() {
                     </div>
                     <div className="flex-1">
                         <h3 className="text-xl font-bold text-gray-800">{getDisplayName(res.customerName)}</h3>
-                        
-                        {/* Indicador de inscritos */}
-                        <div className="flex items-center gap-4 mt-2">
-                             <span className={`px-2 py-0.5 rounded text-xs font-bold uppercase tracking-wide
-                                ${res.eventType === 'birthday' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-700'}`}>
+                        {isGameDescription(res.customerName) && (
+                            <p className="text-xs text-gray-500 mb-1 italic">{res.customerName}</p>
+                        )}
+                        <div className="flex flex-wrap items-center gap-3 text-sm text-gray-500 mt-1">
+                            <span className={`px-2 py-0.5 rounded text-xs font-bold uppercase tracking-wide
+                                ${res.eventType === 'birthday' ? 'bg-green-100 text-green-700' : 
+                                res.eventType === 'teambuilding' ? 'bg-purple-100 text-purple-700' : 
+                                'bg-gray-100 text-gray-700'}`}>
                                 {res.eventType || 'Evento'}
                             </span>
-                            
-                            {/* Mostra quantos já fizeram checkin */}
-                            <span className="text-sm text-gray-600 flex items-center gap-1">
+                            <span className="flex items-center gap-1 bg-gray-50 px-2 py-0.5 rounded border border-gray-100">
                                 <UserGroupIcon className="w-4 h-4"/> 
                                 {res.clients?.length || 0} / {getTotalPeople(res)} Registados
                             </span>
+                            {res.marketingSource && (
+                                <span className="text-xs text-green-600 flex items-center gap-1 bg-green-50 px-2 py-0.5 rounded border border-green-100">
+                                <CheckBadgeIcon className="w-3 h-3"/> {res.marketingSource}
+                                </span>
+                            )}
                         </div>
                     </div>
                 </div>
 
-                <div className="flex gap-2">
-                    {/* BOTÃO VER LISTA DE CLIENTES */}
-                    <button 
-                        onClick={() => openClientsList(res)}
-                        className="p-3 rounded-lg border border-gray-200 hover:bg-gray-50 text-gray-600 transition-colors"
-                        title="Ver Lista de Inscritos"
-                    >
-                        <EyeIcon className="w-5 h-5" />
-                    </button>
-
-                    {/* BOTÃO CHECK-IN / QR */}
-                    <button 
-                        onClick={() => openQRModal(res)}
-                        className={`px-6 py-3 rounded-lg font-medium transition-colors flex items-center gap-2 shadow-sm
-                            ${res.marketingSource 
-                                ? 'bg-white border-2 border-green-500 text-green-600 hover:bg-green-50' 
-                                : 'bg-gray-900 hover:bg-gray-800 text-white'}`}
-                    >
-                        <QrCodeIcon className="w-5 h-5" />
-                        {res.marketingSource ? 'Ver QR' : 'Check-in'}
-                    </button>
-                </div>
+                {/* BOTÃO ÚNICO - ESCURO E SÓLIDO */}
+                <button 
+                onClick={() => openModal(res)}
+                className="bg-gray-900 hover:bg-black text-white px-6 py-4 rounded-xl font-bold flex items-center gap-3 shadow-lg transform active:scale-95 transition-all min-w-[140px] justify-center"
+                >
+                    <QrCodeIcon className="w-6 h-6" />
+                    <span>{res.marketingSource ? 'Ver QR' : 'Check-in'}</span>
+                </button>
             </div>
             ))
         )}
       </div>
 
-      {/* --- MODAL 1: QR CODE & MARKETING --- */}
-      {selectedRes && !showClientsModal && (
-        <div className={`fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50 ${selectedRes && !showClientsModal ? 'block' : 'hidden'}`}>
-          <div className="bg-white rounded-2xl p-8 max-w-md w-full shadow-2xl relative">
+      {/* MODAL PRINCIPAL */}
+      {selectedRes && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-in fade-in">
+          <div className="bg-white rounded-2xl p-8 max-w-lg w-full shadow-2xl relative max-h-[90vh] overflow-y-auto">
             <button onClick={closeModal} className="absolute top-4 right-4 text-gray-400 hover:text-gray-600">✕</button>
+
             <div className="mb-6 border-b border-gray-100 pb-4">
-              <h2 className="text-xl font-bold text-gray-900">{getDisplayName(selectedRes.customerName)}</h2>
+              <h2 className="text-2xl font-bold text-gray-900">{getDisplayName(selectedRes.customerName)}</h2>
+              <p className="text-sm text-gray-500 mt-1 flex items-center gap-2">
+                <span className="bg-gray-100 px-2 py-0.5 rounded text-xs font-medium">{selectedDate}</span> 
+                às {getDisplayTime(selectedRes)}
+              </p>
             </div>
 
-            {!showQRModal ? (
+            {!showQR ? (
+              // FASE 1: PERGUNTA DE MARKETING
               <div className="space-y-6">
                 <div>
                   <label className="block text-sm font-bold text-gray-700 mb-2">De onde ouviu falar do The Park?</label>
-                  <input type="text" value={marketingSource} onChange={(e) => setMarketingSource(e.target.value)} placeholder="Ex: TikTok, Amigo..." className="w-full p-4 border border-gray-300 rounded-xl outline-none focus:ring-2 focus:ring-teal-500 bg-gray-50" autoFocus />
+                  <input 
+                    type="text" 
+                    value={marketingSource} 
+                    onChange={(e) => setMarketingSource(e.target.value)} 
+                    placeholder="Ex: TikTok, Amigo, Instagram..." 
+                    className="w-full p-4 border border-gray-300 rounded-xl outline-none focus:ring-2 focus:ring-teal-500 bg-gray-50 text-gray-900" 
+                    autoFocus 
+                  />
                 </div>
                 <button onClick={handleSourceSubmit} disabled={!marketingSource.trim()} className="w-full py-4 bg-teal-600 text-white rounded-xl font-bold hover:bg-teal-700 disabled:opacity-50 transition-all">
                   Confirmar e Gerar QR
                 </button>
               </div>
             ) : (
-              <div className="flex flex-col items-center text-center space-y-6">
-                <div className="bg-white p-4 rounded-xl border-2 border-dashed border-gray-300">
-                  <QRCode value={`${siteUrl}/checkin/cliente/${selectedRes._id}`} size={220} />
+              // FASE 2: QR CODE + LISTA DE INSCRITOS
+              <div className="space-y-8">
+                <div className="flex flex-col items-center text-center space-y-4">
+                    <div className="bg-white p-4 rounded-xl border-2 border-dashed border-gray-300">
+                    <QRCode value={`${siteUrl}/checkin/cliente/${selectedRes._id}`} size={200} />
+                    </div>
+                    <div>
+                        <p className="font-bold text-lg text-gray-900">Mostre ao cliente</p>
+                        <p className="text-sm text-gray-500">Para preencher os dados de seguro.</p>
+                    </div>
                 </div>
-                <p className="font-bold text-lg text-gray-900">Mostre ao cliente para registo.</p>
-                <button onClick={closeModal} className="px-6 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 font-medium w-full">Concluído</button>
+
+                {/* LISTA DE INSCRITOS DENTRO DO MODAL */}
+                <div className="bg-gray-50 rounded-xl p-4 border border-gray-100">
+                    <h3 className="font-bold text-gray-800 mb-3 flex justify-between items-center">
+                        Inscritos 
+                        <span className="bg-teal-100 text-teal-800 text-xs px-2 py-1 rounded-full">{selectedRes.clients?.length || 0} / {getTotalPeople(selectedRes)}</span>
+                    </h3>
+                    
+                    {!selectedRes.clients || selectedRes.clients.length === 0 ? (
+                        <p className="text-sm text-gray-400 text-center py-2">Ainda ninguém se registou.</p>
+                    ) : (
+                        <div className="space-y-2 max-h-40 overflow-y-auto pr-1">
+                            {selectedRes.clients.map((client, idx) => (
+                                <div key={idx} className="flex justify-between items-center text-sm bg-white p-2 rounded border border-gray-200 shadow-sm">
+                                    <span className="font-medium text-gray-700">{client.firstName} {client.lastName}</span>
+                                    <CheckBadgeIcon className="w-5 h-5 text-green-500" />
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                </div>
+
+                <button onClick={closeModal} className="w-full py-3 bg-gray-100 text-gray-700 rounded-xl hover:bg-gray-200 font-bold">
+                    Fechar
+                </button>
               </div>
             )}
           </div>
         </div>
       )}
-
-      {/* --- MODAL 2: LISTA DE CLIENTES --- */}
-      {showClientsModal && selectedRes && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-in fade-in">
-             <div className="bg-white rounded-2xl p-6 max-w-2xl w-full shadow-2xl relative max-h-[80vh] overflow-y-auto">
-                <button onClick={closeModal} className="absolute top-4 right-4 text-gray-400 hover:text-gray-600">✕</button>
-                
-                <h2 className="text-2xl font-bold text-gray-900 mb-1">Inscritos</h2>
-                <p className="text-gray-500 mb-6">Lista de pessoas que já preencheram o waiver.</p>
-
-                {!selectedRes.clients || selectedRes.clients.length === 0 ? (
-                    <div className="text-center py-10 bg-gray-50 rounded-xl border border-dashed border-gray-300">
-                        <UserGroupIcon className="w-12 h-12 mx-auto text-gray-300 mb-2"/>
-                        <p className="text-gray-500">Ainda ninguém se registou nesta reserva.</p>
-                    </div>
-                ) : (
-                    <div className="space-y-3">
-                        {selectedRes.clients.map((client, idx) => (
-                            <div key={idx} className="flex justify-between items-center p-4 bg-gray-50 rounded-lg border border-gray-100">
-                                <div>
-                                    <p className="font-bold text-gray-800">{client.firstName} {client.lastName}</p>
-                                    <p className="text-sm text-gray-500">{client.email} • {client.phone}</p>
-                                </div>
-                                <div className="text-right text-xs text-gray-400">
-                                    Registado
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-                )}
-                
-                <div className="mt-6 pt-4 border-t border-gray-100 flex justify-end">
-                    <button onClick={closeModal} className="px-6 py-2 bg-gray-800 text-white rounded-lg hover:bg-gray-900">Fechar</button>
-                </div>
-             </div>
-        </div>
-      )}
-
     </div>
   );
 }
