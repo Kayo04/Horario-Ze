@@ -12,31 +12,29 @@ export async function middleware(req: NextRequest) {
   // 3. DEFINIÇÕES DE PÁGINAS
   const isLoginPage = pathname === '/'
   
-  // 🔥 ALTERAÇÃO AQUI: Definimos que as rotas de checkin são públicas
-  // Isto permite que o cliente aceda ao formulário no telemóvel sem login
+  // Rotas públicas (Check-in do cliente)
   const isPublicPath = pathname.startsWith('/checkin') || pathname.startsWith('/api/checkin')
 
   // --- REGRAS DE REDIRECIONAMENTO ---
 
   // REGRA A: Proteger páginas privadas
-  // Se NÃO é a página de login, E NÃO é uma rota pública (checkin), E NÃO tem token
+  // Se NÃO é a página de login, E NÃO é uma rota pública, E NÃO tem token -> Login
   if (!isLoginPage && !isPublicPath && !token) {
-    // Redireciona-o para a página de login (/)
     const url = new URL('/', req.url)
     url.searchParams.set('callbackUrl', pathname)
     return NextResponse.redirect(url)
   }
 
   // REGRA B: Impedir loop de login
-  // Se está na página de Login (/) E o utilizador JÁ está logado
+  // Se está na página de Login E o utilizador JÁ está logado -> Portal
   if (isLoginPage && token) {
-    // Redireciona-o para o portal
     return NextResponse.redirect(new URL('/portal', req.url))
   }
   
   // REGRA C: Proteger páginas de Admin
-  // Se ele tenta aceder a /funcionarios E NÃO é um admin
-  if (pathname.startsWith('/funcionarios') && token?.role !== 'admin') {
+  // 🔥 ALTERAÇÃO AQUI: Adicionei "|| pathname.startsWith('/portal/clientes')"
+  // Agora protege tanto os Funcionários como a Base de Dados de Clientes
+  if ( (pathname.startsWith('/funcionarios') || pathname.startsWith('/portal/clientes')) && token?.role !== 'admin') {
       // Redireciona-o para o portal com um aviso
       return NextResponse.redirect(new URL('/portal?error=NaoAutorizado', req.url))
   }
@@ -48,13 +46,6 @@ export async function middleware(req: NextRequest) {
 // Configuração:
 export const config = { 
   matcher: [
-    /*
-     * Correr o middleware em TODAS as rotas, exceto:
-     * - /api/auth/... (para o login funcionar)
-     * - /_next/static (ficheiros estáticos)
-     * - /_next/image (imagens)
-     * - favicon.ico (o ícone)
-     */
     '/((?!api/auth|_next/static|_next/image|favicon.ico).*)',
   ] 
 }

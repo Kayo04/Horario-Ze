@@ -9,7 +9,7 @@ import {
   ArrowRightOnRectangleIcon,
   ChartBarSquareIcon,
   PlusCircleIcon,
-  CheckBadgeIcon, // ⬅️ 1. IMPORTAR O ÍCONE DE CHECK-IN
+  CheckBadgeIcon,
 } from '@heroicons/react/24/outline'
 import { useLanguage } from '@/context/LanguageContext'
 import { translations } from '@/lib/translations'
@@ -18,6 +18,10 @@ export default function PortalPage() {
   const { data: session } = useSession()
   const { language, setLanguage } = useLanguage()
   const t = translations[language]
+
+  // Função auxiliar para verificar se é admin
+  // O uso de 'any' evita erros de TypeScript se o campo role não estiver definido no tipo
+  const isAdmin = (session?.user as any)?.role === 'admin';
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-4 sm:p-8 font-sans">
@@ -65,7 +69,7 @@ export default function PortalPage() {
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
             
             {/* Botão 1 - Gerir Horários (SÓ PARA ADMINS) */}
-            {session?.user?.role === 'admin' && (
+            {isAdmin && (
               <Link
                 href="/scheduler"
                 className="flex flex-col items-center justify-center p-6 bg-gradient-to-br from-blue-500 to-blue-700 text-white rounded-xl shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-300 ease-in-out group"
@@ -90,7 +94,7 @@ export default function PortalPage() {
               </span>
             </Link>
 
-            {/* ⬅️ NOVO BOTÃO: CHECK-IN DIÁRIO */}
+            {/* BOTÃO: CHECK-IN DIÁRIO */}
             <Link
               href="/portal/checkin"
               className="flex flex-col items-center justify-center p-6 bg-gradient-to-br from-teal-500 to-teal-700 text-white rounded-xl shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-300 ease-in-out group"
@@ -103,7 +107,7 @@ export default function PortalPage() {
             </Link>
 
             {/* Botão 3 - Gerir Funcionários (SÓ PARA ADMINS) */}
-            {session?.user?.role === 'admin' && (
+            {isAdmin && (
               <Link
                 href="/funcionarios"
                 className="flex flex-col items-center justify-center p-6 bg-gradient-to-br from-indigo-500 to-indigo-700 text-white rounded-xl shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-300 ease-in-out group"
@@ -117,7 +121,7 @@ export default function PortalPage() {
             )}
 
             {/* Botão 5 - Painel de Admin (SÓ PARA ADMINS) */}
-            {session?.user?.role === 'admin' && (
+            {isAdmin && (
               <Link
                 href="/adminpanel"
                 className="flex flex-col items-center justify-center p-6 bg-gradient-to-br from-orange-500 to-orange-700 text-white rounded-xl shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-300 ease-in-out group"
@@ -141,19 +145,23 @@ export default function PortalPage() {
                 {t.my_availability_desc}
               </span>
             </Link>
-{/* Botão 6 - Base de Dados de Clientes (NOVO) */}
-<Link
-  href="/portal/clientes"
-  className="flex flex-col items-center justify-center p-6 bg-gradient-to-br from-gray-700 to-gray-900 text-white rounded-xl shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-300 ease-in-out group"
->
-  <UserGroupIcon className="h-12 w-12 mb-3 text-gray-300 group-hover:text-white transition-colors duration-300" />
-  <span className="text-lg font-semibold">Base de Dados</span>
-  <span className="text-sm text-gray-300 group-hover:text-gray-100 mt-1">
-    Ver todos os registos
-  </span>
-</Link>
+
+            {/* 🔥 BOTÃO BASE DE DADOS (AGORA COM PROTEÇÃO REFORÇADA) */}
+            {isAdmin && (
+              <Link
+                href="/portal/clientes"
+                className="flex flex-col items-center justify-center p-6 bg-gradient-to-br from-gray-700 to-gray-900 text-white rounded-xl shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-300 ease-in-out group"
+              >
+                <UserGroupIcon className="h-12 w-12 mb-3 text-gray-300 group-hover:text-white transition-colors duration-300" />
+                <span className="text-lg font-semibold">Base de Dados</span>
+                <span className="text-sm text-gray-300 group-hover:text-gray-100 mt-1">
+                  Ver todos os registos
+                </span>
+              </Link>
+            )}
+
             {/* Botão - Criar Horários (SÓ PARA ADMINS) */}
-            {session?.user?.role === 'admin' && (
+            {isAdmin && (
               <Link
                 href="/criar-horarios"
                 className="flex flex-col items-center justify-center p-6 bg-gradient-to-br from-pink-500 to-pink-700 text-white rounded-xl shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-300 ease-in-out group"
@@ -171,4 +179,4 @@ export default function PortalPage() {
       </div>
     </div>
   )
-} 
+}
