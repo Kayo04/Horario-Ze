@@ -12,6 +12,7 @@ import {
   CalendarDaysIcon,
   ChartBarIcon
 } from '@heroicons/react/24/outline';
+// 🔥 IMPORTAÇÃO CENTRALIZADA
 import { Reservation as IReservation, EventType } from '@/types/reservation';
 
 interface CheckInReservation {
@@ -43,6 +44,7 @@ export default function CheckInDashboard() {
   const [siteUrl, setSiteUrl] = useState("");
   const [loading, setLoading] = useState(true);
 
+  // DATA SELECIONADA
   const [selectedDate, setSelectedDate] = useState(() => {
     return new Date().toISOString().split('T')[0]; 
   });
@@ -80,17 +82,23 @@ export default function CheckInDashboard() {
 
   const handleSourceSubmit = async () => {
     if (!selectedRes || !marketingSource) return;
+
     try {
        const res = await fetch('/api/checkin/save-source', {
          method: 'POST',
          headers: { 'Content-Type': 'application/json' },
          body: JSON.stringify({ id: selectedRes._id, source: marketingSource })
        });
+       
        if (res.ok) {
            selectedRes.marketingSource = marketingSource;
            setShowQR(true);
-       } else { alert("Erro ao gravar."); }
-    } catch (err) { alert("Erro de conexão."); }
+       } else {
+           alert("Erro ao gravar. Tente novamente.");
+       }
+    } catch (err) {
+      alert("Erro de conexão.");
+    }
   };
 
   const openModal = (res: CheckInReservation) => {
@@ -111,7 +119,7 @@ export default function CheckInDashboard() {
     setMarketingSource("");
   };
 
-  // HELPERS
+  // HELPER FUNCTIONS
   const getDisplayTime = (res: CheckInReservation) => {
     if (res.startTime) return res.startTime; 
     if (res.datetime && res.datetime.includes('T')) {
@@ -143,12 +151,14 @@ export default function CheckInDashboard() {
   return (
     <div className="min-h-screen bg-gray-50 p-6">
       
+      {/* HEADER */}
       <div className="max-w-5xl mx-auto mb-8">
         <div className="mb-6 flex justify-between items-center">
             <Link href="/portal" className="inline-flex items-center text-sm text-indigo-600 hover:text-indigo-800 font-medium transition-colors">
               <ArrowLeftIcon className="h-4 w-4 mr-2" />
               Voltar ao Portal
             </Link>
+
             <Link href="/portal/statistics" className="inline-flex items-center px-4 py-2 bg-purple-100 text-purple-700 rounded-lg text-sm font-bold hover:bg-purple-200 transition-colors">
                 <ChartBarIcon className="h-5 w-5 mr-2" />
                 Ver Estatísticas
@@ -160,17 +170,28 @@ export default function CheckInDashboard() {
               <CheckBadgeIcon className="w-8 h-8 text-teal-600" />
               Check-In
             </h1>
+
             <div className="flex items-center gap-2 bg-gray-50 p-1 rounded-lg border border-gray-200">
-                <button onClick={() => changeDay(-1)} className="p-2 hover:bg-white hover:shadow-sm rounded-md transition-all text-gray-600"><ChevronLeftIcon className="w-5 h-5" /></button>
+                <button onClick={() => changeDay(-1)} className="p-2 hover:bg-white hover:shadow-sm rounded-md transition-all text-gray-600">
+                    <ChevronLeftIcon className="w-5 h-5" />
+                </button>
                 <div className="relative flex items-center">
                     <CalendarDaysIcon className="w-5 h-5 text-gray-400 absolute left-3 pointer-events-none" />
-                    <input type="date" value={selectedDate} onChange={(e) => setSelectedDate(e.target.value)} className="pl-10 pr-4 py-2 bg-transparent font-bold text-gray-700 outline-none cursor-pointer"/>
+                    <input 
+                        type="date" 
+                        value={selectedDate}
+                        onChange={(e) => setSelectedDate(e.target.value)}
+                        className="pl-10 pr-4 py-2 bg-transparent font-bold text-gray-700 outline-none cursor-pointer"
+                    />
                 </div>
-                <button onClick={() => changeDay(1)} className="p-2 hover:bg-white hover:shadow-sm rounded-md transition-all text-gray-600"><ChevronRightIcon className="w-5 h-5" /></button>
+                <button onClick={() => changeDay(1)} className="p-2 hover:bg-white hover:shadow-sm rounded-md transition-all text-gray-600">
+                    <ChevronRightIcon className="w-5 h-5" />
+                </button>
             </div>
         </div>
       </div>
 
+      {/* LISTA DE RESERVAS */}
       <div className="grid gap-4 max-w-5xl mx-auto">
         {loading ? (
             <div className="text-center py-12">
@@ -184,36 +205,39 @@ export default function CheckInDashboard() {
           </div>
         ) : (
             reservations.map((res) => (
-            <div key={res._id} className="bg-white p-6 rounded-xl shadow-sm border border-gray-200 flex flex-col sm:flex-row justify-between items-center gap-4 hover:shadow-md transition-all">
+            <div key={res._id} className="bg-white p-6 rounded-xl shadow-sm border border-gray-200 flex flex-col sm:flex-row justify-between items-center gap-4 transition-all hover:shadow-md">
                 <div className="flex items-center gap-6 w-full">
-                    <div className="bg-teal-50 p-3 rounded-full text-teal-700 font-bold text-xl min-w-[85px] text-center border border-teal-100">
-                        {getDisplayTime(res)}
-                    </div>
-                    <div className="flex-1">
-                        <h3 className="text-xl font-bold text-gray-800">{getDisplayName(res.customerName)}</h3>
-                        {isGameDescription(res.customerName) && (
-                            <p className="text-xs text-gray-500 mb-1 italic">{res.customerName}</p>
-                        )}
-                        <div className="flex flex-wrap items-center gap-3 text-sm text-gray-500 mt-1">
-                            <span className={`px-2 py-0.5 rounded text-xs font-bold uppercase tracking-wide
-                                ${res.eventType === 'birthday' ? 'bg-green-100 text-green-700' : 
-                                res.eventType === 'teambuilding' ? 'bg-purple-100 text-purple-700' : 
-                                'bg-gray-100 text-gray-700'}`}>
-                                {res.eventType || 'Evento'}
-                            </span>
-                            <span className="flex items-center gap-1 bg-gray-50 px-2 py-0.5 rounded border border-gray-100">
-                                <UserGroupIcon className="w-4 h-4"/> 
-                                {res.clients?.length || 0} / {getTotalPeople(res)} Registados
-                            </span>
-                            {res.marketingSource && (
-                                <span className="text-xs text-green-600 flex items-center gap-1 bg-green-50 px-2 py-0.5 rounded border border-green-100">
-                                <CheckBadgeIcon className="w-3 h-3"/> {res.marketingSource}
-                                </span>
-                            )}
-                        </div>
+                <div className="bg-teal-50 p-3 rounded-full text-teal-700 font-bold text-xl min-w-[85px] text-center border border-teal-100">
+                    {getDisplayTime(res)}
+                </div>
+                <div className="flex-1">
+                    <h3 className="text-xl font-bold text-gray-800">
+                        {getDisplayName(res.customerName)}
+                    </h3>
+                    {isGameDescription(res.customerName) && (
+                        <p className="text-xs text-gray-500 mb-1 italic">{res.customerName}</p>
+                    )}
+                    <div className="flex flex-wrap items-center gap-3 text-sm text-gray-500 mt-1">
+                    <span className={`px-2 py-0.5 rounded text-xs font-bold uppercase tracking-wide
+                        ${res.eventType === 'birthday' ? 'bg-green-100 text-green-700' : 
+                        res.eventType === 'teambuilding' ? 'bg-purple-100 text-purple-700' : 
+                        'bg-gray-100 text-gray-700'}`}>
+                        {res.eventType || 'Evento'}
+                    </span>
+                    <span className="flex items-center gap-1 bg-gray-50 px-2 py-0.5 rounded border border-gray-100">
+                        <UserGroupIcon className="w-4 h-4"/> 
+                        {/* Mostra quantos já fizeram checkin */}
+                        {res.clients?.length || 0} / {getTotalPeople(res)} Registados
+                    </span>
+                    {res.marketingSource && (
+                        <span className="text-xs text-green-600 flex items-center gap-1 bg-green-50 px-2 py-0.5 rounded border border-green-100">
+                        <CheckBadgeIcon className="w-3 h-3"/> {res.marketingSource}
+                        </span>
+                    )}
                     </div>
                 </div>
-
+                </div>
+                
                 {/* BOTÃO ÚNICO - ESCURO E SÓLIDO */}
                 <button 
                 onClick={() => openModal(res)}
@@ -227,7 +251,7 @@ export default function CheckInDashboard() {
         )}
       </div>
 
-      {/* MODAL PRINCIPAL */}
+      {/* MODAL */}
       {selectedRes && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-in fade-in">
           <div className="bg-white rounded-2xl p-8 max-w-lg w-full shadow-2xl relative max-h-[90vh] overflow-y-auto">
@@ -242,29 +266,40 @@ export default function CheckInDashboard() {
             </div>
 
             {!showQR ? (
-              // FASE 1: PERGUNTA DE MARKETING
               <div className="space-y-6">
                 <div>
-                  <label className="block text-sm font-bold text-gray-700 mb-2">De onde ouviu falar do The Park?</label>
+                  <label className="block text-sm font-bold text-gray-700 mb-2">
+                    De onde ouviu falar do The Park?
+                  </label>
+                  
+                  {/* INPUT DE TEXTO LIVRE */}
                   <input 
-                    type="text" 
+                    type="text"
                     value={marketingSource} 
-                    onChange={(e) => setMarketingSource(e.target.value)} 
-                    placeholder="Ex: TikTok, Amigo, Instagram..." 
-                    className="w-full p-4 border border-gray-300 rounded-xl outline-none focus:ring-2 focus:ring-teal-500 bg-gray-50 text-gray-900" 
-                    autoFocus 
+                    onChange={(e) => setMarketingSource(e.target.value)}
+                    placeholder="Ex: TikTok, Amigo, Instagram..."
+                    className="w-full p-4 border border-gray-300 rounded-xl outline-none focus:ring-2 focus:ring-teal-500 bg-gray-50 text-gray-900 placeholder:text-gray-400"
+                    autoFocus
                   />
+                  <p className="text-xs text-gray-500 mt-2">Escreva exatamente o que o cliente disser.</p>
                 </div>
-                <button onClick={handleSourceSubmit} disabled={!marketingSource.trim()} className="w-full py-4 bg-teal-600 text-white rounded-xl font-bold hover:bg-teal-700 disabled:opacity-50 transition-all">
+
+                <button 
+                  onClick={handleSourceSubmit}
+                  disabled={!marketingSource.trim()}
+                  className="w-full py-4 bg-teal-600 text-white rounded-xl font-bold hover:bg-teal-700 disabled:opacity-50 transition-all shadow-lg shadow-teal-200"
+                >
                   Confirmar e Gerar QR
                 </button>
               </div>
             ) : (
-              // FASE 2: QR CODE + LISTA DE INSCRITOS
               <div className="space-y-8">
                 <div className="flex flex-col items-center text-center space-y-4">
                     <div className="bg-white p-4 rounded-xl border-2 border-dashed border-gray-300">
-                    <QRCode value={`${siteUrl}/checkin/cliente/${selectedRes._id}`} size={200} />
+                        <QRCode 
+                            value={`${siteUrl}/checkin/cliente/${selectedRes._id}`} 
+                            size={200}
+                        />
                     </div>
                     <div>
                         <p className="font-bold text-lg text-gray-900">Mostre ao cliente</p>
@@ -272,7 +307,7 @@ export default function CheckInDashboard() {
                     </div>
                 </div>
 
-                {/* LISTA DE INSCRITOS DENTRO DO MODAL */}
+                {/* 🔥 LISTA DE INSCRITOS DENTRO DO MODAL */}
                 <div className="bg-gray-50 rounded-xl p-4 border border-gray-100">
                     <h3 className="font-bold text-gray-800 mb-3 flex justify-between items-center">
                         Inscritos 
@@ -293,8 +328,11 @@ export default function CheckInDashboard() {
                     )}
                 </div>
 
-                <button onClick={closeModal} className="w-full py-3 bg-gray-100 text-gray-700 rounded-xl hover:bg-gray-200 font-bold">
-                    Fechar
+                <button 
+                  onClick={closeModal}
+                  className="w-full py-3 bg-gray-100 text-gray-700 rounded-xl hover:bg-gray-200 font-bold"
+                >
+                  Concluído
                 </button>
               </div>
             )}
