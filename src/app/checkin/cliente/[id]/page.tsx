@@ -4,13 +4,19 @@ import { useParams } from 'next/navigation';
 
 export default function PaginaWaiverCliente() {
   const params = useParams();
-  // Garante que o ID existe, senão usa string vazia
   const reservationId = params?.id ? (Array.isArray(params.id) ? params.id[0] : params.id) : '';
+
+  // Estados para a Data de Nascimento
+  const [day, setDay] = useState('');
+  const [month, setMonth] = useState('');
+  const [year, setYear] = useState('');
+
+  // Estado para os Termos e Condições
+  const [acceptedTerms, setAcceptedTerms] = useState(false);
 
   const [formData, setFormData] = useState({
     firstName: '',
     lastName: '',
-    dob: '',
     email: '',
     phone: ''
   });
@@ -21,17 +27,39 @@ export default function PaginaWaiverCliente() {
     e.preventDefault();
     setIsSubmitting(true);
     
+    // 1. Validação da Data
+    if(!day || !month || !year) {
+        alert("Por favor preencha a data de nascimento completa.");
+        setIsSubmitting(false);
+        return;
+    }
+
+    // 2. Validação dos Termos (Obrigatório)
+    if (!acceptedTerms) {
+        alert("Tem de aceitar os Termos e Condições para continuar.");
+        setIsSubmitting(false);
+        return;
+    }
+
+    // Criar a data no formato padrão YYYY-MM-DD
+    const finalDob = `${year}-${month}-${day.padStart(2, '0')}`;
+
     try {
       const res = await fetch('/api/checkin/save-client', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...formData, reservationId })
+        body: JSON.stringify({ 
+            ...formData, 
+            dob: finalDob, 
+            reservationId 
+        })
       });
       
       if(res.ok) {
         setDone(true);
       } else {
-        alert("Erro ao guardar. Tente novamente.");
+        const err = await res.json();
+        alert(err.error || "Erro ao guardar. Tente novamente.");
       }
       
     } catch (error) {
@@ -57,12 +85,12 @@ export default function PaginaWaiverCliente() {
       <div className="w-full max-w-md bg-white rounded-2xl shadow-xl overflow-hidden">
         
         {/* Header da Página */}
-        <div className="bg-teal-600 p-6 text-white text-center">
+        <div className="bg-gray-900 p-6 text-white text-center">
           <h1 className="text-xl font-bold uppercase tracking-widest">The Park</h1>
-          <p className="text-teal-100 text-xs mt-1">Registo de Participante</p>
+          <p className="text-gray-400 text-xs mt-1">Registo de Participante</p>
         </div>
 
-        <form onSubmit={handleSubmit} className="p-6 space-y-4">
+        <form onSubmit={handleSubmit} className="p-6 space-y-5">
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="text-xs font-bold text-gray-500 uppercase mb-1 block">Nome *</label>
@@ -88,15 +116,49 @@ export default function PaginaWaiverCliente() {
             </div>
           </div>
 
+          {/* DATA DE NASCIMENTO (3 CAMPOS) */}
           <div>
             <label className="text-xs font-bold text-gray-500 uppercase mb-1 block">Data de Nascimento *</label>
-            <input 
-              required 
-              type="date" 
-              className="w-full p-3 bg-gray-50 border border-gray-200 rounded-lg outline-none focus:ring-2 focus:ring-teal-500 transition-all" 
-              value={formData.dob} 
-              onChange={e => setFormData({...formData, dob: e.target.value})} 
-            />
+            <div className="flex gap-2">
+                <input 
+                    required
+                    type="tel" 
+                    maxLength={2}
+                    placeholder="Dia"
+                    className="w-20 p-3 bg-gray-50 border border-gray-200 rounded-lg outline-none focus:ring-2 focus:ring-teal-500 text-center"
+                    value={day}
+                    onChange={e => setDay(e.target.value.replace(/\D/g, ''))}
+                />
+                <select 
+                    required
+                    className="flex-1 p-3 bg-gray-50 border border-gray-200 rounded-lg outline-none focus:ring-2 focus:ring-teal-500"
+                    value={month}
+                    onChange={e => setMonth(e.target.value)}
+                >
+                    <option value="" disabled>Mês</option>
+                    <option value="01">Janeiro</option>
+                    <option value="02">Fevereiro</option>
+                    <option value="03">Março</option>
+                    <option value="04">Abril</option>
+                    <option value="05">Maio</option>
+                    <option value="06">Junho</option>
+                    <option value="07">Julho</option>
+                    <option value="08">Agosto</option>
+                    <option value="09">Setembro</option>
+                    <option value="10">Outubro</option>
+                    <option value="11">Novembro</option>
+                    <option value="12">Dezembro</option>
+                </select>
+                <input 
+                    required
+                    type="tel" 
+                    maxLength={4}
+                    placeholder="Ano"
+                    className="w-24 p-3 bg-gray-50 border border-gray-200 rounded-lg outline-none focus:ring-2 focus:ring-teal-500 text-center"
+                    value={year}
+                    onChange={e => setYear(e.target.value.replace(/\D/g, ''))}
+                />
+            </div>
           </div>
 
           <div>
@@ -123,18 +185,29 @@ export default function PaginaWaiverCliente() {
             />
           </div>
 
+          {/* CHECKBOX TERMOS E CONDIÇÕES */}
+          <div className="flex items-start gap-3 pt-2">
+            <input 
+                id="terms"
+                type="checkbox" 
+                required
+                checked={acceptedTerms}
+                onChange={(e) => setAcceptedTerms(e.target.checked)}
+                className="w-5 h-5 mt-0.5 text-teal-600 border-gray-300 rounded focus:ring-teal-500 cursor-pointer"
+            />
+            <label htmlFor="terms" className="text-sm text-gray-600 cursor-pointer select-none">
+                Li e aceito os <span className="text-teal-600 font-bold underline">Termos e Condições</span> e a Política de Privacidade do The Park. *
+            </label>
+          </div>
+
           <button 
             type="submit" 
             disabled={isSubmitting}
-            className="w-full py-4 bg-teal-600 text-white font-bold rounded-xl mt-4 hover:bg-teal-700 transition-all active:scale-95 disabled:opacity-50 shadow-lg shadow-teal-200"
+            className="w-full py-4 bg-gray-900 text-white font-bold rounded-xl mt-4 hover:bg-black transition-all active:scale-95 disabled:opacity-50 shadow-lg"
           >
             {isSubmitting ? 'A guardar...' : 'Confirmar Registo'}
           </button>
         </form>
-        
-        <div className="bg-gray-50 p-4 text-center text-[10px] text-gray-400 border-t border-gray-100">
-          Ao clicar em confirmar, aceita os termos e condições do The Park.
-        </div>
       </div>
     </div>
   );
