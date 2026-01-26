@@ -4,8 +4,7 @@ import Link from 'next/link';
 import { 
   ArrowLeftIcon, 
   MagnifyingGlassIcon, 
-  UserGroupIcon,
-  DocumentArrowDownIcon // Ícone para exportar (futuro)
+  UserGroupIcon
 } from '@heroicons/react/24/outline';
 
 interface ClientData {
@@ -22,6 +21,7 @@ interface ClientData {
 export default function ClientesDatabase() {
   const [clients, setClients] = useState<ClientData[]>([]);
   const [loading, setLoading] = useState(true);
+  const [errorMsg, setErrorMsg] = useState(""); // Novo estado para erros
   const [searchTerm, setSearchTerm] = useState("");
 
   useEffect(() => {
@@ -31,18 +31,23 @@ export default function ClientesDatabase() {
   const fetchClients = async () => {
     try {
       const res = await fetch('/api/clients');
-      if (res.ok) {
-        const data = await res.json();
-        setClients(data);
+      const data = await res.json();
+      
+      console.log("DADOS RECEBIDOS NO FRONTEND:", data);
+
+      if (!res.ok) {
+        throw new Error(data.error || "Erro na API");
       }
-    } catch (error) {
-      console.error(error);
+      
+      setClients(data);
+    } catch (error: any) {
+      console.error("Erro fetch:", error);
+      setErrorMsg(error.message);
     } finally {
       setLoading(false);
     }
   };
 
-  // Filtrar clientes com base na pesquisa
   const filteredClients = clients.filter(c => 
     c.firstName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     c.lastName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -70,12 +75,11 @@ export default function ClientesDatabase() {
             </p>
           </div>
 
-          {/* BARRA DE PESQUISA */}
           <div className="relative w-full md:w-96">
             <MagnifyingGlassIcon className="h-5 w-5 absolute left-3 top-3 text-gray-400" />
             <input 
               type="text" 
-              placeholder="Pesquisar por nome, email ou telemóvel..." 
+              placeholder="Pesquisar..." 
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="w-full pl-10 pr-4 py-3 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 shadow-sm"
@@ -87,8 +91,15 @@ export default function ClientesDatabase() {
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
           {loading ? (
             <div className="p-12 text-center text-gray-500">A carregar clientes...</div>
+          ) : errorMsg ? (
+             <div className="p-12 text-center text-red-500 font-bold">
+                ERRO: {errorMsg}
+             </div>
           ) : filteredClients.length === 0 ? (
-            <div className="p-12 text-center text-gray-500">Nenhum cliente encontrado.</div>
+            <div className="p-12 text-center text-gray-500">
+                <p>Nenhum cliente encontrado.</p>
+                <p className="text-xs mt-2">Dica: Se acabou de preencher, verifique se deu 'Sucesso' no telemóvel.</p>
+            </div>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-left">
@@ -97,24 +108,19 @@ export default function ClientesDatabase() {
                     <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Nome</th>
                     <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Email</th>
                     <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Telemóvel</th>
-                    <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Data Nasc.</th>
                     <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Última Visita</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
-                  {filteredClients.map((client) => (
-                    <tr key={client._id} className="hover:bg-gray-50 transition-colors">
-                      <td className="px-6 py-4">
-                        <div className="font-bold text-gray-900">{client.firstName} {client.lastName}</div>
-                      </td>
+                  {filteredClients.map((client, idx) => (
+                    <tr key={idx} className="hover:bg-gray-50 transition-colors">
+                      <td className="px-6 py-4 font-bold text-gray-900">{client.firstName} {client.lastName}</td>
                       <td className="px-6 py-4 text-gray-600">{client.email}</td>
                       <td className="px-6 py-4 text-gray-600">{client.phone}</td>
-                      <td className="px-6 py-4 text-gray-600">{client.dob}</td>
                       <td className="px-6 py-4">
                         <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-indigo-100 text-indigo-800">
                           {client.visitDate}
                         </span>
-                        <div className="text-xs text-gray-400 mt-1 uppercase">{client.eventType}</div>
                       </td>
                     </tr>
                   ))}
