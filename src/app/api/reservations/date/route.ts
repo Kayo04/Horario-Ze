@@ -25,8 +25,6 @@ export async function GET(req: Request) {
     console.log("🔍 Procurando reservas para o dia:", dateParam);
 
     // ESTRATÉGIA DE BUSCA DUPLA:
-    // 1. Procura pelo campo 'date' exato (formato antigo)
-    // 2. OU procura pelo campo 'datetime' que comece pela data (formato novo)
     const reservations = await Reservation.find({
       $or: [
         { date: dateParam }, // Encontra "2026-01-25"
@@ -37,7 +35,8 @@ export async function GET(req: Request) {
     console.log("✅ Encontradas:", reservations.length);
 
     // Ajustar os dados para o Frontend (normalizar)
-    const normalizedData = reservations.map(res => ({
+    // 🔥 CORREÇÃO AQUI: Adicionei (res: any) para o TypeScript não dar erro no build
+    const normalizedData = reservations.map((res: any) => ({
         ...res.toObject(),
         _id: res._id.toString(),
         // Garante que datetime existe para o frontend usar
