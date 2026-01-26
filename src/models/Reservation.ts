@@ -76,4 +76,10 @@ ReservationSchema.virtual('totalPax').get(function() {
 ReservationSchema.set('toJSON', { virtuals: true });
 ReservationSchema.set('toObject', { virtuals: true });
 
-export default mongoose.models.Reservation || mongoose.model<IReservationDocument>('Reservation', ReservationSchema);
+// 🔥 ESTA É A PARTE IMPORTANTE:
+// Se o modelo já existir na memória (cache), apagamo-lo para forçar o Mongoose a usar o novo Schema
+if (mongoose.models.Reservation) {
+  delete mongoose.models.Reservation;
+}
+
+export default mongoose.model<IReservationDocument>('Reservation', ReservationSchema);
