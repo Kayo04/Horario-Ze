@@ -12,14 +12,17 @@ export async function POST(req: Request) {
       await mongoose.connect(MONGODB_URI);
     }
 
-    const { id, source } = await req.json();
+    const { id, source, notes } = await req.json();
 
     if (!id || !source) {
-        return NextResponse.json({ error: 'Dados em falta' }, { status: 400 });
+      return NextResponse.json({ error: 'Dados em falta' }, { status: 400 });
     }
 
-    // Atualiza a reserva com o marketingSource
-    await Reservation.findByIdAndUpdate(id, { marketingSource: source });
+    // Atualiza a reserva com o marketingSource e notas (se existirem)
+    await Reservation.findByIdAndUpdate(id, {
+      marketingSource: source,
+      marketingNotes: notes || "" // Guarda string vazia se undefined
+    });
 
     return NextResponse.json({ success: true });
   } catch (error: any) {

@@ -27,7 +27,7 @@ export async function getReservations(): Promise<Reservation[]> {
       .find({})
       .sort({ date: 1, startTime: 1 })
       .toArray()
-    
+
     return reservations.map(res => ({
       id: res._id.toString(),
       eventType: res.eventType,
@@ -132,22 +132,27 @@ export async function cleanupPastReservations(): Promise<number> {
   try {
     const client = await clientPromise
     const db = client.db(DB_NAME)
-    
+
     const now = new Date()
     const currentDate = now.toISOString().split('T')[0] // YYYY-MM-DD
     const currentTime = now.toTimeString().slice(0, 5) // HH:MM
-    
+
     const result = await db
       .collection(COLLECTION)
-      .deleteMany({
-        $or: [
-          { date: { $lt: currentDate } },
-          { date: currentDate, endTime: { $lt: currentTime } }
-        ]
-      })
-    
-    console.log(`✅ Limpeza automática: ${result.deletedCount} eventos passados eliminados`)
-    return result.deletedCount
+    // .deleteMany({
+    //   $or: [
+    //     { date: { $lt: currentDate } },
+    //     { date: currentDate, endTime: { $lt: currentTime } }
+    //   ]
+    // })
+    // Simular resultado vazio para não partir nada
+    { deletedCount: 0 }
+
+    // ⚠️ ALTERAÇÃO CRÍTICA: Desativada a limpeza para manter histórico para estatísticas
+    // console.log(`✅ Limpeza automática: ${result.deletedCount} eventos passados eliminados`)
+    // return result.deletedCount
+    console.log('ℹ️ Limpeza automática DESATIVADA para manter histórico.')
+    return 0
   } catch (error) {
     console.error('❌ Erro na limpeza automática:', error)
     return 0

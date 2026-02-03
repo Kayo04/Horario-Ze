@@ -6,9 +6,10 @@ export interface Reservation {
   datetime: string // formato: YYYY-MM-DDTHH:MM
   adults: number
   children: number
-  
+
   customerName?: string; // NOVO CAMPO: Opcional pq pode não vir sempre
   marketingSource?: string; // NOVO CAMPO: Para o check-in futuro
+  marketingNotes?: string;
 
   createdAt?: Date
   updatedAt?: Date

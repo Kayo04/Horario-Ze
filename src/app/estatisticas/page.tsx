@@ -179,6 +179,78 @@ export default function EstatisticasPage() {
           Powered by Global Counter API • Base calculada a partir de 27/11/2025
         </div>
 
+        {/* 🔥 MARKETING STATS SECTION */}
+        <MarketingStats />
+
+      </div>
+    </div>
+  );
+}
+
+// COMPONENTE EXTRA PARA MARKETING
+function MarketingStats() {
+  const [data, setData] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetch('/api/statistics/marketing')
+      .then(res => res.json())
+      .then(res => {
+        setData(res);
+        setLoading(false);
+      })
+      .catch(err => {
+        console.error(err);
+        setLoading(false);
+      });
+  }, []);
+
+  if (loading) return <div className="mt-12 text-center text-gray-400">A carregar dados de marketing...</div>;
+  if (!data || data.length === 0) return null; // Não mostra nada se não houver dados
+
+  return (
+    <div className="mt-12 bg-white rounded-3xl p-8 shadow-lg border border-gray-100">
+      <h2 className="text-2xl font-bold text-gray-900 mb-6 flex items-center gap-2">
+        <GlobeAltIcon className="w-6 h-6 text-indigo-600" />
+        Origem dos Clientes
+      </h2>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+        
+        {/* LADO ESQUERDO: LISTA */}
+        <div className="space-y-4">
+          {data.map((item: any, idx: number) => (
+            <div key={idx} className="flex items-center justify-between p-4 bg-gray-50 rounded-xl border border-gray-100">
+              <div className="flex items-center gap-3">
+                <span className="w-8 h-8 flex items-center justify-center bg-indigo-100 text-indigo-700 font-bold rounded-full text-sm">
+                  {idx + 1}
+                </span>
+                <span className="font-semibold text-gray-800">{item._id}</span>
+              </div>
+              <span className="text-xl font-black text-indigo-600">{item.count}</span>
+            </div>
+          ))}
+        </div>
+
+        {/* LADO DIREITO: NOTAS DE "OUTRO" */}
+        <div className="bg-gray-50 rounded-2xl p-6 border border-gray-100 max-h-[400px] overflow-y-auto">
+          <h3 className="text-sm font-bold text-gray-500 uppercase tracking-wider mb-4">
+             Observações (Outro/Notas)
+          </h3>
+          
+          {data.flatMap(d => d.notes || []).length === 0 ? (
+            <p className="text-sm text-gray-400 italic">Sem observações registadas.</p>
+          ) : (
+            <ul className="space-y-3">
+              {data.flatMap((d: any) => d.notes || []).map((note: string, idx: number) => (
+                <li key={idx} className="text-sm text-gray-600 border-l-2 border-indigo-300 pl-3 italic">
+                  "{note}"
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+
       </div>
     </div>
   );

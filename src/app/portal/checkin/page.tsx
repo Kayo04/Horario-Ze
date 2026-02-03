@@ -34,12 +34,14 @@ interface CheckInReservation {
     email: string;
     phone: string;
   }[];
+  marketingNotes?: string; // NOVO CAMPO: Notas adicionais
 }
 
 export default function CheckInDashboard() {
   const [reservations, setReservations] = useState<CheckInReservation[]>([]);
   const [selectedRes, setSelectedRes] = useState<CheckInReservation | null>(null);
   const [marketingSource, setMarketingSource] = useState("");
+  const [notes, setNotes] = useState(""); // NOVO STATE
   const [showQR, setShowQR] = useState(false);
   const [siteUrl, setSiteUrl] = useState("");
   const [loading, setLoading] = useState(true);
@@ -87,11 +89,16 @@ export default function CheckInDashboard() {
        const res = await fetch('/api/checkin/save-source', {
          method: 'POST',
          headers: { 'Content-Type': 'application/json' },
-         body: JSON.stringify({ id: selectedRes._id, source: marketingSource })
+         body: JSON.stringify({ 
+           id: selectedRes._id, 
+           source: marketingSource,
+           notes: notes // Envia as notas também
+         })
        });
        
        if (res.ok) {
            selectedRes.marketingSource = marketingSource;
+           selectedRes.marketingNotes = notes; // Atualiza localmente
            setShowQR(true);
        } else {
            alert("Erro ao gravar. Tente novamente.");
@@ -106,9 +113,11 @@ export default function CheckInDashboard() {
     // Se já tiver marketing preenchido, mostra logo o QR Code
     if (res.marketingSource) {
       setMarketingSource(res.marketingSource);
+      setNotes(res.marketingNotes || "");
       setShowQR(true);
     } else {
       setMarketingSource("");
+      setNotes("");
       setShowQR(false);
     }
   };
@@ -117,6 +126,7 @@ export default function CheckInDashboard() {
     setShowQR(false);
     setSelectedRes(null);
     setMarketingSource("");
+    setNotes("");
   };
 
   // HELPER FUNCTIONS
@@ -273,15 +283,37 @@ export default function CheckInDashboard() {
                   </label>
                   
                   {/* INPUT DE TEXTO LIVRE */}
-                  <input 
-                    type="text"
-                    value={marketingSource} 
+                  {/* SELETOR DE ORIGEM */}
+                  <select 
+                    value={marketingSource}
                     onChange={(e) => setMarketingSource(e.target.value)}
-                    placeholder="Ex: TikTok, Amigo, Instagram..."
-                    className="w-full p-4 border border-gray-300 rounded-xl outline-none focus:ring-2 focus:ring-teal-500 bg-gray-50 text-gray-900 placeholder:text-gray-400"
-                    autoFocus
-                  />
-                  <p className="text-xs text-gray-500 mt-2">Escreva exatamente o que o cliente disser.</p>
+                    className="w-full p-4 border border-gray-300 rounded-xl outline-none focus:ring-2 focus:ring-teal-500 bg-gray-50 text-gray-900 mb-4"
+                  >
+                    <option value="" disabled>Selecione uma opção...</option>
+                    <option value="Instagram">Instagram</option>
+                    <option value="TikTok">TikTok</option>
+                    <option value="Facebook">Facebook</option>
+                    <option value="Google">Google / Website</option>
+                    <option value="Amigo/Recomendação">Amigo / Recomendação</option>
+                    <option value="Passava a pé">Passava a pé</option>
+                    <option value="Outro">Outro (Escreva abaixo)</option>
+                  </select>
+
+                  {/* SELECIONOU 'OUTRO' OU QUER DAR NOTAS */}
+                  {marketingSource === 'Outro' && (
+                    <div className="animate-in fade-in slide-in-from-top-2 duration-300">
+                      <label className="block text-sm font-bold text-gray-700 mb-2">
+                         Detalhes (O que o cliente disse exatamente):
+                      </label>
+                      <textarea
+                        value={notes} 
+                        onChange={(e) => setNotes(e.target.value)}
+                        placeholder="Ex: Vi um flyer no café..."
+                        className="w-full p-4 border border-gray-300 rounded-xl outline-none focus:ring-2 focus:ring-teal-500 bg-white text-gray-900 placeholder:text-gray-400 min-h-[100px]"
+                        autoFocus
+                      />
+                    </div>
+                  )}
                 </div>
 
                 <button 
