@@ -77,7 +77,7 @@
 
   // --- CONFIGURAÇÃO ---
   const TIME_SLOTS = [
-    '09:30 - 10:00', '10:00 - 10:30', '10:30 - 11:00', '11:00 - 11:30',
+    '09:00 - 09:30', '09:30 - 10:00', '10:00 - 10:30', '10:30 - 11:00', '11:00 - 11:30',
     '11:30 - 12:00', '12:00 - 12:30', '12:30 - 13:00', '13:00 - 13:30',
     '13:30 - 14:00', '14:00 - 14:30', '14:30 - 15:00', '15:00 - 15:30',
     '15:30 - 16:00', '16:00 - 16:30', '16:30 - 17:00', '17:00 - 17:30',
@@ -1088,7 +1088,7 @@
         const startOfWeek = new Date(selectedDate);
         const demandMap: Record<string, number[]> = {};
 
-        const STORE_OPEN_MIN = 9 * 60 + 30; // 09:30
+        const STORE_OPEN_MIN = 9 * 60; // 09:00
         const MIN_SHIFT_SLOTS = 4;
 
         // 1. CALCULAR DEMAND
@@ -1102,11 +1102,14 @@
           const isWeekend = dayIdx === 5 || dayIdx === 6;
 
           if (isWeekend) {
+            const WEEKEND_DEFAULT_START_MIN = 10 * 60; // 10:00
             TIME_SLOTS.forEach((slot, i) => {
               const [sStart] = slot.split(' - ');
               const slotStartMin = timeToMin(sStart);
               const WEEKEND_LIMIT_MIN = 20 * 60; // 20:00
-              if (slotStartMin >= STORE_OPEN_MIN && slotStartMin < WEEKEND_LIMIT_MIN) {
+              
+              // Only apply default staff (3) from 10:00 onwards
+              if (slotStartMin >= WEEKEND_DEFAULT_START_MIN && slotStartMin < WEEKEND_LIMIT_MIN) {
                 demandMap[dateString][i] = 3;
               }
             });
@@ -1299,21 +1302,23 @@
                   if (dailyHours[b.id] > 0) hoursB += 50;
 
                   // 🔥 LÓGICA DE VANTAGEM INDIVIDUAL (TR apenas)
-                  if (a.code === 'TR') hoursA -= 4;
-                  if (b.code === 'TR') hoursB -= 4;
+                  if (a.code === 'TR') {
+                    hoursA -= 8; // Boost base
+                    // Boost EXTRA Sábado de Manhã (até 14h)
+                    if (dayIdx === 5 && shiftStartMin < 14 * 60) {
+                      hoursA -= 100; // Prioridade MÁXIMA
+                    }
+                  }
+                  if (b.code === 'TR') {
+                    hoursB -= 8; // Boost base
+                    // Boost EXTRA Sábado de Manhã (até 14h)
+                    if (dayIdx === 5 && shiftStartMin < 14 * 60) {
+                      hoursB -= 100; // Prioridade MÁXIMA
+                    }
+                  }
 
-                  // 🔥 LÓGICA DE AFINIDADE (DO+MO e NR+HN)
-                  // Bónus muito forte (5000h) para garantir que ficam juntos
-                  const affinityBonus = 5000;
-
-                  const isAMissingPartnerDO_MO = (a.code === 'DO' && currentStaffInSlot.includes('MO')) || (a.code === 'MO' && currentStaffInSlot.includes('DO'));
-                  const isBMissingPartnerDO_MO = (b.code === 'DO' && currentStaffInSlot.includes('MO')) || (b.code === 'MO' && currentStaffInSlot.includes('DO'));
-
-                  const isAMissingPartnerNR_HN = (a.code === 'NR' && currentStaffInSlot.includes('HN')) || (a.code === 'HN' && currentStaffInSlot.includes('NR'));
-                  const isBMissingPartnerNR_HN = (b.code === 'NR' && currentStaffInSlot.includes('HN')) || (b.code === 'HN' && currentStaffInSlot.includes('NR'));
-                  
-                  if (isAMissingPartnerDO_MO || isAMissingPartnerNR_HN) hoursA -= affinityBonus;
-                  if (isBMissingPartnerDO_MO || isBMissingPartnerNR_HN) hoursB -= affinityBonus;
+                  // 🔥 LÓGICA DE AFINIDADE REMOVIDA
+                  // Anteriormente forçava DO+MO e NR+HN juntos. Agora tratamos todos iguais.
 
                   if (Math.abs(hoursA - hoursB) > 2) {
                     return hoursA - hoursB;
