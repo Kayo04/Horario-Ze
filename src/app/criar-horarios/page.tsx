@@ -703,7 +703,7 @@
       if (isInAllCells) {
         editingCells.forEach(cell => {
           if (newSchedule[cell.slot]?.[cell.day]) {
-            newSchedule[cell.slot][cell.day] = newSchedule[cell.slot][cell.day].filter(c => c !== code).sort();
+            newSchedule[cell.slot][cell.day] = newSchedule[cell.slot][cell.day].filter(c => c !== code).sort((a, b) => a === 'TR' ? -1 : b === 'TR' ? 1 : a.localeCompare(b));
           }
         });
       } else {
@@ -715,7 +715,7 @@
           if (emp && checkSpecificSlotAvailability(emp, cell)) {
               const currentStaff = [...newSchedule[cell.slot][cell.day]];
               if (!currentStaff.includes(code)) {
-                newSchedule[cell.slot][cell.day] = [...currentStaff, code].sort();
+                newSchedule[cell.slot][cell.day] = [...currentStaff, code].sort((a, b) => a === 'TR' ? -1 : b === 'TR' ? 1 : a.localeCompare(b));
               }
           }
         });
@@ -730,7 +730,7 @@
       const newSchedule = { ...schedule };
       editingCells.forEach(cell => {
         if (!newSchedule[cell.slot]) newSchedule[cell.slot] = {};
-        const newStaff = [...codes].sort();
+        const newStaff = [...codes].sort((a, b) => a === 'TR' ? -1 : b === 'TR' ? 1 : a.localeCompare(b));
         newSchedule[cell.slot][cell.day] = newStaff;
       });
       setSchedule(newSchedule);
@@ -934,7 +934,7 @@
 
         TIME_SLOTS.forEach(slot => {
           WEEK_DAYS.forEach(day => {
-            newSchedule[slot][day] = Array.from(new Set(newSchedule[slot][day])).sort();
+            newSchedule[slot][day] = Array.from(new Set(newSchedule[slot][day])).sort((a, b) => a === 'TR' ? -1 : b === 'TR' ? 1 : a.localeCompare(b));
           });
         });
 
@@ -1301,24 +1301,45 @@
                   if (dailyHours[a.id] > 0) hoursA += 50; 
                   if (dailyHours[b.id] > 0) hoursB += 50;
 
+                  // 🔥 PENALIZAÇÃO HN (User Request): HN deve ter menos turnos, simulamos +50h
+                  if (a.code === 'HN') hoursA += 5;
+                  if (b.code === 'HN') hoursB += 5;
+
+                  // 🔥 SEPARAÇÃO HN + NR (User Request): Evitar que fiquem juntos
+                  // Verificar se no turno que vamos preencher já existe o "inimigo"
+                  let shiftHasNR = false;
+                  let shiftHasHN = false;
+                  
+                  // Verificar toda a duração do turno proposto para ver quem já lá está
+                  const staffInFullShift = new Set<string>();
+                  for (let k = shift.s; k < shift.e; k++) {
+                      (newSchedule[TIME_SLOTS[k]]?.[dayName] || []).forEach(c => staffInFullShift.add(c));
+                  }
+                  
+                  if (staffInFullShift.has('NR')) shiftHasNR = true;
+                  if (staffInFullShift.has('HN')) shiftHasHN = true;
+
+                  if (a.code === 'HN' && shiftHasNR) hoursA += 5000;
+                  if (a.code === 'NR' && shiftHasHN) hoursA += 5000;
+
+                  if (b.code === 'HN' && shiftHasNR) hoursB += 5000;
+                  if (b.code === 'NR' && shiftHasHN) hoursB += 5000;
+
                   // 🔥 LÓGICA DE VANTAGEM INDIVIDUAL (TR apenas)
                   if (a.code === 'TR') {
-                    hoursA -= 8; // Boost base
+                    hoursA -= 6; // Boost base
                     // Boost EXTRA Sábado de Manhã (até 14h)
                     if (dayIdx === 5 && shiftStartMin < 14 * 60) {
                       hoursA -= 100; // Prioridade MÁXIMA
                     }
                   }
                   if (b.code === 'TR') {
-                    hoursB -= 8; // Boost base
+                    hoursB -= 6; // Boost base
                     // Boost EXTRA Sábado de Manhã (até 14h)
                     if (dayIdx === 5 && shiftStartMin < 14 * 60) {
                       hoursB -= 100; // Prioridade MÁXIMA
                     }
                   }
-
-                  // 🔥 LÓGICA DE AFINIDADE REMOVIDA
-                  // Anteriormente forçava DO+MO e NR+HN juntos. Agora tratamos todos iguais.
 
                   if (Math.abs(hoursA - hoursB) > 2) {
                     return hoursA - hoursB;
@@ -1346,7 +1367,7 @@
         TIME_SLOTS.forEach(slot => {
           WEEK_DAYS.forEach(day => {
             if (newSchedule[slot] && newSchedule[slot][day]) {
-              newSchedule[slot][day].sort();
+              newSchedule[slot][day].sort((a, b) => a === 'TR' ? -1 : b === 'TR' ? 1 : a.localeCompare(b));
             }
           });
         });
