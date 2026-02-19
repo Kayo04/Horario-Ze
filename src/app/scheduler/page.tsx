@@ -63,11 +63,15 @@ type Slot = {
 /* ---------- Função de Horas (10:00 - 20:00) ---------- */
 const generateWorkingTimeOptions = () => {
   const options = []
-  for (let hour = 9; hour <= 20; hour++) {
+  // From 09:00 to 24:00 (which is 00:00)
+  for (let hour = 9; hour <= 24; hour++) {
     for (let minute = 0; minute < 60; minute += 15) {
-      if (hour === 9 && minute < 30) continue;
-      if (hour === 20 && minute > 0) continue;
-      const timeString = `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`
+      if (hour === 24 && minute > 0) continue; // Stop at 24:00 (00:00)
+      
+      let displayHour = hour;
+      if (hour === 24) displayHour = 0; // Display 24:00 as 00:00
+      
+      const timeString = `${displayHour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`
       options.push(timeString)
     }
   }
@@ -671,7 +675,16 @@ export default function SchedulerPage(): JSX.Element {
     try {
       if (!start || !end) return 0;
       const [startHour, startMinute] = start.split(':').map(Number)
-      const [endHour, endMinute] = end.split(':').map(Number)
+      let [endHour, endMinute] = end.split(':').map(Number)
+      
+      // Handle midnight (00:00) as end of day (24:00) relative to start time
+      if (endHour === 0 && startHour > 0) {
+        endHour = 24
+      } else if (endHour < startHour) {
+         // Case like start 23:00, end 01:00 (crossing midnight)
+         endHour += 24
+      }
+
       const startTotalMinutes = startHour * 60 + startMinute
       const endTotalMinutes = endHour * 60 + endMinute
       const duration = (endTotalMinutes - startTotalMinutes) / 60

@@ -1309,8 +1309,6 @@
                   // Verificar se no turno que vamos preencher já existe o "inimigo"
                   let shiftHasNR = false;
                   let shiftHasHN = false;
-                  let shiftHasMO = false;
-                  let shiftHasDO = false;
                   
                   // Verificar toda a duração do turno proposto para ver quem já lá está
                   const staffInFullShift = new Set<string>();
@@ -1320,18 +1318,12 @@
                   
                   if (staffInFullShift.has('NR')) shiftHasNR = true;
                   if (staffInFullShift.has('HN')) shiftHasHN = true;
-                  if (staffInFullShift.has('MO')) shiftHasMO = true;
-                  if (staffInFullShift.has('DO')) shiftHasDO = true;
 
                   if (a.code === 'HN' && shiftHasNR) hoursA += 5000;
                   if (a.code === 'NR' && shiftHasHN) hoursA += 5000;
-                  if (a.code === 'MO' && shiftHasDO) hoursA += 5000;
-                  if (a.code === 'DO' && shiftHasMO) hoursA += 5000;
 
                   if (b.code === 'HN' && shiftHasNR) hoursB += 5000;
                   if (b.code === 'NR' && shiftHasHN) hoursB += 5000;
-                  if (b.code === 'MO' && shiftHasDO) hoursB += 5000;
-                  if (b.code === 'DO' && shiftHasMO) hoursB += 5000;
 
                   // 🔥 LÓGICA DE VANTAGEM INDIVIDUAL (TR apenas)
                   if (a.code === 'TR') {

@@ -196,7 +196,7 @@ export default function PaginaWaiverCliente() {
                 className="w-5 h-5 mt-0.5 text-teal-600 border-gray-300 rounded focus:ring-teal-500 cursor-pointer"
             />
             <label htmlFor="terms" className="text-sm text-gray-600 cursor-pointer select-none">
-                Li e aceito os <span className="text-teal-600 font-bold underline">Termos e Condições</span> e a Política de Privacidade do The Park. *
+                Li e aceito os <a href="https://theparkplayground.com/en-pt/general-terms-and-conditions" target="_blank" rel="noopener noreferrer" className="text-teal-600 font-bold underline hover:text-teal-800">Termos e Condições</a> e a Política de Privacidade do The Park. *
             </label>
           </div>
 
