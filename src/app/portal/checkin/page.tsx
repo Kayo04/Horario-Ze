@@ -290,12 +290,20 @@ export default function CheckInDashboard() {
                     className="w-full p-4 border border-gray-300 rounded-xl outline-none focus:ring-2 focus:ring-teal-500 bg-gray-50 text-gray-900 mb-4"
                   >
                     <option value="" disabled>Selecione uma opção...</option>
-                    <option value="Instagram">Instagram</option>
-                    <option value="TikTok">TikTok</option>
+                    <option value="Google">Google</option>
                     <option value="Facebook">Facebook</option>
-                    <option value="Google">Google / Website</option>
-                    <option value="Amigo/Recomendação">Amigo / Recomendação</option>
-                    <option value="Passava a pé">Passava a pé</option>
+                    <option value="Instagram">Instagram</option>
+                    <option value="Linkedin">Linkedin</option>
+                    <option value="Tik Tok">Tik Tok</option>
+                    <option value="Chat Gpt">Chat Gpt</option>
+                    <option value="Evento">Evento</option>
+                    <option value="Festa de Aniversário">Festa de Aniversário</option>
+                    <option value="Já visitei o The Park">Já visitei o The Park</option>
+                    <option value="Amigos ou Família">Amigos ou Família</option>
+                    <option value="Vizinhos">Vizinhos</option>
+                    <option value="Walk - The Park">Walk - The Park</option>
+                    <option value="Odisseias">Odisseias</option>
+                    <option value="Tripadvisor">Tripadvisor</option>
                     <option value="Outro">Outro (Escreva abaixo)</option>
                   </select>
 
