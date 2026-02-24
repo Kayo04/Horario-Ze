@@ -80,8 +80,8 @@ export async function GET(req: Request) {
         });
 
         const sortedStats = Object.entries(statsMap)
-            // Ocultar a linha "Não Informado" se não quiser mostrar, mas aqui está incluída
-            // .filter(([name]) => name !== "Não Informado") 
+            // Ocultar a linha "Não Informado"
+            .filter(([name]) => name !== "Não Informado")
             .map(([name, count]) => ({ name, count }))
             .sort((a, b) => b.count - a.count);
 
