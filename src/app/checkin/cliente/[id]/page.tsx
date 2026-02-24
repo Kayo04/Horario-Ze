@@ -18,7 +18,8 @@ export default function PaginaWaiverCliente() {
     firstName: '',
     lastName: '',
     email: '',
-    phone: ''
+    phone: '',
+    city: ''
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [done, setDone] = useState(false);
@@ -159,6 +160,18 @@ export default function PaginaWaiverCliente() {
                     onChange={e => setYear(e.target.value.replace(/\D/g, ''))}
                 />
             </div>
+          </div>
+
+          <div>
+            <label className="text-xs font-bold text-gray-500 uppercase mb-1 block">Cidade *</label>
+            <input 
+              required 
+              type="text" 
+              className="w-full p-3 bg-gray-50 border border-gray-200 rounded-lg outline-none focus:ring-2 focus:ring-teal-500 transition-all" 
+              placeholder="Sua Cidade"
+              value={formData.city} 
+              onChange={e => setFormData({...formData, city: e.target.value})} 
+            />
           </div>
 
           <div>

@@ -25,6 +25,7 @@ interface IReservationDocument extends Document {
     email: string;
     phone: string;
     dob: string;
+    city: string;
     checkInTime: Date;
   }[];
 }
@@ -54,6 +55,7 @@ const ReservationSchema = new Schema<IReservationDocument>({
     email: String,
     phone: String,
     dob: String,
+    city: String,
     checkInTime: { type: Date, default: Date.now } // Guarda a hora do registo automaticamente
   }],
 }, {

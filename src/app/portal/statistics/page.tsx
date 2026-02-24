@@ -22,6 +22,7 @@ const COLORS = [
 
 export default function StatisticsPage() {
   const [stats, setStats] = useState<StatItem[]>([]);
+  const [cityStats, setCityStats] = useState<StatItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [range, setRange] = useState('all'); // 'today', '7d', '30d', '90d', '1y', 'all'
 
@@ -32,10 +33,20 @@ export default function StatisticsPage() {
   const fetchStats = async () => {
     setLoading(true);
     try {
-      const res = await fetch(`/api/statistics?range=${range}`);
-      if (res.ok) {
-        const data = await res.json();
-        setStats(data);
+      // Fazemos o fetch para as duas APIs em paralelo
+      const [resStats, resCities] = await Promise.all([
+          fetch(`/api/statistics?range=${range}`),
+          fetch(`/api/statistics/cities?range=${range}`)
+      ]);
+
+      if (resStats.ok) {
+        const dataStats = await resStats.json();
+        setStats(dataStats);
+      }
+      
+      if (resCities.ok) {
+        const dataCities = await resCities.json();
+        setCityStats(dataCities);
       }
     } catch (error) {
       console.error(error);
@@ -45,6 +56,7 @@ export default function StatisticsPage() {
   };
 
   const totalVotes = stats.reduce((acc, curr) => acc + curr.count, 0);
+  const totalCities = cityStats.reduce((acc, curr) => acc + curr.count, 0);
 
   // --- Função para gerar o CSS do Gráfico Circular (Conic Gradient) ---
   const getPieChartStyle = () => {
@@ -84,8 +96,8 @@ export default function StatisticsPage() {
                     <ChartBarIcon className="w-8 h-8 text-purple-600" />
                 </div>
                 <div>
-                    <h1 className="text-3xl font-bold text-gray-900">Estatísticas</h1>
-                    <p className="text-gray-500">Origem dos clientes (Marketing)</p>
+                    <h1 className="text-3xl font-bold text-gray-900">Estatísticas Gerais</h1>
+                    <p className="text-gray-500">Origem dos clientes (Marketing e Cidades)</p>
                 </div>
             </div>
 
@@ -119,77 +131,121 @@ export default function StatisticsPage() {
                 <div className="w-8 h-8 border-4 border-purple-200 border-t-purple-600 rounded-full animate-spin mx-auto mb-4"></div>
                 <p className="text-gray-500">A carregar dados...</p>
             </div>
-        ) : stats.length === 0 ? (
-            <div className="text-center py-20 bg-white rounded-2xl shadow-sm border border-dashed border-gray-300">
-                <p className="text-gray-500 text-lg">Sem dados para este período.</p>
-                <p className="text-sm text-gray-400">Tente selecionar outro intervalo de tempo.</p>
-            </div>
         ) : (
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                
+            <div className="space-y-6">
+              
+              {/* SESSÃO DE MARKETING */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 {/* 1. GRÁFICO CIRCULAR & LEGENDA */}
                 <div className="bg-white p-8 rounded-2xl shadow-sm border border-gray-200 flex flex-col items-center justify-center">
-                    <h3 className="text-lg font-bold text-gray-800 mb-6 w-full text-left">Distribuição</h3>
+                    <h3 className="text-lg font-bold text-gray-800 mb-6 w-full text-left">Distribuição Marketing</h3>
                     
-                    <div className="flex flex-col md:flex-row items-center gap-8 w-full">
-                        {/* O Gráfico */}
-                        <div className="relative w-64 h-64 shadow-inner" style={getPieChartStyle()}>
-                            {/* Centro branco para fazer o efeito "Donut" (opcional, remove se quiseres tarte cheia) */}
-                            <div className="absolute inset-0 m-auto w-32 h-32 bg-white rounded-full flex flex-col items-center justify-center">
-                                <span className="text-3xl font-bold text-gray-800">{totalVotes}</span>
-                                <span className="text-xs text-gray-500 uppercase font-bold">Total</span>
+                    {stats.length === 0 ? (
+                        <div className="text-center py-10 w-full text-gray-500">Sem dados de marketing para este período.</div>
+                    ) : (
+                        <div className="flex flex-col md:flex-row items-center gap-8 w-full">
+                            {/* O Gráfico */}
+                            <div className="relative w-64 h-64 shadow-inner" style={getPieChartStyle()}>
+                                {/* Centro branco para fazer o efeito "Donut" */}
+                                <div className="absolute inset-0 m-auto w-32 h-32 bg-white rounded-full flex flex-col items-center justify-center">
+                                    <span className="text-3xl font-bold text-gray-800">{totalVotes}</span>
+                                    <span className="text-xs text-gray-500 uppercase font-bold">Total</span>
+                                </div>
+                            </div>
+
+                            {/* Legenda */}
+                            <div className="flex-1 space-y-3 w-full">
+                                {stats.map((item, index) => (
+                                    <div key={item.name} className="flex items-center justify-between text-sm">
+                                        <div className="flex items-center gap-2">
+                                            <div 
+                                                className="w-3 h-3 rounded-full" 
+                                                style={{ backgroundColor: COLORS[index % COLORS.length] }}
+                                            ></div>
+                                            <span className="font-medium text-gray-700">{item.name}</span>
+                                        </div>
+                                        <span className="text-gray-500">{((item.count / totalVotes) * 100).toFixed(1)}%</span>
+                                    </div>
+                                ))}
                             </div>
                         </div>
-
-                        {/* Legenda */}
-                        <div className="flex-1 space-y-3 w-full">
-                            {stats.map((item, index) => (
-                                <div key={item.name} className="flex items-center justify-between text-sm">
-                                    <div className="flex items-center gap-2">
-                                        <div 
-                                            className="w-3 h-3 rounded-full" 
-                                            style={{ backgroundColor: COLORS[index % COLORS.length] }}
-                                        ></div>
-                                        <span className="font-medium text-gray-700">{item.name}</span>
-                                    </div>
-                                    <span className="text-gray-500">{((item.count / totalVotes) * 100).toFixed(1)}%</span>
-                                </div>
-                            ))}
-                        </div>
-                    </div>
+                    )}
                 </div>
 
-                {/* 2. TOP LISTA (BARRAS) */}
+                {/* 2. TOP LISTA (BARRAS) - MARKETING */}
                 <div className="bg-white p-8 rounded-2xl shadow-sm border border-gray-200">
-                    <h3 className="text-lg font-bold text-gray-800 mb-6">Top Canais</h3>
-                    <div className="space-y-5">
-                        {stats.map((item, index) => {
-                            const percentage = ((item.count / totalVotes) * 100).toFixed(1);
-                            const color = COLORS[index % COLORS.length];
-                            
-                            return (
-                                <div key={item.name}>
-                                    <div className="flex justify-between items-end mb-1">
-                                        <span className="font-bold text-gray-800 text-md flex items-center gap-2">
-                                            <span className="text-gray-400 text-sm">#{index + 1}</span> 
-                                            {item.name}
-                                        </span>
-                                        <span className="text-gray-600 font-medium">
-                                            {item.count} <span className="text-xs text-gray-400">({percentage}%)</span>
-                                        </span>
+                    <h3 className="text-lg font-bold text-gray-800 mb-6">Top Canais Marketing</h3>
+                    {stats.length === 0 ? (
+                         <div className="text-center py-10 text-gray-500">Sem dados de marketing.</div>
+                    ) : (
+                        <div className="space-y-5">
+                            {stats.map((item, index) => {
+                                const percentage = ((item.count / totalVotes) * 100).toFixed(1);
+                                const color = COLORS[index % COLORS.length];
+                                
+                                return (
+                                    <div key={item.name}>
+                                        <div className="flex justify-between items-end mb-1">
+                                            <span className="font-bold text-gray-800 text-md flex items-center gap-2">
+                                                <span className="text-gray-400 text-sm">#{index + 1}</span> 
+                                                {item.name}
+                                            </span>
+                                            <span className="text-gray-600 font-medium">
+                                                {item.count} <span className="text-xs text-gray-400">({percentage}%)</span>
+                                            </span>
+                                        </div>
+                                        <div className="w-full bg-gray-100 rounded-full h-3 overflow-hidden">
+                                            <div 
+                                                className="h-3 rounded-full transition-all duration-1000 ease-out"
+                                                style={{ width: `${percentage}%`, backgroundColor: color }}
+                                            ></div>
+                                        </div>
                                     </div>
-                                    <div className="w-full bg-gray-100 rounded-full h-3 overflow-hidden">
-                                        <div 
-                                            className="h-3 rounded-full transition-all duration-1000 ease-out"
-                                            style={{ width: `${percentage}%`, backgroundColor: color }}
-                                        ></div>
-                                    </div>
-                                </div>
-                            );
-                        })}
-                    </div>
+                                );
+                            })}
+                        </div>
+                    )}
                 </div>
+              </div>
 
+              {/* SESSÃO DE CIDADES */}
+              <div className="grid grid-cols-1 gap-6 mt-6">
+                <div className="bg-white p-8 rounded-2xl shadow-sm border border-gray-200">
+                    <h3 className="text-lg font-bold text-gray-800 mb-6">Top Cidades (Origem)</h3>
+                    {cityStats.length === 0 ? (
+                        <div className="text-center py-10 text-gray-500">Sem dados de cidades registadas para este período.</div>
+                    ) : (
+                        <div className="space-y-5 max-h-[500px] overflow-y-auto pr-4">
+                            {cityStats.map((item, index) => {
+                                // Usa a mesma paleta de cores ou tons mais neutros se quiser
+                                const percentage = ((item.count / totalCities) * 100).toFixed(1);
+                                const color = COLORS[index % COLORS.length]; 
+                                
+                                return (
+                                    <div key={item.name}>
+                                        <div className="flex justify-between items-end mb-1">
+                                            <span className="font-bold text-gray-800 text-md flex items-center gap-2">
+                                                <span className="text-gray-400 text-sm">#{index + 1}</span> 
+                                                {item.name}
+                                            </span>
+                                            <span className="text-gray-600 font-medium">
+                                                {item.count} Pessoas <span className="text-xs text-gray-400">({percentage}%)</span>
+                                            </span>
+                                        </div>
+                                        <div className="w-full bg-gray-100 rounded-full h-3 overflow-hidden">
+                                            <div 
+                                                className="h-3 rounded-full transition-all duration-1000 ease-out"
+                                                style={{ width: `${percentage}%`, backgroundColor: color }}
+                                            ></div>
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    )}
+                </div>
+              </div>
+              
             </div>
         )}
       </div>

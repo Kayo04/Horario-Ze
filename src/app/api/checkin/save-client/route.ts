@@ -13,10 +13,10 @@ export async function POST(req: Request) {
     }
 
     const body = await req.json();
-    const { reservationId, firstName, lastName, email, phone, dob } = body;
+    const { reservationId, firstName, lastName, email, phone, dob, city } = body;
 
     if (!reservationId) {
-        return NextResponse.json({ error: 'ID da reserva em falta' }, { status: 400 });
+      return NextResponse.json({ error: 'ID da reserva em falta' }, { status: 400 });
     }
 
     console.log("📝 A tentar guardar cliente na reserva:", reservationId);
@@ -26,26 +26,27 @@ export async function POST(req: Request) {
 
     // 2. Tentar atualizar e retornar o documento NOVO ({ new: true })
     const updatedReservation = await Reservation.findByIdAndUpdate(
-        objectId,
-        {
-            $push: {
-                clients: {
-                    firstName,
-                    lastName,
-                    email,
-                    phone,
-                    dob,
-                    checkInTime: new Date()
-                }
-            }
-        },
-        { new: true, runValidators: false } // runValidators: false ajuda se houver conflitos de schema antigos
+      objectId,
+      {
+        $push: {
+          clients: {
+            firstName,
+            lastName,
+            email,
+            phone,
+            dob,
+            city,
+            checkInTime: new Date()
+          }
+        }
+      },
+      { new: true, runValidators: false } // runValidators: false ajuda se houver conflitos de schema antigos
     );
 
     // 3. VERIFICAÇÃO CRÍTICA: Se updatedReservation for null, não encontrou nada!
     if (!updatedReservation) {
-        console.error("❌ FALHA: Reserva não encontrada com o ID:", reservationId);
-        return NextResponse.json({ error: 'Reserva não encontrada. O QR Code pode ser antigo.' }, { status: 404 });
+      console.error("❌ FALHA: Reserva não encontrada com o ID:", reservationId);
+      return NextResponse.json({ error: 'Reserva não encontrada. O QR Code pode ser antigo.' }, { status: 404 });
     }
 
     console.log("✅ Sucesso! Cliente adicionado. Total clientes agora:", updatedReservation.clients?.length);
