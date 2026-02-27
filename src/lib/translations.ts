@@ -439,9 +439,9 @@ export const translations = {
     stats_top_marketing: "Top Canais Marketing",
     stats_top_cities: "Top Cidades (Origem)",
     stats_people: "Pessoas",
+    stats_back_checkin: "Voltar ao Check-in",
     stats_no_marketing_data: "Sem dados de marketing para este período.",
     stats_no_cities_data: "Sem dados de cidades registadas para este período.",
-    loading_data: "A carregar dados...",
   },
   en: {
     // Portal
@@ -883,9 +883,9 @@ export const translations = {
     stats_top_marketing: "Top Marketing Channels",
     stats_top_cities: "Top Cities (Origin)",
     stats_people: "People",
+    stats_back_checkin: "Back to Check-in",
     stats_no_marketing_data: "No marketing data for this period.",
     stats_no_cities_data: "No registered cities data for this period.",
-    loading_data: "Loading data...",
   }
 };
 
