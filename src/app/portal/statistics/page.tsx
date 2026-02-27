@@ -1,7 +1,9 @@
 'use client'
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { ArrowLeftIcon, ChartBarIcon, CalendarIcon } from '@heroicons/react/24/outline';
+import { ChartBarIcon, ArrowLeftIcon, MapPinIcon } from '@heroicons/react/24/outline';
+import { useLanguage } from '@/context/LanguageContext';
+import { translations } from '@/lib/translations';
 
 type StatItem = {
   name: string;
@@ -25,6 +27,9 @@ export default function StatisticsPage() {
   const [cityStats, setCityStats] = useState<StatItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [range, setRange] = useState('all'); // 'today', '7d', '30d', '90d', '1y', 'all'
+
+  const { language, setLanguage } = useLanguage();
+  const t = translations[language];
 
   useEffect(() => {
     fetchStats();
@@ -55,17 +60,17 @@ export default function StatisticsPage() {
     }
   };
 
-  const totalVotes = stats.reduce((acc, curr) => acc + curr.count, 0);
+  const totalMarketing = stats.reduce((acc, curr) => acc + curr.count, 0);
   const totalCities = cityStats.reduce((acc, curr) => acc + curr.count, 0);
 
   // --- Função para gerar o CSS do Gráfico Circular (Conic Gradient) ---
   const getPieChartStyle = () => {
-    if (totalVotes === 0) return { background: '#E5E7EB' }; // Cinza se vazio
+    if (totalMarketing === 0) return { background: '#E5E7EB' }; // Cinza se vazio
 
     let currentAngle = 0;
     const gradientParts = stats.map((item, index) => {
       const color = COLORS[index % COLORS.length];
-      const percentage = (item.count / totalVotes) * 100;
+      const percentage = (item.count / totalMarketing) * 100;
       const start = currentAngle;
       const end = currentAngle + percentage;
       currentAngle = end;
@@ -79,43 +84,58 @@ export default function StatisticsPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 p-6 font-sans">
+    <div className="min-h-screen bg-gray-50 p-6 md:p-12 font-sans">
       <div className="max-w-6xl mx-auto">
-        
-        {/* HEADER */}
-        <div className="mb-8">
+        <div className="flex justify-between items-center mb-6">
           <Link href="/portal/checkin" className="inline-flex items-center text-sm text-indigo-600 hover:text-indigo-800 font-medium transition-colors">
             <ArrowLeftIcon className="h-4 w-4 mr-2" />
-            Voltar ao Check-in
+            {t.stats_back_checkin}
           </Link>
+          
+          <div className="flex gap-2">
+            <button 
+              onClick={() => setLanguage('pt')}
+              className={`hover:scale-110 transition-transform ${language === 'pt' ? 'opacity-100 ring-2 ring-purple-500 rounded-sm' : 'opacity-50 hover:opacity-100'}`}
+              title="Português"
+            >
+              <img src="https://flagcdn.com/w40/pt.png" alt="Português" className="w-8 h-6 object-cover rounded-sm shadow-sm" />
+            </button>
+            <button 
+              onClick={() => setLanguage('en')}
+              className={`hover:scale-110 transition-transform ${language === 'en' ? 'opacity-100 ring-2 ring-purple-500 rounded-sm' : 'opacity-50 hover:opacity-100'}`}
+              title="English"
+            >
+              <img src="https://flagcdn.com/w40/gb.png" alt="English" className="w-8 h-6 object-cover rounded-sm shadow-sm" />
+            </button>
+          </div>
         </div>
 
-        <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-8">
-            <div className="flex items-center gap-3">
-                <div className="p-3 bg-purple-100 rounded-xl">
-                    <ChartBarIcon className="w-8 h-8 text-purple-600" />
-                </div>
-                <div>
-                    <h1 className="text-3xl font-bold text-gray-900">Estatísticas Gerais</h1>
-                    <p className="text-gray-500">Origem dos clientes (Marketing e Cidades)</p>
-                </div>
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-10">
+          <div className="flex items-center gap-4">
+            <div className="p-3 bg-purple-100 text-purple-600 rounded-2xl shadow-sm">
+              <ChartBarIcon className="w-8 h-8" />
             </div>
+                <div>
+              <h1 className="text-3xl font-extrabold text-gray-900">{t.stats_title}</h1>
+              <p className="text-gray-500">{t.stats_subtitle}</p>
+            </div>
+          </div>
 
             {/* SELETOR DE TEMPO */}
-            <div className="bg-white p-1.5 rounded-lg shadow-sm border border-gray-200 flex gap-1 overflow-x-auto">
-                {[
-                    { label: 'Hoje', val: 'today' },
-                    { label: '7 Dias', val: '7d' },
-                    { label: '30 Dias', val: '30d' },
-                    { label: '3 Meses', val: '90d' },
-                    { label: 'Ano', val: '1y' },
-                    { label: 'Tudo', val: 'all' },
-                ].map((opt) => (
+            <div className="bg-white p-1 rounded-xl shadow-sm border border-gray-200 inline-flex">
+              {[
+                  { id: 'today', label: t.stats_filter_today },
+                  { id: '7d', label: t.stats_filter_7days },
+                  { id: '30d', label: t.stats_filter_30days },
+                  { id: '90d', label: t.stats_filter_3months },
+                  { id: '1y', label: t.stats_filter_year },
+                  { id: 'all', label: t.stats_filter_all }
+              ].map((opt) => (
                     <button
-                        key={opt.val}
-                        onClick={() => setRange(opt.val)}
+                        key={opt.id}
+                        onClick={() => setRange(opt.id)}
                         className={`px-4 py-2 rounded-md text-sm font-medium transition-all whitespace-nowrap
-                            ${range === opt.val 
+                            ${range === opt.id 
                                 ? 'bg-purple-600 text-white shadow-md' 
                                 : 'text-gray-600 hover:bg-gray-100'}`}
                     >
@@ -127,29 +147,30 @@ export default function StatisticsPage() {
 
         {/* CONTEÚDO */}
         {loading ? (
-            <div className="text-center py-20 bg-white rounded-2xl shadow-sm">
-                <div className="w-8 h-8 border-4 border-purple-200 border-t-purple-600 rounded-full animate-spin mx-auto mb-4"></div>
-                <p className="text-gray-500">A carregar dados...</p>
+            <div className="text-center py-20">
+              <div className="w-10 h-10 border-4 border-purple-200 border-t-purple-600 rounded-full animate-spin mx-auto mb-4"></div>
+              <p className="text-gray-500 font-medium">{t.loading_data}</p>
             </div>
         ) : (
             <div className="space-y-6">
               
               {/* SESSÃO DE MARKETING */}
+              {/* SESSÃO DE MARKETING */}
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 {/* 1. GRÁFICO CIRCULAR & LEGENDA */}
                 <div className="bg-white p-8 rounded-2xl shadow-sm border border-gray-200 flex flex-col items-center justify-center">
-                    <h3 className="text-lg font-bold text-gray-800 mb-6 w-full text-left">Distribuição Marketing</h3>
+                    <h3 className="text-lg font-bold text-gray-800 mb-6 w-full text-left">{t.stats_marketing_dist}</h3>
                     
                     {stats.length === 0 ? (
-                        <div className="text-center py-10 w-full text-gray-500">Sem dados de marketing para este período.</div>
+                        <div className="text-center py-10 w-full text-gray-500">{t.stats_no_marketing_data}</div>
                     ) : (
                         <div className="flex flex-col md:flex-row items-center gap-8 w-full">
                             {/* O Gráfico */}
                             <div className="relative w-64 h-64 shadow-inner" style={getPieChartStyle()}>
                                 {/* Centro branco para fazer o efeito "Donut" */}
                                 <div className="absolute inset-0 m-auto w-32 h-32 bg-white rounded-full flex flex-col items-center justify-center">
-                                    <span className="text-3xl font-bold text-gray-800">{totalVotes}</span>
-                                    <span className="text-xs text-gray-500 uppercase font-bold">Total</span>
+                                    <span className="text-3xl font-bold text-gray-800">{totalMarketing}</span>
+                                    <span className="text-xs text-gray-500 uppercase font-bold">{t.stats_total}</span>
                                 </div>
                             </div>
 
@@ -164,7 +185,7 @@ export default function StatisticsPage() {
                                             ></div>
                                             <span className="font-medium text-gray-700">{item.name}</span>
                                         </div>
-                                        <span className="text-gray-500">{((item.count / totalVotes) * 100).toFixed(1)}%</span>
+                                        <span className="text-gray-500">{((item.count / totalMarketing) * 100).toFixed(1)}%</span>
                                     </div>
                                 ))}
                             </div>
@@ -172,15 +193,17 @@ export default function StatisticsPage() {
                     )}
                 </div>
 
-                {/* 2. TOP LISTA (BARRAS) - MARKETING */}
-                <div className="bg-white p-8 rounded-2xl shadow-sm border border-gray-200">
-                    <h3 className="text-lg font-bold text-gray-800 mb-6">Top Canais Marketing</h3>
-                    {stats.length === 0 ? (
-                         <div className="text-center py-10 text-gray-500">Sem dados de marketing.</div>
+                {/* RANKING BARRAS P/ MARKETING */}
+              <div className="bg-white p-8 rounded-2xl shadow-sm border border-gray-100">
+                <h3 className="text-lg font-bold text-gray-800 mb-8">{t.stats_top_marketing}</h3>
+                
+                <div className="flex flex-col gap-6">
+                  {stats.length === 0 ? (
+                         <div className="text-center py-10 text-gray-500">{t.stats_no_marketing_data}</div>
                     ) : (
                         <div className="space-y-5">
                             {stats.map((item, index) => {
-                                const percentage = ((item.count / totalVotes) * 100).toFixed(1);
+                                const percentage = ((item.count / totalMarketing) * 100).toFixed(1);
                                 const color = COLORS[index % COLORS.length];
                                 
                                 return (
@@ -207,29 +230,35 @@ export default function StatisticsPage() {
                     )}
                 </div>
               </div>
+              </div>
 
               {/* SESSÃO DE CIDADES */}
-              <div className="grid grid-cols-1 gap-6 mt-6">
-                <div className="bg-white p-8 rounded-2xl shadow-sm border border-gray-200">
-                    <h3 className="text-lg font-bold text-gray-800 mb-6">Top Cidades (Origem)</h3>
-                    {cityStats.length === 0 ? (
-                        <div className="text-center py-10 text-gray-500">Sem dados de cidades registadas para este período.</div>
+              <div className="col-span-1 lg:col-span-2 mt-2">
+              <div className="bg-white p-8 rounded-2xl shadow-sm border border-gray-100">
+                <div className="flex items-center gap-3 mb-8">
+                  <MapPinIcon className="w-6 h-6 text-purple-600" />
+                  <h3 className="text-lg font-bold text-gray-800">{t.stats_top_cities}</h3>
+                </div>
+                
+                <div className="flex flex-col gap-6">
+                  {cityStats.length === 0 ? (
+                        <div className="text-center py-10 text-gray-500">{t.stats_no_cities_data}</div>
                     ) : (
                         <div className="space-y-5 max-h-[500px] overflow-y-auto pr-4">
-                            {cityStats.map((item, index) => {
+                            {cityStats.map((item, idx) => {
                                 // Usa a mesma paleta de cores ou tons mais neutros se quiser
                                 const percentage = ((item.count / totalCities) * 100).toFixed(1);
-                                const color = COLORS[index % COLORS.length]; 
+                                const color = COLORS[idx % COLORS.length]; 
                                 
                                 return (
                                     <div key={item.name}>
                                         <div className="flex justify-between items-end mb-1">
                                             <span className="font-bold text-gray-800 text-md flex items-center gap-2">
-                                                <span className="text-gray-400 text-sm">#{index + 1}</span> 
+                                                <span className="text-gray-400 text-sm">#{idx + 1}</span> 
                                                 {item.name}
                                             </span>
                                             <span className="text-gray-600 font-medium">
-                                                {item.count} Pessoas <span className="text-xs text-gray-400">({percentage}%)</span>
+                                                {item.count} {t.stats_people} <span className="text-xs text-gray-400">({percentage}%)</span>
                                             </span>
                                         </div>
                                         <div className="w-full bg-gray-100 rounded-full h-3 overflow-hidden">
@@ -245,7 +274,8 @@ export default function StatisticsPage() {
                     )}
                 </div>
               </div>
-              
+            </div>
+            
             </div>
         )}
       </div>

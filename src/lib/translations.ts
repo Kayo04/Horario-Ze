@@ -17,6 +17,10 @@ export const translations = {
     my_availability_desc: "Definir horários de trabalho",
     create_schedules: "Criar Horários",
     create_schedules_desc: "Criar horários personalizados",
+    checkin_daily: "Check-in Diário",
+    checkin_daily_desc: "Entradas e QR Code",
+    database: "Base de Dados",
+    database_desc: "Ver todos os registos",
 
     // Login
     login_title: "Login",
@@ -420,6 +424,24 @@ export const translations = {
     checkin_staff_enrolled: "Inscritos",
     checkin_staff_no_enrolled: "Ainda ninguém se registou.",
     checkin_staff_done: "Concluído",
+
+    // Statistics
+    stats_title: "Estatísticas Gerais",
+    stats_subtitle: "Origem dos clientes (Marketing e Cidades)",
+    stats_marketing_dist: "Distribuição Marketing",
+    stats_total: "TOTAL",
+    stats_filter_today: "Hoje",
+    stats_filter_7days: "7 Dias",
+    stats_filter_30days: "30 Dias",
+    stats_filter_3months: "3 Meses",
+    stats_filter_year: "Ano",
+    stats_filter_all: "Tudo",
+    stats_top_marketing: "Top Canais Marketing",
+    stats_top_cities: "Top Cidades (Origem)",
+    stats_people: "Pessoas",
+    stats_no_marketing_data: "Sem dados de marketing para este período.",
+    stats_no_cities_data: "Sem dados de cidades registadas para este período.",
+    loading_data: "A carregar dados...",
   },
   en: {
     // Portal
@@ -439,6 +461,10 @@ export const translations = {
     my_availability_desc: "Set work schedules",
     create_schedules: "Create Schedules",
     create_schedules_desc: "Create custom schedules",
+    checkin_daily: "Daily Check-in",
+    checkin_daily_desc: "Entries and QR Code",
+    database: "Database",
+    database_desc: "View all records",
 
     // Login
     login_title: "Login",
@@ -842,6 +868,24 @@ export const translations = {
     checkin_staff_enrolled: "Enrolled",
     checkin_staff_no_enrolled: "No one has registered yet.",
     checkin_staff_done: "Done",
+
+    // Statistics
+    stats_title: "General Statistics",
+    stats_subtitle: "Client origin (Marketing and Cities)",
+    stats_marketing_dist: "Marketing Distribution",
+    stats_total: "TOTAL",
+    stats_filter_today: "Today",
+    stats_filter_7days: "7 Days",
+    stats_filter_30days: "30 Days",
+    stats_filter_3months: "3 Months",
+    stats_filter_year: "Year",
+    stats_filter_all: "All",
+    stats_top_marketing: "Top Marketing Channels",
+    stats_top_cities: "Top Cities (Origin)",
+    stats_people: "People",
+    stats_no_marketing_data: "No marketing data for this period.",
+    stats_no_cities_data: "No registered cities data for this period.",
+    loading_data: "Loading data...",
   }
 };
 

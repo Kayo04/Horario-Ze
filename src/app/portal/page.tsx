@@ -100,9 +100,9 @@ export default function PortalPage() {
               className="flex flex-col items-center justify-center p-6 bg-gradient-to-br from-teal-500 to-teal-700 text-white rounded-xl shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-300 ease-in-out group"
             >
               <CheckBadgeIcon className="h-12 w-12 mb-3 text-teal-200 group-hover:text-white transition-colors duration-300" />
-              <span className="text-lg font-semibold">Check-in Diário</span>
+              <span className="text-lg font-semibold">{t.checkin_daily}</span>
               <span className="text-sm text-teal-100 group-hover:text-teal-50 mt-1">
-                Entradas e QR Code
+                {t.checkin_daily_desc}
               </span>
             </Link>
 
@@ -153,9 +153,9 @@ export default function PortalPage() {
                 className="flex flex-col items-center justify-center p-6 bg-gradient-to-br from-gray-700 to-gray-900 text-white rounded-xl shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-300 ease-in-out group"
               >
                 <UserGroupIcon className="h-12 w-12 mb-3 text-gray-300 group-hover:text-white transition-colors duration-300" />
-                <span className="text-lg font-semibold">Base de Dados</span>
+                <span className="text-lg font-semibold">{t.database}</span>
                 <span className="text-sm text-gray-300 group-hover:text-gray-100 mt-1">
-                  Ver todos os registos
+                  {t.database_desc}
                 </span>
               </Link>
             )}
