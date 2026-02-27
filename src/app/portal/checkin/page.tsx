@@ -12,8 +12,9 @@ import {
   CalendarDaysIcon,
   ChartBarIcon
 } from '@heroicons/react/24/outline';
-// 🔥 IMPORTAÇÃO CENTRALIZADA
 import { Reservation as IReservation, EventType } from '@/types/reservation';
+import { useLanguage } from '@/context/LanguageContext';
+import { translations } from '@/lib/translations';
 
 interface CheckInReservation {
   _id: string; 
@@ -45,6 +46,9 @@ export default function CheckInDashboard() {
   const [showQR, setShowQR] = useState(false);
   const [siteUrl, setSiteUrl] = useState("");
   const [loading, setLoading] = useState(true);
+
+  const { language, setLanguage } = useLanguage();
+  const t = translations[language];
 
   // DATA SELECIONADA
   const [selectedDate, setSelectedDate] = useState(() => {
@@ -101,10 +105,10 @@ export default function CheckInDashboard() {
            selectedRes.marketingNotes = notes; // Atualiza localmente
            setShowQR(true);
        } else {
-           alert("Erro ao gravar. Tente novamente.");
+           alert(t.checkin_staff_err_save);
        }
     } catch (err) {
-      alert("Erro de conexão.");
+      alert(t.checkin_staff_err_conn);
     }
   };
 
@@ -146,9 +150,9 @@ export default function CheckInDashboard() {
   };
 
   const getDisplayName = (name?: string) => {
-      if (!name) return "Cliente (Sem Nome)";
+      if (!name) return t.checkin_staff_no_name;
       if (/^\d+x/.test(name) || name.includes('Mask of') || name.includes('Mission') || name.includes('Don\'t Scream')) {
-          return "Cliente (Ver Detalhes)";
+          return t.checkin_staff_details;
       }
       return name;
   };
@@ -166,19 +170,39 @@ export default function CheckInDashboard() {
         <div className="mb-6 flex justify-between items-center">
             <Link href="/portal" className="inline-flex items-center text-sm text-indigo-600 hover:text-indigo-800 font-medium transition-colors">
               <ArrowLeftIcon className="h-4 w-4 mr-2" />
-              Voltar ao Portal
+              {t.checkin_staff_back}
             </Link>
 
-            <Link href="/portal/statistics" className="inline-flex items-center px-4 py-2 bg-purple-100 text-purple-700 rounded-lg text-sm font-bold hover:bg-purple-200 transition-colors">
-                <ChartBarIcon className="h-5 w-5 mr-2" />
-                Ver Estatísticas
-            </Link>
+            <div className="flex items-center gap-4">
+              {/* LANGUAGE TOGGLE */}
+              <div className="flex gap-2">
+                <button 
+                  onClick={() => setLanguage('pt')}
+                  className={`text-2xl hover:scale-110 transition-transform ${language === 'pt' ? 'opacity-100' : 'opacity-50'}`}
+                  title="Português"
+                >
+                  🇵🇹
+                </button>
+                <button 
+                  onClick={() => setLanguage('en')}
+                  className={`text-2xl hover:scale-110 transition-transform ${language === 'en' ? 'opacity-100' : 'opacity-50'}`}
+                  title="English"
+                >
+                  🇬🇧
+                </button>
+              </div>
+
+              <Link href="/portal/statistics" className="inline-flex items-center px-4 py-2 bg-purple-100 text-purple-700 rounded-lg text-sm font-bold hover:bg-purple-200 transition-colors">
+                  <ChartBarIcon className="h-5 w-5 mr-2" />
+                  {t.checkin_staff_stats}
+              </Link>
+            </div>
         </div>
 
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-4 rounded-xl shadow-sm border border-gray-200">
             <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
               <CheckBadgeIcon className="w-8 h-8 text-teal-600" />
-              Check-In
+              {t.checkin_staff_title}
             </h1>
 
             <div className="flex items-center gap-2 bg-gray-50 p-1 rounded-lg border border-gray-200">
@@ -206,12 +230,12 @@ export default function CheckInDashboard() {
         {loading ? (
             <div className="text-center py-12">
                 <div className="w-8 h-8 border-4 border-teal-200 border-t-teal-600 rounded-full animate-spin mx-auto mb-4"></div>
-                <p className="text-gray-500">A carregar reservas...</p>
+                <p className="text-gray-500">{t.checkin_staff_loading}</p>
             </div>
         ) : reservations.length === 0 ? (
           <div className="text-center p-12 text-gray-500 bg-white rounded-xl border border-dashed border-gray-300">
             <UserGroupIcon className="w-12 h-12 mx-auto text-gray-300 mb-3" />
-            Não há reservas para o dia <span className="font-bold text-gray-700">{selectedDate}</span>.
+            {t.checkin_staff_no_res} <span className="font-bold text-gray-700">{selectedDate}</span>.
           </div>
         ) : (
             reservations.map((res) => (
@@ -232,12 +256,16 @@ export default function CheckInDashboard() {
                         ${res.eventType === 'birthday' ? 'bg-green-100 text-green-700' : 
                         res.eventType === 'teambuilding' ? 'bg-purple-100 text-purple-700' : 
                         'bg-gray-100 text-gray-700'}`}>
-                        {res.eventType || 'Evento'}
+                        {res.eventType === 'birthday' ? t.event_birthday : 
+                         res.eventType === 'teambuilding' ? t.event_teambuilding :
+                         res.eventType === 'vrlocal' ? t.event_vrlocal :
+                         res.eventType === 'experiencia' ? t.event_experience : 
+                         (res.eventType || t.checkin_staff_event)}
                     </span>
                     <span className="flex items-center gap-1 bg-gray-50 px-2 py-0.5 rounded border border-gray-100">
                         <UserGroupIcon className="w-4 h-4"/> 
                         {/* Mostra quantos já fizeram checkin */}
-                        {res.clients?.length || 0} / {getTotalPeople(res)} Registados
+                        {res.clients?.length || 0} / {getTotalPeople(res)} {t.checkin_staff_registered}
                     </span>
                     {res.marketingSource && (
                         <span className="text-xs text-green-600 flex items-center gap-1 bg-green-50 px-2 py-0.5 rounded border border-green-100">
@@ -254,7 +282,7 @@ export default function CheckInDashboard() {
                 className="bg-gray-900 hover:bg-black text-white px-6 py-4 rounded-xl font-bold flex items-center gap-3 shadow-lg transform active:scale-95 transition-all min-w-[140px] justify-center"
                 >
                     <QrCodeIcon className="w-6 h-6" />
-                    <span>{res.marketingSource ? 'Ver QR' : 'Check-in'}</span>
+                    <span>{res.marketingSource ? t.checkin_staff_view_qr : t.checkin_staff_checkin}</span>
                 </button>
             </div>
             ))
@@ -285,7 +313,7 @@ export default function CheckInDashboard() {
               <div className="space-y-6">
                 <div>
                   <label className="block text-sm font-bold text-gray-700 mb-2">
-                    De onde ouviu falar do The Park?
+                    {t.checkin_staff_where}
                   </label>
                   
                   {/* INPUT DE TEXTO LIVRE */}
@@ -295,7 +323,7 @@ export default function CheckInDashboard() {
                     onChange={(e) => setMarketingSource(e.target.value)}
                     className="w-full p-4 border border-gray-300 rounded-xl outline-none focus:ring-2 focus:ring-teal-500 bg-gray-50 text-gray-900 mb-4"
                   >
-                    <option value="" disabled>Selecione uma opção...</option>
+                    <option value="" disabled>{t.checkin_staff_select_opt}</option>
                     <option value="Google">Google</option>
                     <option value="Facebook">Facebook</option>
                     <option value="Instagram">Instagram</option>
@@ -304,25 +332,25 @@ export default function CheckInDashboard() {
                     <option value="Chat Gpt">Chat Gpt</option>
                     <option value="Evento">Evento</option>
                     <option value="Festa de Aniversário">Festa de Aniversário</option>
-                    <option value="Já visitei o The Park">Já visitei o The Park</option>
-                    <option value="Amigos ou Família">Amigos ou Família</option>
-                    <option value="Vizinhos">Vizinhos</option>
+                    <option value="Já visitei o The Park">{t.checkin_staff_visited_before}</option>
+                    <option value="Amigos ou Família">{t.checkin_staff_friends_family}</option>
+                    <option value="Vizinhos">{t.checkin_staff_neighbors}</option>
                     <option value="Walk - The Park">Walk - The Park</option>
                     <option value="Odisseias">Odisseias</option>
                     <option value="Tripadvisor">Tripadvisor</option>
-                    <option value="Outro">Outro (Escreva abaixo)</option>
+                    <option value="Outro">{t.checkin_staff_other}</option>
                   </select>
 
                   {/* SELECIONOU 'OUTRO' OU QUER DAR NOTAS */}
                   {marketingSource === 'Outro' && (
                     <div className="animate-in fade-in slide-in-from-top-2 duration-300">
                       <label className="block text-sm font-bold text-gray-700 mb-2">
-                         Detalhes (O que o cliente disse exatamente):
+                         {t.checkin_staff_other_details}
                       </label>
                       <textarea
                         value={notes} 
                         onChange={(e) => setNotes(e.target.value)}
-                        placeholder="Ex: Vi um flyer no café..."
+                        placeholder={t.checkin_staff_other_ex}
                         className="w-full p-4 border border-gray-300 rounded-xl outline-none focus:ring-2 focus:ring-teal-500 bg-white text-gray-900 placeholder:text-gray-400 min-h-[100px]"
                         autoFocus
                       />
@@ -335,7 +363,7 @@ export default function CheckInDashboard() {
                   disabled={!marketingSource.trim()}
                   className="w-full py-4 bg-teal-600 text-white rounded-xl font-bold hover:bg-teal-700 disabled:opacity-50 transition-all shadow-lg shadow-teal-200"
                 >
-                  Confirmar e Gerar QR
+                  {t.checkin_staff_confirm_qr}
                 </button>
               </div>
             ) : (
@@ -348,20 +376,20 @@ export default function CheckInDashboard() {
                         />
                     </div>
                     <div>
-                        <p className="font-bold text-lg text-gray-900">Mostre ao cliente</p>
-                        <p className="text-sm text-gray-500">Para preencher os dados de seguro.</p>
+                        <p className="font-bold text-lg text-gray-900">{t.checkin_staff_show_client}</p>
+                        <p className="text-sm text-gray-500">{t.checkin_staff_insurance}</p>
                     </div>
                 </div>
 
                 {/* 🔥 LISTA DE INSCRITOS DENTRO DO MODAL */}
                 <div className="bg-gray-50 rounded-xl p-4 border border-gray-100">
                     <h3 className="font-bold text-gray-800 mb-3 flex justify-between items-center">
-                        Inscritos 
+                        {t.checkin_staff_enrolled} 
                         <span className="bg-teal-100 text-teal-800 text-xs px-2 py-1 rounded-full">{selectedRes.clients?.length || 0} / {getTotalPeople(selectedRes)}</span>
                     </h3>
                     
                     {!selectedRes.clients || selectedRes.clients.length === 0 ? (
-                        <p className="text-sm text-gray-400 text-center py-2">Ainda ninguém se registou.</p>
+                        <p className="text-sm text-gray-400 text-center py-2">{t.checkin_staff_no_enrolled}</p>
                     ) : (
                         <div className="space-y-2 max-h-40 overflow-y-auto pr-1">
                             {selectedRes.clients.map((client, idx) => (
@@ -378,7 +406,7 @@ export default function CheckInDashboard() {
                   onClick={closeModal}
                   className="w-full py-3 bg-gray-100 text-gray-700 rounded-xl hover:bg-gray-200 font-bold"
                 >
-                  Concluído
+                  {t.checkin_staff_done}
                 </button>
               </div>
             )}
