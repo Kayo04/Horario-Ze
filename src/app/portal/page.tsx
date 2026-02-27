@@ -39,17 +39,17 @@ export default function PortalPage() {
             <div className="flex gap-2">
               <button 
                 onClick={() => setLanguage('pt')}
-                className={`text-2xl hover:scale-110 transition-transform ${language === 'pt' ? 'opacity-100' : 'opacity-50'}`}
+                className={`hover:scale-110 transition-transform ${language === 'pt' ? 'opacity-100 ring-2 ring-teal-500 rounded-sm' : 'opacity-50 hover:opacity-100'}`}
                 title="Português"
               >
-                🇵🇹
+                <img src="https://flagcdn.com/w40/pt.png" alt="Português" className="w-8 h-6 object-cover rounded-sm shadow-sm" />
               </button>
               <button 
                 onClick={() => setLanguage('en')}
-                className={`text-2xl hover:scale-110 transition-transform ${language === 'en' ? 'opacity-100' : 'opacity-50'}`}
+                className={`hover:scale-110 transition-transform ${language === 'en' ? 'opacity-100 ring-2 ring-teal-500 rounded-sm' : 'opacity-50 hover:opacity-100'}`}
                 title="English"
               >
-                🇬🇧
+                <img src="https://flagcdn.com/w40/gb.png" alt="English" className="w-8 h-6 object-cover rounded-sm shadow-sm" />
               </button>
             </div>
 
