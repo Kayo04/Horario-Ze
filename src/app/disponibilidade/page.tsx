@@ -468,7 +468,12 @@ export default function DisponibilidadePage() {
                   return <div key={`pad-${index}`} className="min-h-[4.5rem] sm:min-h-20 border border-transparent"></div>
                 }
                 
-                const dateString = day.toISOString().split('T')[0]
+                // FIX: Avoid timezone offset bugs from toISOString() by formatting locally.
+                const year = day.getFullYear();
+                const month = String(day.getMonth() + 1).padStart(2, '0');
+                const dateOfMonth = String(day.getDate()).padStart(2, '0');
+                const dateString = `${year}-${month}-${dateOfMonth}`;
+
                 const unavailableSlots = getUnavailableSlotsForDate(dateString)
                 const isSelected = selectedDates.includes(dateString)
                 const isAllDay = hasAllDayUnavailability(dateString)
