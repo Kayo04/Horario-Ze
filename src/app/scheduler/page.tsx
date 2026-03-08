@@ -850,7 +850,23 @@ export default function SchedulerPage(): JSX.Element {
           <section className="bg-white rounded-lg shadow-md p-6 mb-8">
             <div className="flex justify-between items-center mb-4">
               <h2 className="text-xl font-semibold">{t.scheduled_events} ({reservations.length})</h2>
-              {reservations.length > 0 && (<button onClick={clearAll} className="px-3 py-1 bg-red-500 text-white rounded text-sm hover:bg-red-600" disabled={saving || isUploading}>{t.delete_all}</button>)}
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={triggerFileInput}
+                  className="px-3 py-1 bg-gray-600 text-white rounded text-sm hover:bg-gray-700 disabled:opacity-50"
+                  disabled={!isSheetJSLoaded || isUploading || saving}
+                >
+                  {isUploading 
+                    ? t.importing 
+                    : (language === 'en' ? "Import File (.xlsx, .csv)" : "Importar Ficheiro (.xlsx, .csv)")
+                  }
+                </button>
+                {reservations.length > 0 && (
+                  <button onClick={clearAll} className="px-3 py-1 bg-red-500 text-white rounded text-sm hover:bg-red-600" disabled={saving || isUploading}>
+                    {t.delete_all}
+                  </button>
+                )}
+              </div>
             </div>
             {reservations.length === 0 ? (
               <p className="text-gray-500 text-center py-4">{t.no_events}</p>
@@ -939,17 +955,6 @@ export default function SchedulerPage(): JSX.Element {
             <div className="flex flex-wrap gap-4 justify-between items-center mb-4">
               <h2 className="text-xl font-semibold">{t.staff_assignment}</h2>
               <div className="flex gap-2"> 
-<button
-  onClick={triggerFileInput}
-  className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 disabled:opacity-50"
-  disabled={!isSheetJSLoaded || isUploading || saving}
->
-  {/* CORREÇÃO: Verifica se está a carregar, senão verifica a língua para escolher o texto */}
-  {isUploading 
-    ? t.importing 
-    : (language === 'en' ? "Import File (.xlsx, .csv)" : "Importar Ficheiro (.xlsx, .csv)")
-  }
-</button>
                 <button
                   onClick={generateSchedule}
                   className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700"
