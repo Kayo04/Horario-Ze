@@ -314,19 +314,7 @@ export default function SchedulerPage(): JSX.Element {
     }
   }
 
-  const clearAll = async () => {
-    if (!window.confirm(t.confirm_delete_all)) return
-    try {
-      const activeReservations = reservations.filter(r => r.date >= formatDateInput(new Date()));
-      const deletePromises = activeReservations.map(r => fetch(`/api/reservations/${r.id}`, { method: 'DELETE' }))
-      await Promise.all(deletePromises)
-      await loadData()
-      setSchedule({})
-      toast.success(`✅ ${t.success_delete_all}`)
-    } catch (error) {
-      toast.error(`❌ ${t.error_delete_all}`)
-    }
-  }
+  // Removed clearAll function per user request
   
   /* ---------- LÓGICA DE IMPORTAÇÃO (CORRIGIDA) ---------- */
 
@@ -863,11 +851,6 @@ export default function SchedulerPage(): JSX.Element {
                     : (language === 'en' ? "Import File (.xlsx, .csv)" : "Importar Ficheiro (.xlsx, .csv)")
                   }
                 </button>
-                {reservations.length > 0 && (
-                  <button onClick={clearAll} className="px-3 py-1 bg-red-500 text-white rounded text-sm hover:bg-red-600" disabled={saving || isUploading}>
-                    {t.delete_all}
-                  </button>
-                )}
               </div>
             </div>
             {reservations.filter(r => r.date >= formatDateInput(new Date())).length === 0 ? (
