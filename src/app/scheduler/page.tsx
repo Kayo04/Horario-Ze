@@ -317,7 +317,8 @@ export default function SchedulerPage(): JSX.Element {
   const clearAll = async () => {
     if (!window.confirm(t.confirm_delete_all)) return
     try {
-      const deletePromises = reservations.map(r => fetch(`/api/reservations/${r.id}`, { method: 'DELETE' }))
+      const activeReservations = reservations.filter(r => r.date >= formatDateInput(new Date()));
+      const deletePromises = activeReservations.map(r => fetch(`/api/reservations/${r.id}`, { method: 'DELETE' }))
       await Promise.all(deletePromises)
       await loadData()
       setSchedule({})
@@ -577,7 +578,8 @@ export default function SchedulerPage(): JSX.Element {
 
   const generateSchedule = () => {
     const bySlot: Record<string, Slot> = {}
-    for (const r of reservations) {
+    const activeReservations = reservations.filter(r => r.date >= formatDateInput(new Date()));
+    for (const r of activeReservations) {
       const slotKey = `${r.date}T${r.startTime}`
       let required: number;
       if (r.people <= 10) required = 2;
@@ -849,7 +851,7 @@ export default function SchedulerPage(): JSX.Element {
 
           <section className="bg-white rounded-lg shadow-md p-6 mb-8">
             <div className="flex justify-between items-center mb-4">
-              <h2 className="text-xl font-semibold">{t.scheduled_events} ({reservations.length})</h2>
+              <h2 className="text-xl font-semibold">{t.scheduled_events} ({reservations.filter(r => r.date >= formatDateInput(new Date())).length})</h2>
               <div className="flex items-center gap-2">
                 <button
                   onClick={triggerFileInput}
@@ -868,11 +870,11 @@ export default function SchedulerPage(): JSX.Element {
                 )}
               </div>
             </div>
-            {reservations.length === 0 ? (
+            {reservations.filter(r => r.date >= formatDateInput(new Date())).length === 0 ? (
               <p className="text-gray-500 text-center py-4">{t.no_events}</p>
             ) : (
               <div className="space-y-3">
-                 {[...reservations].sort((a, b) => {
+                 {[...reservations].filter(r => r.date >= formatDateInput(new Date())).sort((a, b) => {
                     const dateA = new Date(a.date).getTime();
                     const dateB = new Date(b.date).getTime();
                     if (dateA !== dateB) return dateA - dateB;
@@ -968,7 +970,7 @@ export default function SchedulerPage(): JSX.Element {
             <div className="space-y-4">
               {Object.keys(schedule).length === 0 ? (
                 <p className="text-gray-500 text-center py-4">
-                  {reservations.length === 0 ? t.generate_schedule_help : t.generate_schedule_click}
+                  {reservations.filter(r => r.date >= formatDateInput(new Date())).length === 0 ? t.generate_schedule_help : t.generate_schedule_click}
                 </p>
               ) : (
                 Object.entries(schedule).map(([slot, data]) => (
