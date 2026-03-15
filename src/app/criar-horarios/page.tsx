@@ -1172,6 +1172,24 @@
           
           const isWeekend = dayIdx === 5 || dayIdx === 6;
           
+          // 🔥 Lógica de Preferência do TR ao Sábado
+          let trPrefersMorning = true;
+          if (dayIdx === 5) {
+            let morningDemand = 0;
+            let afternoonDemand = 0;
+            for (let i = 0; i < TIME_SLOTS.length; i++) {
+               const [sStart] = TIME_SLOTS[i].split(' - ');
+               const slotMin = timeToMin(sStart);
+               if (slotMin < 14 * 60) {
+                 morningDemand += demandArr[i];
+               } else {
+                 afternoonDemand += demandArr[i];
+               }
+            }
+            // TR appears where there are LESS reservations (less demand)
+            trPrefersMorning = morningDemand <= afternoonDemand; 
+          }
+          
           // 🛑 ROTAÇÃO NO FIM DE SEMANA
           // Limite "suave" de 5h (10 slots). Se passar disso, tenta mudar de pessoa.
           const rotationThreshold = isWeekend ? 10 : 12;
@@ -1301,43 +1319,25 @@
                   if (dailyHours[a.id] > 0) hoursA += 50; 
                   if (dailyHours[b.id] > 0) hoursB += 50;
 
-                  // 🔥 PENALIZAÇÃO HN (User Request): HN deve ter menos turnos, simulamos +50h
-                  if (a.code === 'HN') hoursA += 5;
-                  if (b.code === 'HN') hoursB += 5;
-
-                  // 🔥 SEPARAÇÃO HN + NR (User Request): Evitar que fiquem juntos
-                  // Verificar se no turno que vamos preencher já existe o "inimigo"
-                  let shiftHasNR = false;
-                  let shiftHasHN = false;
-                  
-                  // Verificar toda a duração do turno proposto para ver quem já lá está
-                  const staffInFullShift = new Set<string>();
-                  for (let k = shift.s; k < shift.e; k++) {
-                      (newSchedule[TIME_SLOTS[k]]?.[dayName] || []).forEach(c => staffInFullShift.add(c));
-                  }
-                  
-                  if (staffInFullShift.has('NR')) shiftHasNR = true;
-                  if (staffInFullShift.has('HN')) shiftHasHN = true;
-
-                  if (a.code === 'HN' && shiftHasNR) hoursA += 5000;
-                  if (a.code === 'NR' && shiftHasHN) hoursA += 5000;
-
-                  if (b.code === 'HN' && shiftHasNR) hoursB += 5000;
-                  if (b.code === 'NR' && shiftHasHN) hoursB += 5000;
-
                   // 🔥 LÓGICA DE VANTAGEM INDIVIDUAL (TR apenas)
                   if (a.code === 'TR') {
-                    hoursA -= 6; // Boost base
-                    // Boost EXTRA Sábado de Manhã (até 14h)
-                    if (dayIdx === 5 && shiftStartMin < 14 * 60) {
-                      hoursA -= 100; // Prioridade MÁXIMA
+                    hoursA -= 5; // Boost base
+                    // Boost EXTRA ao Sábado (onde há menos reservas)
+                    if (dayIdx === 5) {
+                      const isMorningShift = shiftStartMin < 14 * 60;
+                      if ((trPrefersMorning && isMorningShift) || (!trPrefersMorning && !isMorningShift)) {
+                        hoursA -= 100; // Prioridade MÁXIMA
+                      }
                     }
                   }
                   if (b.code === 'TR') {
-                    hoursB -= 6; // Boost base
-                    // Boost EXTRA Sábado de Manhã (até 14h)
-                    if (dayIdx === 5 && shiftStartMin < 14 * 60) {
-                      hoursB -= 100; // Prioridade MÁXIMA
+                    hoursB -= 5; // Boost base
+                    // Boost EXTRA ao Sábado (onde há menos reservas)
+                    if (dayIdx === 5) {
+                      const isMorningShift = shiftStartMin < 14 * 60;
+                      if ((trPrefersMorning && isMorningShift) || (!trPrefersMorning && !isMorningShift)) {
+                        hoursB -= 100; // Prioridade MÁXIMA
+                      }
                     }
                   }
 
