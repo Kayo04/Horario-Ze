@@ -1172,9 +1172,9 @@
           
           const isWeekend = dayIdx === 5 || dayIdx === 6;
           
-          // 🔥 Lógica de Preferência do TR ao Sábado
+          // 🔥 Lógica de Preferência do TR ao Fim de Semana
           let trPrefersMorning = true;
-          if (dayIdx === 5) {
+          if (isWeekend) {
             let morningDemand = 0;
             let afternoonDemand = 0;
             for (let i = 0; i < TIME_SLOTS.length; i++) {
@@ -1322,8 +1322,8 @@
                   // 🔥 LÓGICA DE VANTAGEM INDIVIDUAL (TR apenas)
                   if (a.code === 'TR') {
                     hoursA -= 5; // Boost base
-                    // Boost EXTRA ao Sábado (onde há menos reservas)
-                    if (dayIdx === 5) {
+                    // Boost EXTRA ao Fim de Semana (onde há menos reservas)
+                    if (isWeekend) {
                       const isMorningShift = shiftStartMin < 14 * 60;
                       if ((trPrefersMorning && isMorningShift) || (!trPrefersMorning && !isMorningShift)) {
                         hoursA -= 100; // Prioridade MÁXIMA
@@ -1332,8 +1332,8 @@
                   }
                   if (b.code === 'TR') {
                     hoursB -= 5; // Boost base
-                    // Boost EXTRA ao Sábado (onde há menos reservas)
-                    if (dayIdx === 5) {
+                    // Boost EXTRA ao Fim de Semana (onde há menos reservas)
+                    if (isWeekend) {
                       const isMorningShift = shiftStartMin < 14 * 60;
                       if ((trPrefersMorning && isMorningShift) || (!trPrefersMorning && !isMorningShift)) {
                         hoursB -= 100; // Prioridade MÁXIMA
