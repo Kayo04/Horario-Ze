@@ -107,6 +107,18 @@
     return h * 60 + m;
   };
 
+  const orderStaff = (staff: string[]): string[] => {
+    const withoutTR = staff.filter(c => c !== 'TR').sort((a, b) => a.localeCompare(b));
+    if (staff.includes('TR')) {
+      if (withoutTR.length >= 1) {
+        withoutTR.splice(1, 0, 'TR');
+      } else {
+        withoutTR.push('TR');
+      }
+    }
+    return withoutTR;
+  };
+
   // --- COMPONENTE SELETOR DE DATA LOCALIZADO ---
   const LocalizedDatePicker = ({ 
     selectedDate, 
@@ -703,7 +715,7 @@
       if (isInAllCells) {
         editingCells.forEach(cell => {
           if (newSchedule[cell.slot]?.[cell.day]) {
-            newSchedule[cell.slot][cell.day] = newSchedule[cell.slot][cell.day].filter(c => c !== code).sort((a, b) => a === 'TR' ? -1 : b === 'TR' ? 1 : a.localeCompare(b));
+            newSchedule[cell.slot][cell.day] = orderStaff(newSchedule[cell.slot][cell.day].filter(c => c !== code));
           }
         });
       } else {
@@ -715,7 +727,7 @@
           if (emp && checkSpecificSlotAvailability(emp, cell)) {
               const currentStaff = [...newSchedule[cell.slot][cell.day]];
               if (!currentStaff.includes(code)) {
-                newSchedule[cell.slot][cell.day] = [...currentStaff, code].sort((a, b) => a === 'TR' ? -1 : b === 'TR' ? 1 : a.localeCompare(b));
+                newSchedule[cell.slot][cell.day] = orderStaff([...currentStaff, code]);
               }
           }
         });
@@ -730,7 +742,7 @@
       const newSchedule = { ...schedule };
       editingCells.forEach(cell => {
         if (!newSchedule[cell.slot]) newSchedule[cell.slot] = {};
-        const newStaff = [...codes].sort((a, b) => a === 'TR' ? -1 : b === 'TR' ? 1 : a.localeCompare(b));
+        const newStaff = orderStaff([...codes]);
         newSchedule[cell.slot][cell.day] = newStaff;
       });
       setSchedule(newSchedule);
@@ -934,7 +946,7 @@
 
         TIME_SLOTS.forEach(slot => {
           WEEK_DAYS.forEach(day => {
-            newSchedule[slot][day] = Array.from(new Set(newSchedule[slot][day])).sort((a, b) => a === 'TR' ? -1 : b === 'TR' ? 1 : a.localeCompare(b));
+            newSchedule[slot][day] = orderStaff(Array.from(new Set(newSchedule[slot][day])));
           });
         });
 
@@ -1367,7 +1379,7 @@
         TIME_SLOTS.forEach(slot => {
           WEEK_DAYS.forEach(day => {
             if (newSchedule[slot] && newSchedule[slot][day]) {
-              newSchedule[slot][day].sort((a, b) => a === 'TR' ? -1 : b === 'TR' ? 1 : a.localeCompare(b));
+              newSchedule[slot][day] = orderStaff(newSchedule[slot][day]);
             }
           });
         });
