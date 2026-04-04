@@ -314,11 +314,16 @@
               </div>
               
               <div className="grid grid-cols-7 gap-1 mb-2">
-                {dayNames.map(day => (
-                  <div key={day} className="text-center text-sm font-medium text-gray-500 p-2 capitalize">
-                    {day}
-                  </div>
-                ))}
+                {dayNames.map((day, idx) => {
+                  const letter = language === 'pt' 
+                    ? ['S', 'T', 'Q', 'Q', 'S', 'S', 'D'][idx]
+                    : ['M', 'T', 'W', 'T', 'F', 'S', 'S'][idx];
+                  return (
+                    <div key={idx} className="text-center text-sm font-medium text-gray-500 p-2 capitalize">
+                      {letter}
+                    </div>
+                  );
+                })}
               </div>
               
               <div className="grid grid-cols-7 gap-1">
