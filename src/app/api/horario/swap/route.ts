@@ -41,15 +41,19 @@ export async function POST(req: Request) {
 
     // Parse the time slot to get startTime and endTime
     // Time slots are like "10:00 - 10:30"
-    const [startTime, endTime] = timeSlot.split(' - ').map((t: string) => t.trim());
+    const [slotStart, slotEnd] = timeSlot.split(' - ').map((t: string) => t.trim());
 
-    // Find the shift to update
-    const shift = await Shift.findOne({
+    // Find the shift that COVERS this time slot
+    // DB stores consolidated blocks (e.g., startTime: "09:00", endTime: "14:00")
+    // We need to find the shift where slotStart falls within [shift.startTime, shift.endTime)
+    const allShiftsForSlot = await Shift.find({
       date: date,
       employeeCode: originalEmployee,
-      startTime: startTime,
-      endTime: endTime,
+      startTime: { $lte: slotStart },
+      endTime: { $gt: slotStart },
     });
+
+    const shift = allShiftsForSlot[0];
 
     if (!shift) {
       return NextResponse.json({ 
