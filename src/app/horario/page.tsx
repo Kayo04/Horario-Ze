@@ -82,6 +82,12 @@ const getCodeColor = (code: string) => {
   return CODE_COLORS[code] || { bg: 'bg-gray-100', text: 'text-gray-700', border: 'border-gray-300' }
 }
 
+// Helper to convert time string to minutes
+const timeToMin = (time: string) => {
+  const [h, m] = time.split(':').map(Number)
+  return h * 60 + m
+}
+
 // --- TIME SLOTS ---
 const TIME_SLOTS = [
   '09:00 - 09:30', '09:30 - 10:00', '10:00 - 10:30', '10:30 - 11:00', '11:00 - 11:30',
@@ -245,6 +251,8 @@ export default function HorarioPage() {
   }, [status, weekDatesFull, loadScheduleData])
 
   // Build schedule grid: timeSlot -> day -> employee codes[]
+  // Shifts are stored as consolidated blocks (e.g., startTime: "10:00", endTime: "14:00")
+  // We need to expand them into individual 30-min slots
   const scheduleGrid = useMemo(() => {
     const grid: Record<string, Record<string, string[]>> = {}
 
@@ -256,17 +264,28 @@ export default function HorarioPage() {
     })
 
     shifts.forEach(shift => {
-      const dateIndex = weekDatesFull.indexOf(shift.date)
+      // Handle MongoDB dates that may have T00:00:00.000Z suffix
+      const shiftDateStr = shift.date.split('T')[0]
+      const dateIndex = weekDatesFull.indexOf(shiftDateStr)
       if (dateIndex === -1) return
 
       const dayName = WEEK_DAYS[dateIndex]
-      const slotKey = `${shift.startTime} - ${shift.endTime}`
+      const shiftStartMin = timeToMin(shift.startTime)
+      const shiftEndMin = timeToMin(shift.endTime)
 
-      if (grid[slotKey] && grid[slotKey][dayName]) {
-        if (!grid[slotKey][dayName].includes(shift.employeeCode)) {
-          grid[slotKey][dayName].push(shift.employeeCode)
+      // Expand: find all 30-min slots that fall within this shift block
+      TIME_SLOTS.forEach(slot => {
+        const [slotStart] = slot.split(' - ')
+        const slotMin = timeToMin(slotStart)
+
+        if (slotMin >= shiftStartMin && slotMin < shiftEndMin) {
+          if (grid[slot] && grid[slot][dayName]) {
+            if (!grid[slot][dayName].includes(shift.employeeCode)) {
+              grid[slot][dayName].push(shift.employeeCode)
+            }
+          }
         }
-      }
+      })
     })
 
     return grid
