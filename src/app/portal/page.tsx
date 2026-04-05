@@ -10,6 +10,7 @@ import {
   ChartBarSquareIcon,
   PlusCircleIcon,
   CheckBadgeIcon,
+  TableCellsIcon,
 } from '@heroicons/react/24/outline'
 import { useLanguage } from '@/context/LanguageContext'
 import { translations } from '@/lib/translations'
@@ -143,6 +144,18 @@ export default function PortalPage() {
               <span className="text-lg font-semibold">{t.my_availability}</span>
               <span className="text-sm text-purple-100 group-hover:text-purple-50 mt-1">
                 {t.my_availability_desc}
+              </span>
+            </Link>
+
+            {/* Botão - Horário (PARA TODOS) */}
+            <Link
+              href="/horario"
+              className="flex flex-col items-center justify-center p-6 bg-gradient-to-br from-cyan-500 to-cyan-700 text-white rounded-xl shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-300 ease-in-out group"
+            >
+              <TableCellsIcon className="h-12 w-12 mb-3 text-cyan-200 group-hover:text-white transition-colors duration-300" />
+              <span className="text-lg font-semibold">{t.horario_card}</span>
+              <span className="text-sm text-cyan-100 group-hover:text-cyan-50 mt-1">
+                {t.horario_card_desc}
               </span>
             </Link>
 
