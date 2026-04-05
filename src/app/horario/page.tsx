@@ -140,6 +140,8 @@ export default function HorarioPage() {
   const [isSwapping, setIsSwapping] = useState(false)
   const [swapModal, setSwapModal] = useState<SwapModal>(null)
   const [selectedSwapTarget, setSelectedSwapTarget] = useState('')
+  const [selectedSwapSlots, setSelectedSwapSlots] = useState<string[]>([])
+  const [allSlotsForSwap, setAllSlotsForSwap] = useState<string[]>([])
   const [notification, setNotification] = useState<{ show: boolean; message: string; type: 'success' | 'error' } | null>(null)
 
   const isAdmin = (session?.user as any)?.role === 'admin'
@@ -291,15 +293,6 @@ export default function HorarioPage() {
     return grid
   }, [shifts, weekDatesFull, WEEK_DAYS])
 
-  // Filter out empty time slots (rows where no employee is assigned at all)
-  const activeTimeSlots = useMemo(() => {
-    return TIME_SLOTS.filter(slot => {
-      return WEEK_DAYS.some(day => 
-        scheduleGrid[slot]?.[day]?.length > 0
-      )
-    })
-  }, [scheduleGrid, WEEK_DAYS])
-
   // Week navigation
   const goToPreviousWeek = () => {
     const current = new Date(selectedDate)
@@ -322,22 +315,52 @@ export default function HorarioPage() {
     // Only allow swapping your own shifts (or any if admin)
     if (!isAdmin && employeeCode !== currentUserCode) return
 
+    // Find all time slots where this employee works on this day
+    const dayIndex = weekDatesFull.indexOf(date)
+    if (dayIndex === -1) return
+    const dayName = WEEK_DAYS[dayIndex]
+
+    const empSlots = TIME_SLOTS.filter(slot => {
+      return scheduleGrid[slot]?.[dayName]?.includes(employeeCode)
+    })
+
     setSwapModal({
       show: true,
       date,
       timeSlot,
       originalEmployee: employeeCode,
     })
+    setAllSlotsForSwap(empSlots)
+    setSelectedSwapSlots([timeSlot]) // Pre-select the clicked slot
     setSelectedSwapTarget('')
   }
 
   const closeSwapModal = () => {
     setSwapModal(null)
     setSelectedSwapTarget('')
+    setSelectedSwapSlots([])
+    setAllSlotsForSwap([])
+  }
+
+  const toggleSlotSelection = (slot: string) => {
+    setSelectedSwapSlots(prev => {
+      if (prev.includes(slot)) {
+        return prev.filter(s => s !== slot)
+      }
+      return [...prev, slot]
+    })
+  }
+
+  const toggleSelectAll = () => {
+    if (selectedSwapSlots.length === allSlotsForSwap.length) {
+      setSelectedSwapSlots([])
+    } else {
+      setSelectedSwapSlots([...allSlotsForSwap])
+    }
   }
 
   const performSwap = async () => {
-    if (!swapModal || !selectedSwapTarget) return
+    if (!swapModal || !selectedSwapTarget || selectedSwapSlots.length === 0) return
 
     setIsSwapping(true)
     try {
@@ -346,7 +369,7 @@ export default function HorarioPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           date: swapModal.date,
-          timeSlot: swapModal.timeSlot,
+          selectedSlots: selectedSwapSlots,
           originalEmployee: swapModal.originalEmployee,
           newEmployee: selectedSwapTarget,
         }),
@@ -355,7 +378,6 @@ export default function HorarioPage() {
       if (res.ok) {
         setNotification({ show: true, message: t.horario_swap_success, type: 'success' })
         closeSwapModal()
-        // Reload data
         await loadScheduleData()
       } else {
         const data = await res.json()
@@ -393,7 +415,7 @@ export default function HorarioPage() {
     )
   }
 
-  const hasSchedule = activeTimeSlots.length > 0
+  const hasSchedule = shifts.length > 0
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-cyan-50">
@@ -533,7 +555,7 @@ export default function HorarioPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {activeTimeSlots.map((slot, slotIdx) => (
+                  {TIME_SLOTS.map((slot, slotIdx) => (
                     <tr 
                       key={slot} 
                       className={`${slotIdx % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'} hover:bg-cyan-50/30 transition-colors`}
@@ -698,24 +720,70 @@ export default function HorarioPage() {
             </div>
 
             {/* Content */}
-            <div className="p-6">
-              {/* Info */}
+            <div className="p-6 max-h-[70vh] overflow-y-auto">
+              {/* Date info */}
               <div className="bg-gray-50 rounded-xl p-4 mb-5 border border-gray-200">
-                <div className="text-sm text-gray-600 space-y-2">
-                  <div className="flex items-center gap-2">
-                    <span className="text-gray-400 w-16 text-xs">{t.date_label}:</span>
-                    <span className="font-semibold text-gray-800">
-                      {formatSwapDate(swapModal.date)}
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-gray-400 w-16 text-xs">{t.schedule_header}:</span>
-                    <span className="font-mono font-semibold text-gray-800">{swapModal.timeSlot}</span>
-                  </div>
+                <div className="flex items-center gap-2 text-sm">
+                  <span className="text-gray-400 text-xs">{t.date_label}:</span>
+                  <span className="font-semibold text-gray-800">
+                    {formatSwapDate(swapModal.date)}
+                  </span>
+                  <span className="text-gray-300">•</span>
+                  <span className={`inline-flex items-center px-2 py-0.5 rounded-md text-xs font-bold border ${getCodeColor(swapModal.originalEmployee).bg} ${getCodeColor(swapModal.originalEmployee).text} ${getCodeColor(swapModal.originalEmployee).border}`}>
+                    {swapModal.originalEmployee}
+                  </span>
                 </div>
               </div>
 
-              {/* Swap selector */}
+              {/* Slot Selection */}
+              <div className="mb-5">
+                <div className="flex items-center justify-between mb-3">
+                  <label className="text-sm font-bold text-gray-700">
+                    {language === 'pt' ? 'Selecionar turnos' : 'Select shifts'} ({selectedSwapSlots.length}/{allSlotsForSwap.length})
+                  </label>
+                  <button
+                    onClick={toggleSelectAll}
+                    className="text-xs font-semibold text-cyan-600 hover:text-cyan-800 transition-colors px-2 py-1 rounded-lg hover:bg-cyan-50"
+                  >
+                    {selectedSwapSlots.length === allSlotsForSwap.length
+                      ? (language === 'pt' ? 'Desselecionar todos' : 'Deselect all')
+                      : (language === 'pt' ? 'Selecionar todos' : 'Select all')
+                    }
+                  </button>
+                </div>
+
+                <div className="grid grid-cols-2 gap-1.5 max-h-[200px] overflow-y-auto pr-1">
+                  {allSlotsForSwap.map(slot => {
+                    const isSelected = selectedSwapSlots.includes(slot)
+                    return (
+                      <button
+                        key={slot}
+                        onClick={() => toggleSlotSelection(slot)}
+                        className={`
+                          flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-mono font-medium border transition-all duration-150
+                          ${isSelected
+                            ? 'bg-cyan-100 border-cyan-400 text-cyan-800 shadow-sm'
+                            : 'bg-white border-gray-200 text-gray-500 hover:bg-gray-50 hover:border-gray-300'
+                          }
+                        `}
+                      >
+                        <div className={`w-4 h-4 rounded border-2 flex items-center justify-center transition-all
+                          ${isSelected ? 'bg-cyan-500 border-cyan-500' : 'border-gray-300'}
+                        `}>
+                          {isSelected && (
+                            <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                            </svg>
+                          )}
+                        </div>
+                        {slot}
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
+
+              {/* Employee selector */}
               <label className="block text-sm font-bold text-gray-700 mb-2">
                 {t.horario_swap_with.replace('{original}', swapModal.originalEmployee)}
               </label>
@@ -737,15 +805,20 @@ export default function HorarioPage() {
               </select>
 
               {/* Preview */}
-              {selectedSwapTarget && (
-                <div className="mt-4 flex items-center justify-center gap-3 p-3 bg-cyan-50 rounded-xl border border-cyan-200">
-                  <span className={`inline-flex items-center px-3 py-1.5 rounded-lg text-sm font-bold border ${getCodeColor(swapModal.originalEmployee).bg} ${getCodeColor(swapModal.originalEmployee).text} ${getCodeColor(swapModal.originalEmployee).border}`}>
-                    {swapModal.originalEmployee}
-                  </span>
-                  <span className="text-cyan-600 font-bold text-xl">→</span>
-                  <span className={`inline-flex items-center px-3 py-1.5 rounded-lg text-sm font-bold border ${getCodeColor(selectedSwapTarget).bg} ${getCodeColor(selectedSwapTarget).text} ${getCodeColor(selectedSwapTarget).border}`}>
-                    {selectedSwapTarget}
-                  </span>
+              {selectedSwapTarget && selectedSwapSlots.length > 0 && (
+                <div className="mt-4 p-3 bg-cyan-50 rounded-xl border border-cyan-200">
+                  <div className="flex items-center justify-center gap-3 mb-2">
+                    <span className={`inline-flex items-center px-3 py-1.5 rounded-lg text-sm font-bold border ${getCodeColor(swapModal.originalEmployee).bg} ${getCodeColor(swapModal.originalEmployee).text} ${getCodeColor(swapModal.originalEmployee).border}`}>
+                      {swapModal.originalEmployee}
+                    </span>
+                    <span className="text-cyan-600 font-bold text-xl">→</span>
+                    <span className={`inline-flex items-center px-3 py-1.5 rounded-lg text-sm font-bold border ${getCodeColor(selectedSwapTarget).bg} ${getCodeColor(selectedSwapTarget).text} ${getCodeColor(selectedSwapTarget).border}`}>
+                      {selectedSwapTarget}
+                    </span>
+                  </div>
+                  <p className="text-xs text-cyan-600 text-center">
+                    {selectedSwapSlots.length} {selectedSwapSlots.length === 1 ? 'slot' : 'slots'}
+                  </p>
                 </div>
               )}
             </div>
@@ -760,7 +833,7 @@ export default function HorarioPage() {
               </button>
               <button
                 onClick={performSwap}
-                disabled={!selectedSwapTarget || isSwapping}
+                disabled={!selectedSwapTarget || isSwapping || selectedSwapSlots.length === 0}
                 className="flex-1 px-4 py-2.5 bg-gradient-to-r from-cyan-600 to-cyan-700 text-white rounded-xl font-bold
                   hover:from-cyan-700 hover:to-cyan-800 disabled:opacity-50 disabled:cursor-not-allowed
                   transition-all duration-200 shadow-md hover:shadow-lg"
