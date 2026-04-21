@@ -1323,6 +1323,17 @@
                       return false; 
                     }
                   }
+
+                  // 🔴 TR and DO cannot be together! 
+                  // If candidate is DO, and TR is already in this shift, filter DO out.
+                  if (emp.code === 'DO') {
+                    for (let k = shift.s; k < shift.e; k++) {
+                      if (newSchedule[TIME_SLOTS[k]]?.[dayName]?.includes('TR')) {
+                        return false;
+                      }
+                    }
+                  }
+
                   return true;
                 });
 
@@ -1374,6 +1385,12 @@
                   for (let k = shift.s; k < shift.e; k++) {
                     if (!newSchedule[TIME_SLOTS[k]]) newSchedule[TIME_SLOTS[k]] = {};
                     if (!newSchedule[TIME_SLOTS[k]][dayName]) newSchedule[TIME_SLOTS[k]][dayName] = [];
+                    
+                    // 🔴 Se o TR for escolhido e o DO já lá estiver, retira o DO! ("dont put him and put me")
+                    if (worker.code === 'TR' && newSchedule[TIME_SLOTS[k]][dayName].includes('DO')) {
+                      newSchedule[TIME_SLOTS[k]][dayName] = newSchedule[TIME_SLOTS[k]][dayName].filter(c => c !== 'DO');
+                    }
+
                     newSchedule[TIME_SLOTS[k]][dayName].push(worker.code);
                   }
                   const hoursAdded = (shift.e - shift.s) * 0.5;
