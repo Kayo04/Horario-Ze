@@ -107,6 +107,17 @@
     return h * 60 + m;
   };
 
+  const addDaysUTC = (dateString: string, days: number): string => {
+    const [y, m, d] = dateString.split('-').map(Number);
+    const date = new Date(Date.UTC(y, m - 1, d + days));
+    return date.toISOString().split('T')[0];
+  };
+
+  const formatDDMM = (dateStr: string): string => {
+    const [_, m, d] = dateStr.split('-');
+    return `${d}/${m}`;
+  };
+
   const orderStaff = (staff: string[]): string[] => {
     const withoutTR = staff.filter(c => c !== 'TR').sort((a, b) => a.localeCompare(b));
     if (staff.includes('TR')) {
@@ -595,14 +606,10 @@
 
     useEffect(() => {
       if (!selectedDate) return;
-      const start = new Date(selectedDate);
       const dates = [];
       for (let i = 0; i < 7; i++) {
-        const d = new Date(start);
-        d.setDate(start.getDate() + i);
-        const day = String(d.getDate()).padStart(2, '0');
-        const month = String(d.getMonth() + 1).padStart(2, '0');
-        dates.push(`${day}/${month}`);
+        const nextDateStr = addDaysUTC(selectedDate, i);
+        dates.push(formatDDMM(nextDateStr));
       }
       setWeekDates(dates);
     }, [selectedDate]);
@@ -819,9 +826,7 @@
 
         allStaffCodes.forEach(code => {
           WEEK_DAYS.forEach((dayName, dayIndex) => {
-            const d = new Date(selectedDate);
-            d.setDate(d.getDate() + dayIndex);
-            const dateStr = d.toISOString().split('T')[0];
+            const dateStr = addDaysUTC(selectedDate, dayIndex);
             
             const workedSlotsIndices: number[] = [];
             TIME_SLOTS.forEach((slot, slotIndex) => {
@@ -891,12 +896,8 @@
       setSchedule(null);
 
       try {
-        const start = new Date(selectedDate);
-        const end = new Date(selectedDate);
-        end.setDate(end.getDate() + 6);
-        
-        const startDateStr = start.toISOString().split('T')[0];
-        const endDateStr = end.toISOString().split('T')[0];
+        const startDateStr = selectedDate;
+        const endDateStr = addDaysUTC(selectedDate, 6);
 
         const res = await fetch(`/api/admin/get-weekly-schedule?start=${startDateStr}&end=${endDateStr}`);
         if (!res.ok) throw new Error(`Erro na API: ${res.status}`);
@@ -919,9 +920,7 @@
 
         const dateToDayNameMap: Record<string, string> = {};
         WEEK_DAYS.forEach((day, index) => {
-          const d = new Date(selectedDate);
-          d.setDate(d.getDate() + index);
-          const dateStr = d.toISOString().split('T')[0];
+          const dateStr = addDaysUTC(selectedDate, index);
           dateToDayNameMap[dateStr] = day;
         });
 
@@ -1349,7 +1348,7 @@
 
                   // 🔥 LÓGICA DE VANTAGEM INDIVIDUAL (TR apenas)
                   if (a.code === 'TR') {
-                    hoursA -= 3; // Boost base
+                    hoursA -= 4; // Boost base
                     // Boost EXTRA ao Fim de Semana (onde há menos reservas)
                     if (isWeekend) {
                       const isMorningShift = shiftStartMin < 14 * 60;
@@ -1359,7 +1358,7 @@
                     }
                   }
                   if (b.code === 'TR') {
-                    hoursB -= 3; // Boost base
+                    hoursB -= 4; // Boost base
                     // Boost EXTRA ao Fim de Semana (onde há menos reservas)
                     if (isWeekend) {
                       const isMorningShift = shiftStartMin < 14 * 60;
@@ -1369,9 +1368,9 @@
                     }
                   }
 
-                  // 🔴 LÓGICA DE DESVANTAGEM INDIVIDUAL (DIAS e MO)
-                  if (a.code === 'HN' || a.code === 'MO') hoursA += 5; // Penalização base
-                  if (b.code === 'HN' || b.code === 'MO') hoursB += 5; // Penalização base
+                  // 🔴 LÓGICA DE DESVANTAGEM INDIVIDUAL (HN, MO e DIAS)
+                  if (a.code === 'HN' || a.code === 'MO' || a.code === 'DIAS') hoursA += 5; // Penalização base
+                  if (b.code === 'HN' || b.code === 'MO' || b.code === 'DIAS') hoursB += 5; // Penalização base
 
                   if (Math.abs(hoursA - hoursB) > 2) {
                     return hoursA - hoursB;
