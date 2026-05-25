@@ -1323,20 +1323,35 @@
                     }
                   }
 
-                  // 🔴 TR and DO cannot be together! 
-                  // If candidate is DO, and TR is already in this shift, filter DO out.
-                  if (emp.code === 'DO') {
-                    for (let k = shift.s; k < shift.e; k++) {
-                      if (newSchedule[TIME_SLOTS[k]]?.[dayName]?.includes('TR')) {
-                        return false;
-                      }
-                    }
-                  }
-
                   return true;
                 });
 
-                candidates.sort((a, b) => {
+                // 🚫 TR e DO nunca podem estar juntos no mesmo turno.
+                // Verificar se o TR ou o DO já está neste turno.
+                const trAlreadyInShift = (() => {
+                  for (let k = shift.s; k < shift.e; k++) {
+                    if (newSchedule[TIME_SLOTS[k]]?.[dayName]?.includes('TR')) return true;
+                  }
+                  return false;
+                })();
+                const doAlreadyInShift = (() => {
+                  for (let k = shift.s; k < shift.e; k++) {
+                    if (newSchedule[TIME_SLOTS[k]]?.[dayName]?.includes('DO')) return true;
+                  }
+                  return false;
+                })();
+
+                // Filtrar candidatos removendo o conflito (preferência: excluir DO se TR presente, e vice-versa)
+                const candidatesFiltered = candidates.filter(emp => {
+                  if (emp.code === 'DO' && trAlreadyInShift) return false;
+                  if (emp.code === 'TR' && doAlreadyInShift) return false;
+                  return true;
+                });
+
+                // Usar lista filtrada; só cai para a lista completa se não sobrar ninguém
+                const finalCandidates = candidatesFiltered.length > 0 ? candidatesFiltered : candidates;
+
+                finalCandidates.sort((a, b) => {
                   const currentStaffInSlot = newSchedule[TIME_SLOTS[shift.s]]?.[dayName] || [];
                   
                   let hoursA = employeeHours[a.id];
@@ -1379,17 +1394,11 @@
                   return 0.5 - Math.random();
                 });
 
-                if (candidates.length > 0) {
-                  const worker = candidates[0];
+                if (finalCandidates.length > 0) {
+                  const worker = finalCandidates[0];
                   for (let k = shift.s; k < shift.e; k++) {
                     if (!newSchedule[TIME_SLOTS[k]]) newSchedule[TIME_SLOTS[k]] = {};
                     if (!newSchedule[TIME_SLOTS[k]][dayName]) newSchedule[TIME_SLOTS[k]][dayName] = [];
-                    
-                    // 🔴 Se o TR for escolhido e o DO já lá estiver, retira o DO! ("dont put him and put me")
-                    if (worker.code === 'TR' && newSchedule[TIME_SLOTS[k]][dayName].includes('DO')) {
-                      newSchedule[TIME_SLOTS[k]][dayName] = newSchedule[TIME_SLOTS[k]][dayName].filter(c => c !== 'DO');
-                    }
-
                     newSchedule[TIME_SLOTS[k]][dayName].push(worker.code);
                   }
                   const hoursAdded = (shift.e - shift.s) * 0.5;
