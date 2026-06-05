@@ -1361,9 +1361,8 @@
                   if (dailyHours[a.id] > 0) hoursA += 50; 
                   if (dailyHours[b.id] > 0) hoursB += 50;
 
-                  // 🔥 LÓGICA DE VANTAGEM INDIVIDUAL (TR apenas)
+                  // 🔥 LÓGICA DE VANTAGEM INDIVIDUAL (TR apenas ao Fim de Semana)
                   if (a.code === 'TR') {
-                    hoursA -= 3; // Boost base
                     // Boost EXTRA ao Fim de Semana (onde há menos reservas)
                     if (isWeekend) {
                       const isMorningShift = shiftStartMin < 14 * 60;
@@ -1373,7 +1372,6 @@
                     }
                   }
                   if (b.code === 'TR') {
-                    hoursB -= 3; // Boost base
                     // Boost EXTRA ao Fim de Semana (onde há menos reservas)
                     if (isWeekend) {
                       const isMorningShift = shiftStartMin < 14 * 60;
@@ -1383,9 +1381,9 @@
                     }
                   }
 
-                  // 🔴 LÓGICA DE DESVANTAGEM INDIVIDUAL (DO)
-                  if (a.code === 'DO') hoursA += 5; // Penalização base
-                  if (b.code === 'DO') hoursB += 5; // Penalização base
+                  // 🔴 LÓGICA DE DESVANTAGEM INDIVIDUAL (DO, MO, DIAS e JMM)
+                  if (a.code === 'DO' || a.code === 'MO' || a.code === 'DIAS' || a.code === 'JMM') hoursA += 5; // Penalização base
+                  if (b.code === 'DO' || b.code === 'MO' || b.code === 'DIAS' || b.code === 'JMM') hoursB += 5; // Penalização base
 
                   if (Math.abs(hoursA - hoursB) > 2) {
                     return hoursA - hoursB;
