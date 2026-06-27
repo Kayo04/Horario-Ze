@@ -1124,9 +1124,9 @@
               const slotStartMin = timeToMin(sStart);
               const WEEKEND_LIMIT_MIN = 20 * 60; // 20:00
               
-              // Only apply default staff (3) from 10:00 onwards
+              // Only apply default staff (2) from 10:00 onwards
               if (slotStartMin >= WEEKEND_DEFAULT_START_MIN && slotStartMin < WEEKEND_LIMIT_MIN) {
-                demandMap[dateString][i] = 3;
+                demandMap[dateString][i] = 2;
               }
             });
           }
@@ -1162,7 +1162,7 @@
             TIME_SLOTS.forEach((slot, i) => {
               const [sStart] = slot.split(' - ');
               const slotStartMin = timeToMin(sStart);
-              if (slotStartMin >= WEEKEND_LIMIT_MIN && demandMap[dateString][i] <= 3) {
+              if (slotStartMin >= WEEKEND_LIMIT_MIN && demandMap[dateString][i] <= 2) {
                   const activeRes = daysReservations.some(r => {
                       const rEnd = timeToMin(r.endTime) + 30;
                       return rEnd > slotStartMin;
@@ -1381,9 +1381,24 @@
                     }
                   }
 
-                  // 🔴 LÓGICA DE DESVANTAGEM INDIVIDUAL (DO, MO, DIAS e JMM)
-                  if (a.code === 'DO' || a.code === 'MO' || a.code === 'DIAS' || a.code === 'JMM') hoursA += 5; // Penalização base
-                  if (b.code === 'DO' || b.code === 'MO' || b.code === 'DIAS' || b.code === 'JMM') hoursB += 5; // Penalização base
+                  // 🔴 LÓGICA DE DESVANTAGEM INDIVIDUAL (DO, MO, DIAS)
+                  if (a.code === 'DO' || a.code === 'MO' || a.code === 'DIAS') hoursA += 5; // Penalização base
+                  if (b.code === 'DO' || b.code === 'MO' || b.code === 'DIAS') hoursB += 5; // Penalização base
+
+                  // 🔗 AFINIDADE NUCLEAR: CQ e JMM — se um já está no turno, o outro recebe prioridade máxima
+                  const staffInThisShift: string[] = [];
+                  for (let k = shift.s; k < shift.e; k++) {
+                    (newSchedule[TIME_SLOTS[k]]?.[dayName] || []).forEach((c: string) => {
+                      if (!staffInThisShift.includes(c)) staffInThisShift.push(c);
+                    });
+                  }
+                  const cqInShift  = staffInThisShift.includes('CQ');
+                  const jmmInShift = staffInThisShift.includes('JMM');
+
+                  if (a.code === 'CQ'  && jmmInShift) hoursA -= 5000;
+                  if (a.code === 'JMM' && cqInShift)  hoursA -= 5000;
+                  if (b.code === 'CQ'  && jmmInShift) hoursB -= 5000;
+                  if (b.code === 'JMM' && cqInShift)  hoursB -= 5000;
 
                   if (Math.abs(hoursA - hoursB) > 2) {
                     return hoursA - hoursB;
