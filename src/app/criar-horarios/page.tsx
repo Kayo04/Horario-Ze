@@ -1381,9 +1381,13 @@
                     }
                   }
 
-                  // 🔴 LÓGICA DE DESVANTAGEM INDIVIDUAL (DO, MO, DIAS)
-                  if (a.code === 'DO' || a.code === 'MO' || a.code === 'DIAS') hoursA += 5; // Penalização base
-                  if (b.code === 'DO' || b.code === 'MO' || b.code === 'DIAS') hoursB += 5; // Penalização base
+                  // 🔴 LÓGICA DE DESVANTAGEM INDIVIDUAL (DO, MO, DIAS, AM)
+                  if (a.code === 'DO' || a.code === 'DIAS') hoursA += 5; // Penalização base
+                  if (b.code === 'DO' || b.code === 'DIAS') hoursB += 5; // Penalização base
+                  if (a.code === 'MO') hoursA += 3; // Penalização reduzida
+                  if (b.code === 'MO') hoursB += 3; // Penalização reduzida
+                  if (a.code === 'AM') hoursA += 7; // Penalização alta
+                  if (b.code === 'AM') hoursB += 7; // Penalização alta
 
                   // 🔗 AFINIDADE NUCLEAR: CQ e JMM — se um já está no turno, o outro recebe prioridade máxima
                   const staffInThisShift: string[] = [];
