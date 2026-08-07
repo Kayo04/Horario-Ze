@@ -1326,30 +1326,7 @@
                   return true;
                 });
 
-                // 🚫 TR e DO nunca podem estar juntos no mesmo turno.
-                // Verificar se o TR ou o DO já está neste turno.
-                const trAlreadyInShift = (() => {
-                  for (let k = shift.s; k < shift.e; k++) {
-                    if (newSchedule[TIME_SLOTS[k]]?.[dayName]?.includes('TR')) return true;
-                  }
-                  return false;
-                })();
-                const doAlreadyInShift = (() => {
-                  for (let k = shift.s; k < shift.e; k++) {
-                    if (newSchedule[TIME_SLOTS[k]]?.[dayName]?.includes('DO')) return true;
-                  }
-                  return false;
-                })();
-
-                // Filtrar candidatos removendo o conflito (preferência: excluir DO se TR presente, e vice-versa)
-                const candidatesFiltered = candidates.filter(emp => {
-                  if (emp.code === 'DO' && trAlreadyInShift) return false;
-                  if (emp.code === 'TR' && doAlreadyInShift) return false;
-                  return true;
-                });
-
-                // Usar lista filtrada; só cai para a lista completa se não sobrar ninguém
-                const finalCandidates = candidatesFiltered.length > 0 ? candidatesFiltered : candidates;
+                const finalCandidates = candidates;
 
                 finalCandidates.sort((a, b) => {
                   const currentStaffInSlot = newSchedule[TIME_SLOTS[shift.s]]?.[dayName] || [];
@@ -1358,36 +1335,18 @@
                   let hoursB = employeeHours[b.id];
 
                   // 🔥 ROTAÇÃO FORÇADA: Se já trabalhou hoje, penalizamos as horas virtuais (só para ordenação)
-                  if (dailyHours[a.id] > 0) hoursA += 50; 
+                  if (dailyHours[a.id] > 0) hoursA += 50;
                   if (dailyHours[b.id] > 0) hoursB += 50;
 
-                  // 🔥 LÓGICA DE VANTAGEM INDIVIDUAL (TR apenas ao Fim de Semana)
-                  if (a.code === 'TR') {
-                    // Boost EXTRA ao Fim de Semana (onde há menos reservas)
-                    if (isWeekend) {
-                      const isMorningShift = shiftStartMin < 14 * 60;
-                      if ((trPrefersMorning && isMorningShift) || (!trPrefersMorning && !isMorningShift)) {
-                        hoursA -= 100; // Prioridade MÁXIMA
-                      }
-                    }
-                  }
-                  if (b.code === 'TR') {
-                    // Boost EXTRA ao Fim de Semana (onde há menos reservas)
-                    if (isWeekend) {
-                      const isMorningShift = shiftStartMin < 14 * 60;
-                      if ((trPrefersMorning && isMorningShift) || (!trPrefersMorning && !isMorningShift)) {
-                        hoursB -= 100; // Prioridade MÁXIMA
-                      }
-                    }
-                  }
+                  // 🟢 BUFFS INDIVIDUAIS
+                  if (a.code === 'DO' || a.code === 'NR') hoursA -= 2; // Buff: mais prováveis de calhar
+                  if (b.code === 'DO' || b.code === 'NR') hoursB -= 2;
 
-                  // 🔴 LÓGICA DE DESVANTAGEM INDIVIDUAL (DO, MO, DIAS, AM)
-                  if (a.code === 'DO' || a.code === 'DIAS') hoursA += 5; // Penalização base
-                  if (b.code === 'DO' || b.code === 'DIAS') hoursB += 5; // Penalização base
-                  if (a.code === 'MO') hoursA += 3; // Penalização reduzida
-                  if (b.code === 'MO') hoursB += 3; // Penalização reduzida
-                  if (a.code === 'AM') hoursA += 7; // Penalização alta
-                  if (b.code === 'AM') hoursB += 7; // Penalização alta
+                  // 🔴 NERFS INDIVIDUAIS
+                  if (a.code === 'MO') hoursA += 3;
+                  if (b.code === 'MO') hoursB += 3;
+                  if (a.code === 'AM') hoursA += 7;
+                  if (b.code === 'AM') hoursB += 7;
 
                   // 🔗 AFINIDADE NUCLEAR: CQ e JMM — se um já está no turno, o outro recebe prioridade máxima
                   const staffInThisShift: string[] = [];
