@@ -1,32 +1,46 @@
 'use client'
-import { useState, useEffect } from 'react'
-import { signIn, useSession } from 'next-auth/react'
+import { useState, useEffect, useCallback, useRef } from 'react'
+import { signIn, getSession, useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import { LockClosedIcon, ArrowRightIcon } from '@heroicons/react/24/solid'
 import { useLanguage } from '@/context/LanguageContext'
 import { translations } from '@/lib/translations'
+import WelcomeAnimation from '@/app/components/WelcomeAnimation'
 
 export default function LoginPage() {
   const [name, setName] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+  const [welcomeName, setWelcomeName] = useState<string | null>(null)
+  // Marca que o login foi feito agora nesta página, para o redirect automático não saltar a animação
+  const loggingInRef = useRef(false)
   const router = useRouter()
   const { data: session, status } = useSession()
   const { language, setLanguage } = useLanguage()
   const t = translations[language]
 
-  // Redireciona se já estiver logado
+  // Redireciona se já estiver logado (exceto enquanto a animação de boas-vindas está a correr)
   useEffect(() => {
-    if (status === 'authenticated') {
+    if (status === 'authenticated' && welcomeName === null && !loggingInRef.current) {
       router.push('/portal')
     }
-  }, [status, router])
+  }, [status, router, welcomeName])
+
+  // Em desenvolvimento: abrir /?welcome=Nome para pré-visualizar a animação sem fazer login
+  useEffect(() => {
+    if (process.env.NODE_ENV !== 'development') return
+    const preview = new URLSearchParams(window.location.search).get('welcome')
+    if (preview) setWelcomeName(preview)
+  }, [])
+
+  const goToPortal = useCallback(() => router.push('/portal'), [router])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
     setError('')
+    loggingInRef.current = true
 
     try {
       const result = await signIn('credentials', {
@@ -38,13 +52,20 @@ export default function LoginPage() {
       if (result?.error) {
         setError(t.login_error)
         setLoading(false)
+        loggingInRef.current = false
       } else if (result?.ok) {
-        router.push('/portal') 
+        const newSession = await getSession()
+        setWelcomeName(newSession?.user?.name || name)
       }
     } catch (err) {
       setError(t.login_error_generic)
       setLoading(false)
+      loggingInRef.current = false
     }
+  }
+
+  if (welcomeName !== null) {
+    return <WelcomeAnimation name={welcomeName} onFinish={goToPortal} />
   }
 
   // Ecrã de loading enquanto verifica a sessão
