@@ -1365,6 +1365,15 @@
                   if (b.code === 'CQ'  && jmmInShift) hoursB -= 5000;
                   if (b.code === 'JMM' && cqInShift)  hoursB -= 5000;
 
+                  // ⛔ ANTI-AFINIDADE: GR e MO — se um já está no turno, o outro vai para o fim da fila (só calha se não houver mais ninguém)
+                  const grInShift = staffInThisShift.includes('GR');
+                  const moInShift = staffInThisShift.includes('MO');
+
+                  if (a.code === 'GR' && moInShift) hoursA += 5000;
+                  if (a.code === 'MO' && grInShift) hoursA += 5000;
+                  if (b.code === 'GR' && moInShift) hoursB += 5000;
+                  if (b.code === 'MO' && grInShift) hoursB += 5000;
+
                   if (Math.abs(hoursA - hoursB) > 2) {
                     return hoursA - hoursB;
                   }
