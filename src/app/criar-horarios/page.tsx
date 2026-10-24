@@ -1339,12 +1339,14 @@
                   if (dailyHours[b.id] > 0) hoursB += 50;
 
                   // 🟢 BUFFS INDIVIDUAIS
-                  if (a.code === 'DO' || a.code === 'NR') hoursA -= 2; // Buff: mais prováveis de calhar
-                  if (b.code === 'DO' || b.code === 'NR') hoursB -= 2;
+                  if (a.code === 'DO' || a.code === 'NR') hoursA -= 3; // Buff: mais prováveis de calhar
+                  if (b.code === 'DO' || b.code === 'NR') hoursB -= 3;
 
                   // 🔴 NERFS INDIVIDUAIS
-                  if (a.code === 'MO') hoursA += 3;
-                  if (b.code === 'MO') hoursB += 3;
+                  if (a.code === 'MO' || a.code === 'GR') hoursA += 5;
+                  if (b.code === 'MO' || b.code === 'GR') hoursB += 5;
+                  if (a.code === 'TR') hoursA += 2;
+                  if (b.code === 'TR') hoursB += 2;
                   if (a.code === 'AM') hoursA += 7;
                   if (b.code === 'AM') hoursB += 7;
 
