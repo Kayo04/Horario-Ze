@@ -1339,33 +1339,24 @@
                   if (dailyHours[b.id] > 0) hoursB += 50;
 
                   // 🟢 BUFFS INDIVIDUAIS
-                  if (a.code === 'DO' || a.code === 'NR') hoursA -= 3; // Buff: mais prováveis de calhar
-                  if (b.code === 'DO' || b.code === 'NR') hoursB -= 3;
+                  if (a.code === 'DO' || a.code === 'NR') hoursA -= 5; // Buff: mais prováveis de calhar
+                  if (b.code === 'DO' || b.code === 'NR') hoursB -= 5;
+                  if (a.code === 'TR') hoursA -= 7;
+                  if (b.code === 'TR') hoursB -= 7;
 
                   // 🔴 NERFS INDIVIDUAIS
-                  if (a.code === 'MO' || a.code === 'GR') hoursA += 5;
-                  if (b.code === 'MO' || b.code === 'GR') hoursB += 5;
-                  if (a.code === 'TR') hoursA += 2;
-                  if (b.code === 'TR') hoursB += 2;
-                  if (a.code === 'AM') hoursA += 7;
-                  if (b.code === 'AM') hoursB += 7;
+                  if (a.code === 'MO' || a.code === 'GR') hoursA += 7;
+                  if (b.code === 'MO' || b.code === 'GR') hoursB += 7;
+                  if (a.code === 'AM') hoursA += 9;
+                  if (b.code === 'AM') hoursB += 9;
 
-                  // 🔗 AFINIDADE NUCLEAR: CQ e JMM — se um já está no turno, o outro recebe prioridade máxima
+                  // ⛔ ANTI-AFINIDADE: GR e MO — se um já está no turno, o outro vai para o fim da fila (só calha se não houver mais ninguém)
                   const staffInThisShift: string[] = [];
                   for (let k = shift.s; k < shift.e; k++) {
                     (newSchedule[TIME_SLOTS[k]]?.[dayName] || []).forEach((c: string) => {
                       if (!staffInThisShift.includes(c)) staffInThisShift.push(c);
                     });
                   }
-                  const cqInShift  = staffInThisShift.includes('CQ');
-                  const jmmInShift = staffInThisShift.includes('JMM');
-
-                  if (a.code === 'CQ'  && jmmInShift) hoursA -= 5000;
-                  if (a.code === 'JMM' && cqInShift)  hoursA -= 5000;
-                  if (b.code === 'CQ'  && jmmInShift) hoursB -= 5000;
-                  if (b.code === 'JMM' && cqInShift)  hoursB -= 5000;
-
-                  // ⛔ ANTI-AFINIDADE: GR e MO — se um já está no turno, o outro vai para o fim da fila (só calha se não houver mais ninguém)
                   const grInShift = staffInThisShift.includes('GR');
                   const moInShift = staffInThisShift.includes('MO');
 
