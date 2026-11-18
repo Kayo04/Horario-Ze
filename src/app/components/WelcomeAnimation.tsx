@@ -157,7 +157,7 @@ export default function WelcomeAnimation({ name, onFinish }: { name: string; onF
         <div className="welcome-orb relative">
           {period === 'night' ? (
             <div className="welcome-moon relative w-full h-full overflow-hidden rounded-full">
-              <div className="absolute inset-0 rounded-full bg-indigo-50" />
+              <div className="absolute inset-0 rounded-full bg-park-50" />
               <div className="absolute w-full h-full rounded-full" style={{ top: '-10%', left: '23%', background: '#1e1b4b' }} />
             </div>
           ) : (

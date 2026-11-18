@@ -26,7 +26,7 @@ export default function PortalPage() {
   const isAdmin = (session?.user as any)?.role === 'admin';
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-4 sm:p-8 font-sans">
+    <div className="min-h-screen bg-gradient-to-br from-park-50 to-park-100 p-4 sm:p-8 font-sans">
       <div className="max-w-5xl mx-auto">
         {/* Header */}
         <header className="flex flex-col sm:flex-row justify-between items-center gap-4 mb-12 bg-white p-6 rounded-xl shadow-lg">
@@ -74,11 +74,11 @@ export default function PortalPage() {
             {isAdmin && (
               <Link
                 href="/scheduler"
-                className="flex flex-col items-center justify-center p-6 bg-gradient-to-br from-blue-500 to-blue-700 text-white rounded-xl shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-300 ease-in-out group"
+                className="flex flex-col items-center justify-center p-6 bg-gradient-to-br from-park-500 to-park-700 text-white rounded-xl shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-300 ease-in-out group"
               >
-                <CalendarDaysIcon className="h-12 w-12 mb-3 text-blue-200 group-hover:text-white transition-colors duration-300" />
+                <CalendarDaysIcon className="h-12 w-12 mb-3 text-park-200 group-hover:text-white transition-colors duration-300" />
                 <span className="text-lg font-semibold">{t.manage_schedules}</span>
-                <span className="text-sm text-blue-100 group-hover:text-blue-50 mt-1">
+                <span className="text-sm text-park-100 group-hover:text-park-50 mt-1">
                   {t.manage_schedules_desc}
                 </span>
               </Link>
@@ -112,11 +112,11 @@ export default function PortalPage() {
             {isAdmin && (
               <Link
                 href="/funcionarios"
-                className="flex flex-col items-center justify-center p-6 bg-gradient-to-br from-indigo-500 to-indigo-700 text-white rounded-xl shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-300 ease-in-out group"
+                className="flex flex-col items-center justify-center p-6 bg-gradient-to-br from-park-500 to-park-700 text-white rounded-xl shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-300 ease-in-out group"
               >
-                <UserGroupIcon className="h-12 w-12 mb-3 text-indigo-200 group-hover:text-white transition-colors duration-300" />
+                <UserGroupIcon className="h-12 w-12 mb-3 text-park-200 group-hover:text-white transition-colors duration-300" />
                 <span className="text-lg font-semibold">{t.manage_employees}</span>
-                <span className="text-sm text-indigo-100 group-hover:text-indigo-50 mt-1">
+                <span className="text-sm text-park-100 group-hover:text-park-50 mt-1">
                   {t.manage_employees_desc}
                 </span>
               </Link>
