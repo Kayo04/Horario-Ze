@@ -140,6 +140,119 @@ export function validarLinhaImportada(linha: any): LinhaImportada | null {
 }
 
 // ---------------------------------------------------------------------------
+// Relatório "Timecard Report" exportado pelo NGTeco Time
+// ---------------------------------------------------------------------------
+// O ficheiro tem um bloco por funcionário:
+//
+//   ,,,,Timecard Report,
+//   Pay Period,,,01/10/2026-31/10/2026,
+//   Employee,,,Matilde Osorio (2),
+//   Date,,IN,OUT,Work Time, Daily Total, Note,
+//   THU,01/10/2026,10:02 AM,03:03 PM,05:01,05:01,      <- 1.ª marcação do dia
+//   ,,01:37 PM,04:55 PM,03:18,05:43,                   <- outra marcação no mesmo dia
+//   SAT,03/10/2026,08:37 AM,,,,Missing OUT             <- falta a saída
+//   FRI,02/10/2026,                                    <- dia sem marcações
+//   Total Hours,,,,,90:01,
+//
+// As horas vêm em formato 12h (AM/PM) e a "Work Time" em HH:MM.
+
+/** true se o texto parece um relatório do NGTeco Time (e não o CSV simples). */
+export const eRelatorioNGTeco = (texto: string) => /^Employee,/m.test(texto) && /Timecard Report|Pay Period/.test(texto)
+
+/** "07:51 AM" -> "07:51", "12:20 PM" -> "12:20", "12:05 AM" -> "00:05" */
+function hora12para24(valor: string): string | null {
+  const m = valor.trim().match(/^(\d{1,2}):(\d{2})\s*([AP])M$/i)
+  if (!m) return null
+  const h = (Number(m[1]) % 12) + (m[3].toUpperCase() === 'P' ? 12 : 0)
+  if (h > 23 || Number(m[2]) > 59) return null
+  return `${String(h).padStart(2, '0')}:${m[2]}`
+}
+
+/** "04:51" -> 291 */
+function duracaoParaMinutos(valor: string): number | null {
+  const m = valor.trim().match(/^(\d{1,3}):(\d{2})$/)
+  return m ? Number(m[1]) * 60 + Number(m[2]) : null
+}
+
+export interface ResultadoRelatorio {
+  validas: LinhaImportada[]
+  erros: number[]                       // números das linhas que não se perceberam
+  totais: Record<string, number>        // "Total Hours" de cada funcionário (minutos), por ID
+}
+
+/** Lê o "Timecard Report" do NGTeco Time e devolve uma marcação por cada par entrada/saída. */
+export function lerRelatorioNGTeco(texto: string): ResultadoRelatorio {
+  const validas: LinhaImportada[] = []
+  const erros: number[] = []
+  const totais: Record<string, number> = {}
+  let funcionario: { id: number; name: string } | null = null
+  let data = ''
+
+  texto.replace(/^﻿/, '').split(/\r?\n/).forEach((linha, i) => {
+    const numero = i + 1
+    const c = linha.split(',').map(v => v.trim())
+    if (c.every(v => v === '')) return
+
+    if (c[0] === 'Employee') {
+      // "Miguel  Santos  (12)" -> nome "Miguel Santos", ID 12
+      const m = c.slice(1).join(' ').match(/^\s*(.+?)\s*\((\d+)\)\s*$/)
+      funcionario = m ? { id: Number(m[2]), name: m[1].replace(/\s+/g, ' ') } : null
+      if (!m) erros.push(numero)
+      data = ''
+      return
+    }
+    if (c[0] === 'Total Hours') {
+      const total = duracaoParaMinutos(c[5] ?? '')
+      if (funcionario && total != null) totais[String(funcionario.id)] = total
+      funcionario = null
+      return
+    }
+    if (c[0] === 'Pay Period' || c[0] === 'Date' || c[4] === 'Timecard Report') return
+    if (!funcionario) return
+
+    // Linha de dia ("THU,01/10/2026,...") ou continuação do mesmo dia (",,01:37 PM,...")
+    if (c[0] !== '') {
+      const d = c[1]?.match(/^(\d{2})\/(\d{2})\/(\d{4})$/)
+      if (!d) { erros.push(numero); return }
+      data = `${d[3]}-${d[2]}-${d[1]}`
+    } else if (!data) {
+      erros.push(numero)
+      return
+    }
+
+    const entradaTexto = c[2] ?? ''
+    const saidaTexto = c[3] ?? ''
+    if (!entradaTexto && !saidaTexto) return // dia sem marcações
+
+    const start = entradaTexto ? hora12para24(entradaTexto) : ''
+    const end = saidaTexto ? hora12para24(saidaTexto) : ''
+    if (start === null || end === null) { erros.push(numero); return }
+
+    let minutes: number | null = null
+    if (start && end) {
+      minutes = duracaoParaMinutos(c[4] ?? '')
+      if (minutes == null) {
+        // Sem "Work Time": calcula pela diferença (saída depois da meia-noite conta como dia seguinte)
+        const diff = paraMinutos(end) - paraMinutos(start)
+        minutes = diff >= 0 ? diff : diff + 1440
+      }
+    }
+
+    validas.push({
+      id: funcionario.id,
+      name: funcionario.name,
+      date: data,
+      start,
+      end,
+      minutes,
+      state: minutes == null ? 'Por confirmar' : 'Completo',
+    })
+  })
+
+  return { validas, erros, totais }
+}
+
+// ---------------------------------------------------------------------------
 // Formatação
 // ---------------------------------------------------------------------------
 
