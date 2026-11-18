@@ -2,7 +2,8 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { signIn, getSession, useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
-import { LockClosedIcon, ArrowRightIcon } from '@heroicons/react/24/solid'
+import Image from 'next/image'
+import { ArrowRightIcon } from '@heroicons/react/24/solid'
 import { useLanguage } from '@/context/LanguageContext'
 import { translations } from '@/lib/translations'
 import WelcomeAnimation from '@/app/components/WelcomeAnimation'
@@ -80,20 +81,25 @@ export default function LoginPage() {
 
   // Se não está logado, mostra o formulário de login
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-park-50 to-park-100 p-4 font-sans relative">
-      
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-park-50 to-park-100 px-4 pt-20 pb-8 sm:p-4 font-sans relative">
+
       {/* Language Toggle */}
       <div className="absolute top-4 right-4 flex space-x-2">
         <LanguageSwitcher />
       </div>
 
-      <div className="bg-white p-10 rounded-2xl shadow-xl w-full max-w-sm border border-gray-200">
-        
-        {/* Cabeçalho com Ícone */}
+      <div className="bg-white p-6 sm:p-10 rounded-2xl shadow-xl w-full max-w-sm border border-gray-200">
+
+        {/* Cabeçalho com o logótipo do The Park */}
         <div className="flex flex-col items-center mb-8">
-          <div className="bg-park-100 p-4 rounded-full mb-4">
-            <LockClosedIcon className="h-10 w-10 text-park-600" />
-          </div>
+          <Image
+            src="/the-park-logo.png"
+            alt="The Park"
+            width={112}
+            height={112}
+            priority
+            className="h-24 w-24 sm:h-28 sm:w-28 rounded-full shadow-md mb-4"
+          />
           <h1 className="text-3xl font-bold text-gray-900 text-center">{t.login_title}</h1>
           <p className="text-gray-500 mt-1 text-sm">{t.login_subtitle}</p>
         </div>

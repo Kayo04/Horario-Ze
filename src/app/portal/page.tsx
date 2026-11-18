@@ -1,6 +1,7 @@
 'use client'
 import { useSession, signOut } from 'next-auth/react'
 import Link from 'next/link'
+import Image from 'next/image'
 import type { ComponentType, SVGProps } from 'react'
 import {
   CalendarDaysIcon,
@@ -58,18 +59,27 @@ export default function PortalPage() {
       <div className="max-w-6xl mx-auto">
         {/* Cabeçalho com a cor do The Park */}
         <header className="flex flex-col sm:flex-row justify-between items-center gap-4 mb-8 bg-park-600 text-white p-6 sm:p-8 rounded-2xl shadow-lg">
-          <div className="text-center sm:text-left">
-            <p className="text-xs font-bold tracking-[0.3em] text-park-100 uppercase">The Park · VR Porto</p>
-            <h1 className="text-3xl sm:text-4xl font-extrabold leading-tight mt-1">
-              {t.welcome.replace('{name}', session?.user?.name || '')}
-            </h1>
-            <p className="text-lg text-park-50/90 mt-1">{t.dashboard_subtitle}</p>
+          <div className="flex flex-col sm:flex-row items-center gap-4 text-center sm:text-left">
+            {/* Logótipo (o PNG tem cantos brancos: o rounded-full recorta-o em círculo) */}
+            <Image
+              src="/the-park-logo.png"
+              alt="The Park"
+              width={80}
+              height={80}
+              priority
+              className="h-16 w-16 sm:h-20 sm:w-20 rounded-full ring-4 ring-white/30 shadow-md shrink-0"
+            />
+            <div>
+              <p className="text-xs font-bold tracking-[0.3em] text-park-100 uppercase">The Park · VR Porto</p>
+              <h1 className="text-2xl sm:text-4xl font-extrabold leading-tight mt-1 break-words">
+                {t.welcome.replace('{name}', session?.user?.name || '')}
+              </h1>
+              <p className="text-base sm:text-lg text-park-50/90 mt-1">{t.dashboard_subtitle}</p>
+            </div>
           </div>
 
-          <div className="flex items-center gap-4">
-            <div className="flex gap-2">
-              <LanguageSwitcher variant="dark" />
-            </div>
+          <div className="flex flex-wrap items-center justify-center gap-3 sm:gap-4">
+            <LanguageSwitcher variant="dark" />
 
             <button
               onClick={() => signOut({ callbackUrl: '/' })}
