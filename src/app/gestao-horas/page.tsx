@@ -430,16 +430,16 @@ export default function GestaoHorasPage() {
     estado === 'Por confirmar'
       ? 'bg-amber-100 text-amber-800'
       : estado === 'Corrigido manualmente'
-        ? 'bg-blue-100 text-blue-800'
+        ? 'bg-park-100 text-park-800'
         : 'bg-emerald-100 text-emerald-800'
 
   const selectClass =
-    'mt-1 block w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500'
+    'mt-1 block w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-park-500'
   const th = 'text-left px-4 py-3 font-semibold text-gray-700 whitespace-nowrap'
   const td = 'px-4 py-3 whitespace-nowrap'
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-4 sm:p-8 font-sans">
+    <div className="min-h-screen bg-gradient-to-br from-park-50 to-park-100 p-4 sm:p-8 font-sans">
       <div className="max-w-6xl mx-auto space-y-6">
         {/* Cabeçalho */}
         <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white p-6 rounded-xl shadow-lg">
@@ -468,11 +468,11 @@ export default function GestaoHorasPage() {
                   key={m}
                   onClick={() => { setMonth(m); setWeek(''); setAberto(null) }}
                   className={`flex-shrink-0 px-4 py-2 rounded-lg text-left transition ${
-                    ativo ? 'bg-emerald-600 text-white shadow' : 'text-gray-700 hover:bg-gray-100'
+                    ativo ? 'bg-park-600 text-white shadow' : 'text-gray-700 hover:bg-gray-100'
                   }`}
                 >
                   <span className="block font-semibold capitalize">{nomeMes(m)}</span>
-                  <span className={`block text-xs ${ativo ? 'text-emerald-100' : 'text-gray-500'}`}>
+                  <span className={`block text-xs ${ativo ? 'text-park-100' : 'text-gray-500'}`}>
                     {[temRelogio && t.hm_tab_clock, nLivros > 0 && t.hm_tab_books.replace('{n}', String(nLivros))]
                       .filter(Boolean)
                       .join(' · ')}
@@ -515,14 +515,14 @@ export default function GestaoHorasPage() {
               {t.hm_refresh}
             </button>
             <label
-              className={`flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition cursor-pointer ${importing ? 'opacity-60 pointer-events-none' : ''}`}
+              className={`flex items-center gap-2 px-4 py-2 bg-park-600 text-white rounded-lg hover:bg-park-700 transition cursor-pointer ${importing ? 'opacity-60 pointer-events-none' : ''}`}
             >
               <ArrowUpTrayIcon className="h-5 w-5" />
               {importing ? t.hm_importing : t.hm_import}
               <input type="file" accept=".csv,.xlsx,.xls" className="hidden" onChange={importar} disabled={importing} />
             </label>
             <label
-              className={`flex items-center gap-2 px-4 py-2 bg-violet-600 text-white rounded-lg hover:bg-violet-700 transition cursor-pointer ${livroLendo ? 'opacity-60 pointer-events-none' : ''}`}
+              className={`flex items-center gap-2 px-4 py-2 bg-park-800 text-white rounded-lg hover:bg-park-900 transition cursor-pointer ${livroLendo ? 'opacity-60 pointer-events-none' : ''}`}
             >
               <TableCellsIcon className="h-5 w-5" />
               {livroLendo ? t.hm_book_reading : t.hm_import_book}
@@ -532,7 +532,7 @@ export default function GestaoHorasPage() {
             <button
               onClick={exportarExcel}
               disabled={!selecionadas.length}
-              className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-60 transition"
+              className="flex items-center gap-2 px-4 py-2 bg-white text-park-700 border border-park-600 rounded-lg hover:bg-park-50 disabled:opacity-60 transition"
             >
               <ArrowDownTrayIcon className="h-5 w-5" />
               {t.hm_export}
@@ -545,7 +545,7 @@ export default function GestaoHorasPage() {
 
         {loading && records.length === 0 ? (
           <div className="flex justify-center py-16">
-            <div className="w-10 h-10 border-4 border-emerald-200 border-t-emerald-600 rounded-full animate-spin" />
+            <div className="w-10 h-10 border-4 border-park-200 border-t-park-600 rounded-full animate-spin" />
           </div>
         ) : records.length === 0 && Object.keys(livros).length === 0 ? (
           <div className="bg-white p-10 rounded-xl shadow-lg text-center text-gray-600">{t.hm_empty}</div>
@@ -620,7 +620,7 @@ export default function GestaoHorasPage() {
                         return (
                           <Fragment key={l.id}>
                             <tr
-                              className={`${l.livro ? 'cursor-pointer' : ''} ${estaAberto ? 'bg-violet-50' : 'hover:bg-gray-50'}`}
+                              className={`${l.livro ? 'cursor-pointer' : ''} ${estaAberto ? 'bg-park-50' : 'hover:bg-gray-50'}`}
                               onClick={() => l.livro && setAberto(estaAberto ? null : l.id)}
                             >
                               <td className={`${td} font-medium text-gray-900`}>
@@ -635,7 +635,7 @@ export default function GestaoHorasPage() {
                             </tr>
                             {estaAberto && (
                               <tr>
-                                <td colSpan={4} className="bg-violet-50/50 px-4 pb-4">
+                                <td colSpan={4} className="bg-park-50/50 px-4 pb-4">
                                   <div className="flex justify-between items-center py-2">
                                     <p className="text-sm font-semibold text-gray-700">
                                       {t.hm_day_detail}
@@ -754,7 +754,7 @@ export default function GestaoHorasPage() {
                         <td className={td}>
                           <button
                             onClick={() => abrirCorrecao(r)}
-                            className="flex items-center gap-1 px-3 py-1.5 text-emerald-700 hover:bg-emerald-50 rounded-lg transition"
+                            className="flex items-center gap-1 px-3 py-1.5 text-park-700 hover:bg-park-50 rounded-lg transition"
                           >
                             <PencilSquareIcon className="h-4 w-4" />
                             {t.hm_fix}
@@ -821,7 +821,7 @@ export default function GestaoHorasPage() {
                         </td>
                         <td className={td}>
                           <select
-                            className="px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500"
+                            className="px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-park-500"
                             value={f.employeeId}
                             disabled={!mes}
                             onChange={e =>
@@ -850,7 +850,7 @@ export default function GestaoHorasPage() {
                 type="button"
                 onClick={importarLivros}
                 disabled={livroGuardando || livrosParaImportar.length === 0}
-                className="px-4 py-2 bg-violet-600 text-white font-semibold rounded-lg hover:bg-violet-700 disabled:opacity-60 transition"
+                className="px-4 py-2 bg-park-800 text-white font-semibold rounded-lg hover:bg-park-900 disabled:opacity-60 transition"
               >
                 {t.hm_book_import_btn.replace('{n}', String(livrosParaImportar.length))}
               </button>
@@ -893,7 +893,7 @@ export default function GestaoHorasPage() {
               <button
                 type="submit"
                 disabled={saving}
-                className="flex-1 py-2 bg-emerald-600 text-white font-semibold rounded-lg hover:bg-emerald-700 disabled:opacity-60 transition"
+                className="flex-1 py-2 bg-park-600 text-white font-semibold rounded-lg hover:bg-park-700 disabled:opacity-60 transition"
               >
                 {t.hm_save}
               </button>
