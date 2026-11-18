@@ -19,6 +19,8 @@ import {
   segundaFeira,
   centimosAPagar,
   lerLinhasImportadas,
+  lerRelatorioNGTeco,
+  eRelatorioNGTeco,
 } from '@/lib/horas/regras'
 
 type Comparacao = Record<string, Record<string, number | null>>
@@ -82,17 +84,22 @@ export default function GestaoHorasPage() {
   // --- Importar o ficheiro exportado do relógio (CSV ou Excel) ---
   const [importing, setImporting] = useState(false)
 
-  const lerFicheiro = async (ficheiro: File): Promise<Record<string, unknown>[]> => {
+  // Aceita dois formatos (deteta sozinho):
+  //  1. "Timecard Report" exportado pelo NGTeco Time (CSV ou Excel) - o normal
+  //  2. CSV/Excel simples com colunas ID; Funcionário; Data; Entrada; Saída; ... (site antigo)
+  const lerFicheiro = async (ficheiro: File) => {
     if (/\.csv$/i.test(ficheiro.name)) {
+      const texto = (await ficheiro.text()).replace(/^﻿/, '')
+      if (eRelatorioNGTeco(texto)) return lerRelatorioNGTeco(texto)
       const Papa = (await import('papaparse')).default
-      const texto = await ficheiro.text()
-      // O NGTeco exporta com ";" mas deixamos o papaparse detetar o separador
-      return Papa.parse<Record<string, unknown>>(texto.replace(/^﻿/, ''), { header: true, skipEmptyLines: true }).data
+      return lerLinhasImportadas(Papa.parse<Record<string, unknown>>(texto, { header: true, skipEmptyLines: true }).data)
     }
     const XLSX = await import('xlsx')
     const livro = XLSX.read(await ficheiro.arrayBuffer(), { cellDates: true })
     const folha = livro.Sheets[livro.SheetNames[0]]
-    return XLSX.utils.sheet_to_json<Record<string, unknown>>(folha, { raw: false, defval: '', dateNF: 'yyyy-mm-dd' })
+    const comoTexto = XLSX.utils.sheet_to_csv(folha, { blankrows: true })
+    if (eRelatorioNGTeco(comoTexto)) return lerRelatorioNGTeco(comoTexto)
+    return lerLinhasImportadas(XLSX.utils.sheet_to_json<Record<string, unknown>>(folha, { raw: false, defval: '', dateNF: 'yyyy-mm-dd' }))
   }
 
   const importar = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -103,7 +110,7 @@ export default function GestaoHorasPage() {
     setMessage('')
     setError('')
     try {
-      const { validas, erros } = lerLinhasImportadas(await lerFicheiro(ficheiro))
+      const { validas, erros } = await lerFicheiro(ficheiro)
       if (erros.length) throw new Error(t.hm_import_errors.replace('{lines}', erros.slice(0, 10).join(', ') + (erros.length > 10 ? '…' : '')))
       if (!validas.length) throw new Error(t.hm_import_empty)
       const res = await fetch('/api/horas/importar', {
