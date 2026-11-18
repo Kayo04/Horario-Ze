@@ -92,25 +92,25 @@ export default function PortalPage() {
         </header>
 
         {/* Menu Principal */}
-        <div className="bg-white p-6 sm:p-8 rounded-2xl shadow-lg">
-          <h2 className="text-2xl font-bold text-gray-800 mb-8 border-b border-park-100 pb-4">{t.quick_actions}</h2>
+        <div className="bg-white p-4 sm:p-8 rounded-2xl shadow-lg">
+          <h2 className="text-xl sm:text-2xl font-bold text-gray-800 mb-6 sm:mb-8 border-b border-park-100 pb-4">{t.quick_actions}</h2>
 
           {/* flex-wrap centrado: as filas incompletas ficam ao centro em vez de um cartão sozinho à esquerda.
-              Em ecrãs grandes cabem 5 por fila (10 cartões de admin = 2 filas certas). */}
-          <div className="flex flex-wrap justify-center gap-6">
+              Telemóvel/tablet: 2 por fila. Ecrãs grandes: 5 por fila (10 cartões de admin = 2 filas certas). */}
+          <div className="flex flex-wrap justify-center gap-3 sm:gap-6">
             {cartoes.map(({ href, icon: Icon, title, desc }) => (
               <Link
                 key={href}
                 href={href}
-                className="group w-full sm:w-[calc(50%-0.75rem)] lg:w-[calc(20%-1.2rem)] flex flex-col items-center text-center p-6 bg-white border border-park-100 rounded-2xl shadow-sm hover:shadow-xl hover:bg-park-600 hover:border-park-600 hover:-translate-y-1 transition-all duration-300"
+                className="group w-[calc(50%-0.375rem)] sm:w-[calc(50%-0.75rem)] lg:w-[calc(20%-1.2rem)] flex flex-col items-center text-center p-4 sm:p-6 bg-white border border-park-100 rounded-2xl shadow-sm hover:shadow-xl hover:bg-park-600 hover:border-park-600 hover:-translate-y-1 transition-all duration-300"
               >
-                <div className="h-16 w-16 rounded-full bg-park-50 group-hover:bg-white/20 flex items-center justify-center mb-4 transition-colors duration-300">
-                  <Icon className="h-8 w-8 text-park-600 group-hover:text-white transition-colors duration-300" />
+                <div className="h-12 w-12 sm:h-16 sm:w-16 rounded-full bg-park-50 group-hover:bg-white/20 flex items-center justify-center mb-4 transition-colors duration-300">
+                  <Icon className="h-6 w-6 sm:h-8 sm:w-8 text-park-600 group-hover:text-white transition-colors duration-300" />
                 </div>
-                <span className="text-base font-semibold text-gray-900 group-hover:text-white transition-colors duration-300">
+                <span className="text-sm sm:text-base font-semibold text-gray-900 group-hover:text-white transition-colors duration-300">
                   {t[title]}
                 </span>
-                <span className="text-sm text-gray-500 group-hover:text-park-50 mt-1 transition-colors duration-300">
+                <span className="text-xs sm:text-sm text-gray-500 group-hover:text-park-50 mt-1 transition-colors duration-300">
                   {t[desc]}
                 </span>
               </Link>

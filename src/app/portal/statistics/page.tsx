@@ -85,9 +85,9 @@ export default function StatisticsPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 p-6 md:p-12 font-sans">
+    <div className="min-h-screen bg-gray-50 p-4 sm:p-6 md:p-12 font-sans">
       <div className="max-w-6xl mx-auto">
-        <div className="flex justify-between items-center mb-6">
+        <div className="flex justify-between items-center gap-4 mb-6">
           <Link href="/portal/checkin" className="inline-flex items-center text-sm text-park-600 hover:text-park-800 font-medium transition-colors">
             <ArrowLeftIcon className="h-4 w-4 mr-2" />
             {t.stats_back_checkin}
@@ -104,13 +104,13 @@ export default function StatisticsPage() {
               <ChartBarIcon className="w-8 h-8" />
             </div>
                 <div>
-              <h1 className="text-3xl font-extrabold text-gray-900">{t.stats_title}</h1>
+              <h1 className="text-2xl sm:text-3xl font-extrabold text-gray-900">{t.stats_title}</h1>
               <p className="text-gray-500">{t.stats_subtitle}</p>
             </div>
           </div>
 
             {/* SELETOR DE TEMPO */}
-            <div className="bg-white p-1 rounded-xl shadow-sm border border-gray-200 inline-flex">
+            <div className="bg-white p-1 rounded-xl shadow-sm border border-gray-200 grid grid-cols-3 md:inline-flex w-full md:w-auto">
               {[
                   { id: 'today', label: t.stats_filter_today },
                   { id: '7d', label: t.stats_filter_7days },
@@ -122,7 +122,7 @@ export default function StatisticsPage() {
                     <button
                         key={opt.id}
                         onClick={() => setRange(opt.id)}
-                        className={`px-4 py-2 rounded-md text-sm font-medium transition-all whitespace-nowrap
+                        className={`px-3 sm:px-4 py-2 rounded-md text-sm font-medium transition-all whitespace-nowrap
                             ${range === opt.id 
                                 ? 'bg-park-600 text-white shadow-md' 
                                 : 'text-gray-600 hover:bg-gray-100'}`}
@@ -146,7 +146,7 @@ export default function StatisticsPage() {
               {/* SESSÃO DE MARKETING */}
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 {/* 1. GRÁFICO CIRCULAR & LEGENDA */}
-                <div className="bg-white p-8 rounded-2xl shadow-sm border border-gray-200 flex flex-col items-center justify-center">
+                <div className="bg-white p-5 sm:p-8 rounded-2xl shadow-sm border border-gray-200 flex flex-col items-center justify-center">
                     <h3 className="text-lg font-bold text-gray-800 mb-6 w-full text-left">{t.stats_marketing_dist}</h3>
                     
                     {stats.length === 0 ? (
@@ -182,7 +182,7 @@ export default function StatisticsPage() {
                 </div>
 
                 {/* RANKING BARRAS P/ MARKETING */}
-              <div className="bg-white p-8 rounded-2xl shadow-sm border border-gray-100">
+              <div className="bg-white p-5 sm:p-8 rounded-2xl shadow-sm border border-gray-100">
                 <h3 className="text-lg font-bold text-gray-800 mb-8">{t.stats_top_marketing}</h3>
                 
                 <div className="flex flex-col gap-6">
@@ -222,7 +222,7 @@ export default function StatisticsPage() {
 
               {/* SESSÃO DE CIDADES */}
               <div className="col-span-1 lg:col-span-2 mt-2">
-              <div className="bg-white p-8 rounded-2xl shadow-sm border border-gray-100">
+              <div className="bg-white p-5 sm:p-8 rounded-2xl shadow-sm border border-gray-100">
                 <div className="flex items-center gap-3 mb-8">
                   <MapPinIcon className="w-6 h-6 text-park-600" />
                   <h3 className="text-lg font-bold text-gray-800">{t.stats_top_cities}</h3>
