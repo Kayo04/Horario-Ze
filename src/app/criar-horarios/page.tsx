@@ -25,7 +25,7 @@
     UserGroupIcon,
     ArrowUpTrayIcon
   } from '@heroicons/react/24/outline';
-  import SeletorSemanas, { numeroSemana, intervaloSemana } from '@/app/components/SeletorSemanas';
+  import SeletorSemanas, { numeroSemana, intervaloSemana, segundaDaSemana } from '@/app/components/SeletorSemanas';
   import { lerReservas, chaveReserva } from '@/lib/importarReservas';
   import { useLanguage } from '@/context/LanguageContext';
   import { translations } from '@/lib/translations';
@@ -190,7 +190,10 @@
     // Horários guardados (semanas com turnos na base de dados) e importação de reservas
     const [semanasGuardadas, setSemanasGuardadas] = useState<{ weekStart: string; shifts: number; employees: number }[]>([]);
     const [verTodasGuardadas, setVerTodasGuardadas] = useState(false);
-    const [abrirSemana, setAbrirSemana] = useState(false); // abrir o horário guardado depois de mudar de semana
+    // Só se pode clicar numa semana depois de saber quais já têm horário (senão podia gerar por cima de um guardado)
+    const [guardadasCarregadas, setGuardadasCarregadas] = useState(false);
+    // Depois de clicar numa semana: abrir o horário guardado ou gerar um novo (corre quando a semana já mudou)
+    const [acaoSemana, setAcaoSemana] = useState<'abrir' | 'gerar' | null>(null);
     const [aImportar, setAImportar] = useState(false);
     const inputReservasRef = useRef<HTMLInputElement>(null);
 
@@ -200,6 +203,8 @@
         if (res.ok) setSemanasGuardadas((await res.json()).weeks || []);
       } catch {
         // sem lista: o resto da página continua a funcionar
+      } finally {
+        setGuardadasCarregadas(true);
       }
     }, []);
 
@@ -780,22 +785,27 @@
       executeLoadSchedule();
     }, [executeLoadSchedule]);
 
-    // Clicar num horário guardado: muda para essa semana e abre-o
+    // Clicar numa semana: se já tem horário guardado abre-o, senão começa logo a gerar
+    const escolherSemana = (segunda: string) => {
+      setSelectedDate(segunda);
+      setAcaoSemana(semanasGuardadas.some(s => s.weekStart === segunda) ? 'abrir' : 'gerar');
+    };
+    // Clicar num horário da lista "Horários guardados"
     const abrirHorarioGuardado = (segunda: string) => {
       setSelectedDate(segunda);
-      setAbrirSemana(true);
+      setAcaoSemana('abrir');
     };
-    useEffect(() => {
-      if (!abrirSemana) return;
-      setAbrirSemana(false);
-      executeLoadSchedule();
-    }, [abrirSemana, executeLoadSchedule]);
 
-    const semanaTemHorario = semanasGuardadas.some(s => s.weekStart === selectedDate);
-    const reservasDaSemana = useMemo(() => {
-      const fimSemana = addDaysUTC(selectedDate, 6);
-      return reservations.filter((r: any) => r.date >= selectedDate && r.date <= fimSemana).length;
-    }, [reservations, selectedDate]);
+    // Nº de reservas em cada semana (aparece em cada semana do seletor)
+    const reservasPorSemana = useMemo(() => {
+      const contagem: Record<string, number> = {};
+      reservations.forEach((r: any) => {
+        if (!r.date) return;
+        const s = segundaDaSemana(String(r.date).slice(0, 10));
+        contagem[s] = (contagem[s] || 0) + 1;
+      });
+      return contagem;
+    }, [reservations]);
 
     // Importar o Excel/CSV de reservas (antes estava na página Gerir Horários)
     const importarReservas = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -1247,6 +1257,15 @@
       };
     }, [employees, reservations, selectedDate, showToast, t, WEEK_DAYS]);
 
+    // Executa a ação da semana escolhida, já com a nova semana em selectedDate
+    useEffect(() => {
+      if (!acaoSemana) return;
+      const acao = acaoSemana;
+      setAcaoSemana(null);
+      if (acao === 'abrir') executeLoadSchedule();
+      else handleGenerate();
+    }, [acaoSemana, executeLoadSchedule, handleGenerate]);
+
     if (accessDenied) {
       return (
         <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
@@ -1470,44 +1489,24 @@
 
                     <SeletorSemanas
                       value={selectedDate}
-                      onChange={setSelectedDate}
+                      onChange={escolherSemana}
                       locale={locale}
                       semanasGuardadas={new Set(semanasGuardadas.map(s => s.weekStart))}
-                      textos={{ week: t.cs_week, saved: t.cs_saved, today: t.cs_this_week, prevMonth: t.cs_prev_month, nextMonth: t.cs_next_month }}
+                      reservasPorSemana={reservasPorSemana}
+                      desativado={isLoadingSchedule || !guardadasCarregadas}
+                      textos={{
+                        week: t.cs_week,
+                        saved: t.cs_saved,
+                        today: t.cs_this_week,
+                        prevMonth: t.cs_prev_month,
+                        nextMonth: t.cs_next_month,
+                        prevYear: t.cs_prev_year,
+                        nextYear: t.cs_next_year,
+                        open: t.cs_open,
+                        generate: t.cs_generate,
+                        reservations: t.cs_reservations,
+                      }}
                     />
-
-                    <div className="mt-6 p-4 bg-park-50 border border-park-100 rounded-xl text-sm text-park-800">
-                      <p className="font-semibold">
-                        {t.cs_week} {numeroSemana(selectedDate)} · {intervaloSemana(selectedDate, locale)}
-                      </p>
-                      <p className="text-park-700 mt-1">
-                        {t.cs_reservations_in_week.replace('{n}', String(reservasDaSemana))}
-                      </p>
-                    </div>
-
-                    <div className="mt-6 flex flex-col sm:flex-row gap-3">
-                      <button
-                        onClick={handleGenerate}
-                        className="flex-1 py-3.5 bg-park-600 hover:bg-park-700 text-white rounded-xl font-bold shadow-md transition-colors flex items-center justify-center gap-2"
-                      >
-                        <SparklesIcon className="w-5 h-5" />
-                        {t.generate_now}
-                      </button>
-                      {semanaTemHorario && (
-                        <button
-                          onClick={handleLoadClick}
-                          disabled={isLoadingSchedule}
-                          className="flex-1 py-3.5 bg-white border-2 border-park-600 text-park-700 hover:bg-park-50 rounded-xl font-bold transition-colors flex items-center justify-center gap-2 disabled:opacity-60"
-                        >
-                          {isLoadingSchedule ? (
-                            <div className="w-4 h-4 border-2 border-park-600 border-t-transparent rounded-full animate-spin"></div>
-                          ) : (
-                            <DocumentArrowUpIcon className="w-5 h-5" />
-                          )}
-                          {t.cs_open_saved}
-                        </button>
-                      )}
-                    </div>
                   </section>
 
                   <div className="lg:col-span-2 space-y-6">
