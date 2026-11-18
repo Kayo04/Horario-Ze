@@ -1,6 +1,7 @@
 'use client'
 import { useSession, signOut } from 'next-auth/react'
 import Link from 'next/link'
+import type { ComponentType, SVGProps } from 'react'
 import {
   CalendarDaysIcon,
   UsersIcon,
@@ -12,43 +13,70 @@ import {
   CheckBadgeIcon,
   TableCellsIcon,
   BanknotesIcon,
+  CircleStackIcon,
 } from '@heroicons/react/24/outline'
 import { useLanguage } from '@/context/LanguageContext'
 import { translations } from '@/lib/translations'
+
+type Chave = keyof (typeof translations)['pt']
+
+interface Cartao {
+  href: string
+  icon: ComponentType<SVGProps<SVGSVGElement>>
+  title: Chave
+  desc: Chave
+  adminOnly?: boolean
+}
+
+// Botões do portal, pela ordem em que aparecem.
+// adminOnly = só aparece a administradores (o middleware também bloqueia as páginas).
+const CARTOES: Cartao[] = [
+  { href: '/scheduler', icon: CalendarDaysIcon, title: 'manage_schedules', desc: 'manage_schedules_desc', adminOnly: true },
+  { href: '/gestao-reserva', icon: UsersIcon, title: 'manage_reservations', desc: 'manage_reservations_desc' },
+  { href: '/portal/checkin', icon: CheckBadgeIcon, title: 'checkin_daily', desc: 'checkin_daily_desc' },
+  { href: '/funcionarios', icon: UserGroupIcon, title: 'manage_employees', desc: 'manage_employees_desc', adminOnly: true },
+  { href: '/adminpanel', icon: ChartBarSquareIcon, title: 'admin_panel', desc: 'admin_panel_desc', adminOnly: true },
+  { href: '/disponibilidade', icon: ClockIcon, title: 'my_availability', desc: 'my_availability_desc' },
+  { href: '/horario', icon: TableCellsIcon, title: 'horario_card', desc: 'horario_card_desc' },
+  { href: '/portal/clientes', icon: CircleStackIcon, title: 'database', desc: 'database_desc', adminOnly: true },
+  { href: '/gestao-horas', icon: BanknotesIcon, title: 'hm_card', desc: 'hm_card_desc', adminOnly: true },
+  { href: '/criar-horarios', icon: PlusCircleIcon, title: 'create_schedules', desc: 'create_schedules_desc', adminOnly: true },
+]
 
 export default function PortalPage() {
   const { data: session } = useSession()
   const { language, setLanguage } = useLanguage()
   const t = translations[language]
 
-  // Função auxiliar para verificar se é admin
   // O uso de 'any' evita erros de TypeScript se o campo role não estiver definido no tipo
-  const isAdmin = (session?.user as any)?.role === 'admin';
+  const isAdmin = (session?.user as any)?.role === 'admin'
+  const cartoes = CARTOES.filter(c => !c.adminOnly || isAdmin)
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-park-50 to-park-100 p-4 sm:p-8 font-sans">
-      <div className="max-w-5xl mx-auto">
-        {/* Header */}
-        <header className="flex flex-col sm:flex-row justify-between items-center gap-4 mb-12 bg-white p-6 rounded-xl shadow-lg">
+    <div className="min-h-screen bg-gradient-to-br from-park-50 via-white to-park-100 p-4 sm:p-8 font-sans">
+      <div className="max-w-6xl mx-auto">
+        {/* Cabeçalho com a cor do The Park */}
+        <header className="flex flex-col sm:flex-row justify-between items-center gap-4 mb-8 bg-park-600 text-white p-6 sm:p-8 rounded-2xl shadow-lg">
           <div className="text-center sm:text-left">
-            <h1 className="text-3xl sm:text-4xl font-extrabold text-gray-900 leading-tight">
+            <p className="text-xs font-bold tracking-[0.3em] text-park-100 uppercase">The Park · VR Porto</p>
+            <h1 className="text-3xl sm:text-4xl font-extrabold leading-tight mt-1">
               {t.welcome.replace('{name}', session?.user?.name || '')}
             </h1>
-            <p className="text-lg text-gray-600 mt-1">{t.dashboard_subtitle}</p>
+            <p className="text-lg text-park-50/90 mt-1">{t.dashboard_subtitle}</p>
           </div>
-          
+
           <div className="flex items-center gap-4">
             <div className="flex gap-2">
-              <button 
+              <button
                 onClick={() => setLanguage('pt')}
-                className={`hover:scale-110 transition-transform ${language === 'pt' ? 'opacity-100 ring-2 ring-teal-500 rounded-sm' : 'opacity-50 hover:opacity-100'}`}
+                className={`hover:scale-110 transition-transform ${language === 'pt' ? 'opacity-100 ring-2 ring-white rounded-sm' : 'opacity-60 hover:opacity-100'}`}
                 title="Português"
               >
                 <img src="https://flagcdn.com/w40/pt.png" alt="Português" className="w-8 h-6 object-cover rounded-sm shadow-sm" />
               </button>
-              <button 
+              <button
                 onClick={() => setLanguage('en')}
-                className={`hover:scale-110 transition-transform ${language === 'en' ? 'opacity-100 ring-2 ring-teal-500 rounded-sm' : 'opacity-50 hover:opacity-100'}`}
+                className={`hover:scale-110 transition-transform ${language === 'en' ? 'opacity-100 ring-2 ring-white rounded-sm' : 'opacity-60 hover:opacity-100'}`}
                 title="English"
               >
                 <img src="https://flagcdn.com/w40/gb.png" alt="English" className="w-8 h-6 object-cover rounded-sm shadow-sm" />
@@ -57,7 +85,7 @@ export default function PortalPage() {
 
             <button
               onClick={() => signOut({ callbackUrl: '/' })}
-              className="flex items-center gap-2 px-6 py-3 bg-red-600 text-white rounded-lg shadow-md hover:bg-red-700 transition-all duration-200 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2"
+              className="flex items-center gap-2 px-5 py-2.5 bg-white/10 border border-white/40 text-white font-semibold rounded-lg hover:bg-white hover:text-park-700 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-white"
             >
               <ArrowRightOnRectangleIcon className="h-5 w-5" />
               {t.logout}
@@ -66,142 +94,29 @@ export default function PortalPage() {
         </header>
 
         {/* Menu Principal */}
-        <div className="bg-white p-8 rounded-xl shadow-lg">
-          <h2 className="text-2xl font-bold text-gray-800 mb-8 border-b pb-4">{t.quick_actions}</h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-            
-            {/* Botão 1 - Gerir Horários (SÓ PARA ADMINS) */}
-            {isAdmin && (
+        <div className="bg-white p-6 sm:p-8 rounded-2xl shadow-lg">
+          <h2 className="text-2xl font-bold text-gray-800 mb-8 border-b border-park-100 pb-4">{t.quick_actions}</h2>
+
+          {/* flex-wrap centrado: as filas incompletas ficam ao centro em vez de um cartão sozinho à esquerda.
+              Em ecrãs grandes cabem 5 por fila (10 cartões de admin = 2 filas certas). */}
+          <div className="flex flex-wrap justify-center gap-6">
+            {cartoes.map(({ href, icon: Icon, title, desc }) => (
               <Link
-                href="/scheduler"
-                className="flex flex-col items-center justify-center p-6 bg-gradient-to-br from-park-500 to-park-700 text-white rounded-xl shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-300 ease-in-out group"
+                key={href}
+                href={href}
+                className="group w-full sm:w-[calc(50%-0.75rem)] lg:w-[calc(20%-1.2rem)] flex flex-col items-center text-center p-6 bg-white border border-park-100 rounded-2xl shadow-sm hover:shadow-xl hover:bg-park-600 hover:border-park-600 hover:-translate-y-1 transition-all duration-300"
               >
-                <CalendarDaysIcon className="h-12 w-12 mb-3 text-park-200 group-hover:text-white transition-colors duration-300" />
-                <span className="text-lg font-semibold">{t.manage_schedules}</span>
-                <span className="text-sm text-park-100 group-hover:text-park-50 mt-1">
-                  {t.manage_schedules_desc}
+                <div className="h-16 w-16 rounded-full bg-park-50 group-hover:bg-white/20 flex items-center justify-center mb-4 transition-colors duration-300">
+                  <Icon className="h-8 w-8 text-park-600 group-hover:text-white transition-colors duration-300" />
+                </div>
+                <span className="text-base font-semibold text-gray-900 group-hover:text-white transition-colors duration-300">
+                  {t[title]}
+                </span>
+                <span className="text-sm text-gray-500 group-hover:text-park-50 mt-1 transition-colors duration-300">
+                  {t[desc]}
                 </span>
               </Link>
-            )}
-
-            {/* Botão 2 - Gerir Reservas */}
-            <Link
-              href="/gestao-reserva"
-              className="flex flex-col items-center justify-center p-6 bg-gradient-to-br from-green-500 to-green-700 text-white rounded-xl shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-300 ease-in-out group"
-            >
-              <UsersIcon className="h-12 w-12 mb-3 text-green-200 group-hover:text-white transition-colors duration-300" />
-              <span className="text-lg font-semibold">{t.manage_reservations}</span>
-              <span className="text-sm text-green-100 group-hover:text-green-50 mt-1">
-                {t.manage_reservations_desc}
-              </span>
-            </Link>
-
-            {/* BOTÃO: CHECK-IN DIÁRIO */}
-            <Link
-              href="/portal/checkin"
-              className="flex flex-col items-center justify-center p-6 bg-gradient-to-br from-teal-500 to-teal-700 text-white rounded-xl shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-300 ease-in-out group"
-            >
-              <CheckBadgeIcon className="h-12 w-12 mb-3 text-teal-200 group-hover:text-white transition-colors duration-300" />
-              <span className="text-lg font-semibold">{t.checkin_daily}</span>
-              <span className="text-sm text-teal-100 group-hover:text-teal-50 mt-1">
-                {t.checkin_daily_desc}
-              </span>
-            </Link>
-
-            {/* Botão 3 - Gerir Funcionários (SÓ PARA ADMINS) */}
-            {isAdmin && (
-              <Link
-                href="/funcionarios"
-                className="flex flex-col items-center justify-center p-6 bg-gradient-to-br from-park-500 to-park-700 text-white rounded-xl shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-300 ease-in-out group"
-              >
-                <UserGroupIcon className="h-12 w-12 mb-3 text-park-200 group-hover:text-white transition-colors duration-300" />
-                <span className="text-lg font-semibold">{t.manage_employees}</span>
-                <span className="text-sm text-park-100 group-hover:text-park-50 mt-1">
-                  {t.manage_employees_desc}
-                </span>
-              </Link>
-            )}
-
-            {/* Botão 5 - Painel de Admin (SÓ PARA ADMINS) */}
-            {isAdmin && (
-              <Link
-                href="/adminpanel"
-                className="flex flex-col items-center justify-center p-6 bg-gradient-to-br from-orange-500 to-orange-700 text-white rounded-xl shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-300 ease-in-out group"
-              >
-                <ChartBarSquareIcon className="h-12 w-12 mb-3 text-orange-200 group-hover:text-white transition-colors duration-300" />
-                <span className="text-lg font-semibold">{t.admin_panel}</span>
-                <span className="text-sm text-orange-100 group-hover:text-orange-50 mt-1">
-                  {t.admin_panel_desc}
-                </span>
-              </Link>
-            )}
-
-            {/* Botão 4 - Gerir Minha Disponibilidade (PARA TODOS) */}
-            <Link
-              href="/disponibilidade"
-              className="flex flex-col items-center justify-center p-6 bg-gradient-to-br from-purple-500 to-purple-700 text-white rounded-xl shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-300 ease-in-out group"
-            >
-              <ClockIcon className="h-12 w-12 mb-3 text-purple-200 group-hover:text-white transition-colors duration-300" />
-              <span className="text-lg font-semibold">{t.my_availability}</span>
-              <span className="text-sm text-purple-100 group-hover:text-purple-50 mt-1">
-                {t.my_availability_desc}
-              </span>
-            </Link>
-
-            {/* Botão - Horário (PARA TODOS) */}
-            <Link
-              href="/horario"
-              className="flex flex-col items-center justify-center p-6 bg-gradient-to-br from-cyan-500 to-cyan-700 text-white rounded-xl shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-300 ease-in-out group"
-            >
-              <TableCellsIcon className="h-12 w-12 mb-3 text-cyan-200 group-hover:text-white transition-colors duration-300" />
-              <span className="text-lg font-semibold">{t.horario_card}</span>
-              <span className="text-sm text-cyan-100 group-hover:text-cyan-50 mt-1">
-                {t.horario_card_desc}
-              </span>
-            </Link>
-
-            {/* 🔥 BOTÃO BASE DE DADOS (AGORA COM PROTEÇÃO REFORÇADA) */}
-            {isAdmin && (
-              <Link
-                href="/portal/clientes"
-                className="flex flex-col items-center justify-center p-6 bg-gradient-to-br from-gray-700 to-gray-900 text-white rounded-xl shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-300 ease-in-out group"
-              >
-                <UserGroupIcon className="h-12 w-12 mb-3 text-gray-300 group-hover:text-white transition-colors duration-300" />
-                <span className="text-lg font-semibold">{t.database}</span>
-                <span className="text-sm text-gray-300 group-hover:text-gray-100 mt-1">
-                  {t.database_desc}
-                </span>
-              </Link>
-            )}
-
-            {/* Botão - Gestão de Horas / relógio de ponto (SÓ PARA ADMINS) */}
-            {isAdmin && (
-              <Link
-                href="/gestao-horas"
-                className="flex flex-col items-center justify-center p-6 bg-gradient-to-br from-emerald-500 to-emerald-700 text-white rounded-xl shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-300 ease-in-out group"
-              >
-                <BanknotesIcon className="h-12 w-12 mb-3 text-emerald-200 group-hover:text-white transition-colors duration-300" />
-                <span className="text-lg font-semibold">{t.hm_card}</span>
-                <span className="text-sm text-emerald-100 group-hover:text-emerald-50 mt-1">
-                  {t.hm_card_desc}
-                </span>
-              </Link>
-            )}
-
-            {/* Botão - Criar Horários (SÓ PARA ADMINS) */}
-            {isAdmin && (
-              <Link
-                href="/criar-horarios"
-                className="flex flex-col items-center justify-center p-6 bg-gradient-to-br from-pink-500 to-pink-700 text-white rounded-xl shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-300 ease-in-out group"
-              >
-                <PlusCircleIcon className="h-12 w-12 mb-3 text-pink-200 group-hover:text-white transition-colors duration-300" />
-                <span className="text-lg font-semibold">{t.create_schedules}</span>
-                <span className="text-sm text-pink-100 group-hover:text-pink-50 mt-1">
-                  {t.create_schedules_desc}
-                </span>
-              </Link>
-            )}
-
+            ))}
           </div>
         </div>
       </div>
