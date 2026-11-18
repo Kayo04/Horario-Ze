@@ -876,28 +876,37 @@
       }
     }, [hasUnsavedChanges, handleSaveToDatabase, t]);
 
+    // Seta de voltar: a ver um horário -> volta à lista de semanas do Criar Horários;
+    // na lista de semanas -> volta ao portal. Com alterações por guardar pergunta primeiro.
     const handleExit = useCallback(() => {
+      const voltar = schedule
+        ? () => {
+            cancelMultiSelect();
+            setEditingCells([]);
+            setSchedule(null);
+            setHasUnsavedChanges(false);
+            setSavePrompt(null);
+            window.scrollTo({ top: 0 });
+          }
+        : () => { window.location.href = '/portal'; };
+
       if (hasUnsavedChanges) {
         setSavePrompt({
           show: true,
           title: t.save_prompt_title,
           message: t.save_prompt_message,
           onSave: () => {
-            handleSaveToDatabase(() => {
-              window.location.href = '/portal';
-            });
+            handleSaveToDatabase(voltar);
           },
-          onDiscard: () => {
-            window.location.href = '/portal';
-          },
+          onDiscard: voltar,
           onCancel: () => {
             setSavePrompt(null);
           }
         });
       } else {
-        window.location.href = '/portal';
+        voltar();
       }
-    }, [hasUnsavedChanges, handleSaveToDatabase, t]);
+    }, [schedule, hasUnsavedChanges, handleSaveToDatabase, cancelMultiSelect, t]);
 
     const handleSaveClick = useCallback(() => {
       if (!schedule) return;
@@ -1380,7 +1389,7 @@
             <button
               onClick={handleExit}
               className="p-2 hover:bg-gray-100 rounded-full transition-colors text-gray-600"
-              title={t.back_to_portal}
+              title={schedule ? t.cs_back_to_weeks : t.back_to_portal}
             >
               <ArrowLeftIcon className="w-6 h-6" />
             </button>
