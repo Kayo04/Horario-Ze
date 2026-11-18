@@ -7,6 +7,7 @@ import {
   ArrowUpTrayIcon,
   ArrowDownTrayIcon,
   PencilSquareIcon,
+  TableCellsIcon,
   XMarkIcon,
 } from '@heroicons/react/24/outline'
 import { useLanguage } from '@/context/LanguageContext'
@@ -22,9 +23,23 @@ import {
   lerRelatorioNGTeco,
   eRelatorioNGTeco,
   estaExcluido,
+  normalizarNome,
+  sugerirFuncionario,
+  type LivroFuncionario,
+  type MesLivro,
 } from '@/lib/horas/regras'
+import { lerLivroPonto } from '@/lib/horas/livroPontoExcel'
 
 type Comparacao = Record<string, Record<string, number | null>>
+type Livros = Record<string, Record<string, LivroFuncionario>>
+
+// Um ficheiro de livro de ponto escolhido na janela de importação
+interface FicheiroLivro {
+  fileName: string
+  meses: MesLivro[]
+  employeeId: string // "" = ainda não escolhido
+  erro: boolean      // não parece um livro de ponto
+}
 
 interface Grupo {
   id: number
@@ -46,6 +61,8 @@ export default function GestaoHorasPage() {
 
   const [records, setRecords] = useState<Marcacao[]>([])
   const [comparison, setComparison] = useState<Comparacao>({})
+  const [livros, setLivros] = useState<Livros>({})
+  const [nomesLivro, setNomesLivro] = useState<Record<string, number>>({})
   const [loading, setLoading] = useState(true)
   const [message, setMessage] = useState('')
   const [error, setError] = useState('')
@@ -71,6 +88,8 @@ export default function GestaoHorasPage() {
       if (!res.ok) throw new Error(data.error || 'Falha ao carregar dados.')
       setRecords(data.records)
       setComparison(data.comparison)
+      setLivros(data.livros ?? {})
+      setNomesLivro(data.nomesLivro ?? {})
     } catch (e: any) {
       setError(e.message)
     } finally {
@@ -161,6 +180,100 @@ export default function GestaoHorasPage() {
       Array.from(new Map(records.map(r => [r.id, r.name])).entries()).sort((a, b) => a[1].localeCompare(b[1], 'pt')),
     [records],
   )
+
+  // --- Importar livros de ponto (Excel escrito pelos funcionários) ---
+  const [livroFicheiros, setLivroFicheiros] = useState<FicheiroLivro[] | null>(null) // null = janela fechada
+  const [livroMes, setLivroMes] = useState('')
+  const [livroLendo, setLivroLendo] = useState(false)
+  const [livroGuardando, setLivroGuardando] = useState(false)
+  const [livroErro, setLivroErro] = useState('')
+
+  const mesesNosLivros = useMemo(
+    () => Array.from(new Set((livroFicheiros ?? []).flatMap(f => f.meses.map(m => m.month)))).sort().reverse(),
+    [livroFicheiros],
+  )
+
+  const abrirLivros = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const ficheiros = Array.from(e.target.files ?? [])
+    e.target.value = ''
+    if (!ficheiros.length) return
+    setLivroLendo(true)
+    setMessage('')
+    setError('')
+    try {
+      const XLSX = await import('xlsx')
+      const lidos: FicheiroLivro[] = []
+      for (const f of ficheiros) {
+        let meses: MesLivro[] = []
+        try {
+          meses = lerLivroPonto(XLSX, await f.arrayBuffer())
+        } catch {
+          meses = []
+        }
+        // Nome escrito no livro (o mais recente que estiver preenchido)
+        const nome = [...meses].reverse().find(m => m.name)?.name ?? ''
+        // 1.º a escolha feita numa importação anterior, 2.º um nome parecido no relógio
+        const conhecido = nome ? nomesLivro[normalizarNome(nome)] : undefined
+        const sugerido = conhecido ?? (nome ? sugerirFuncionario(nome, pessoas) : null)
+        lidos.push({
+          fileName: f.name,
+          meses,
+          employeeId: sugerido != null && !estaExcluido(sugerido) ? String(sugerido) : '',
+          erro: meses.length === 0,
+        })
+      }
+      const todosMeses = Array.from(new Set(lidos.flatMap(f => f.meses.map(m => m.month)))).sort().reverse()
+      // Por defeito compara o mês que está aberto na página (se existir nos livros)
+      setLivroMes(todosMeses.includes(month) ? month : todosMeses[0] ?? '')
+      setLivroErro('')
+      setLivroFicheiros(lidos)
+    } catch (err: any) {
+      setError(err.message)
+    } finally {
+      setLivroLendo(false)
+    }
+  }
+
+  const livrosParaImportar = (livroFicheiros ?? [])
+    .map(f => ({ f, mes: f.meses.find(m => m.month === livroMes) }))
+    .filter(x => x.mes && x.f.employeeId !== '')
+
+  const importarLivros = async () => {
+    const ids = livrosParaImportar.map(x => x.f.employeeId)
+    if (new Set(ids).size !== ids.length) {
+      setLivroErro(t.hm_book_duplicate)
+      return
+    }
+    setLivroGuardando(true)
+    setLivroErro('')
+    try {
+      const res = await fetch('/api/horas/livro', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          livros: livrosParaImportar.map(({ f, mes }) => ({
+            month: livroMes,
+            employeeId: Number(f.employeeId),
+            employeeName: pessoas.find(([id]) => String(id) === f.employeeId)?.[1] ?? '',
+            livroName: mes!.name,
+            fileName: f.fileName,
+            days: mes!.days,
+          })),
+        }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error)
+      setLivroFicheiros(null)
+      setMessage(t.hm_book_done.replace('{n}', String(data.total)).replace('{month}', nomeMes(livroMes)))
+      setMonth(livroMes)
+      setWeek('')
+      await carregar()
+    } catch (err: any) {
+      setLivroErro(err.message)
+    } finally {
+      setLivroGuardando(false)
+    }
+  }
 
   const nomeMes = (m: string) =>
     new Intl.DateTimeFormat(locale, { month: 'long', year: 'numeric', timeZone: 'UTC' }).format(new Date(m + '-01T00:00:00Z'))
@@ -318,6 +431,14 @@ export default function GestaoHorasPage() {
               <ArrowUpTrayIcon className="h-5 w-5" />
               {importing ? t.hm_importing : t.hm_import}
               <input type="file" accept=".csv,.xlsx,.xls" className="hidden" onChange={importar} disabled={importing} />
+            </label>
+            <label
+              className={`flex items-center gap-2 px-4 py-2 bg-violet-600 text-white rounded-lg hover:bg-violet-700 transition cursor-pointer ${livroLendo ? 'opacity-60 pointer-events-none' : ''}`}
+            >
+              <TableCellsIcon className="h-5 w-5" />
+              {livroLendo ? t.hm_book_reading : t.hm_import_book}
+              {/* multiple: o chefe pode escolher os livros de todos os funcionários de uma vez */}
+              <input type="file" accept=".xlsx,.xls,.xlsm" multiple className="hidden" onChange={abrirLivros} disabled={livroLendo} />
             </label>
             <button
               onClick={exportarExcel}
@@ -487,6 +608,95 @@ export default function GestaoHorasPage() {
           </>
         )}
       </div>
+
+      {/* Janela de importação dos livros de ponto */}
+      {livroFicheiros && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center p-4 z-50" onClick={() => setLivroFicheiros(null)}>
+          <div onClick={e => e.stopPropagation()} className="bg-white rounded-xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-y-auto p-6 space-y-4">
+            <div className="flex justify-between items-start gap-4">
+              <div>
+                <h2 className="text-xl font-bold text-gray-900">{t.hm_book_title}</h2>
+                <p className="text-sm text-gray-500 mt-1">{t.hm_book_hint}</p>
+              </div>
+              <button type="button" onClick={() => setLivroFicheiros(null)} className="text-gray-400 hover:text-gray-600">
+                <XMarkIcon className="h-6 w-6" />
+              </button>
+            </div>
+
+            <label className="block text-sm font-semibold text-gray-700 sm:w-72">
+              {t.hm_book_month}
+              <select className={selectClass} value={livroMes} onChange={e => setLivroMes(e.target.value)}>
+                {mesesNosLivros.map(m => (
+                  <option key={m} value={m}>{nomeMes(m)}</option>
+                ))}
+              </select>
+            </label>
+
+            <div className="overflow-x-auto border border-gray-100 rounded-lg">
+              <table className="w-full text-sm">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className={th}>{t.hm_book_file}</th>
+                    <th className={th}>{t.hm_book_name}</th>
+                    <th className={th}>{t.hm_book_hours}</th>
+                    <th className={th}>{t.hm_book_employee}</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {livroFicheiros.map((f, i) => {
+                    const mes = f.meses.find(m => m.month === livroMes)
+                    return (
+                      <tr key={i}>
+                        <td className={`${td} max-w-[14rem] truncate`} title={f.fileName}>{f.fileName}</td>
+                        <td className={td}>{mes?.name || '—'}</td>
+                        <td className={td}>
+                          {f.erro ? (
+                            <span className="text-red-600">{t.hm_book_unreadable}</span>
+                          ) : mes ? (
+                            `${horas(mes.total)} · ${mes.days.length} d`
+                          ) : (
+                            <span className="text-gray-400">{t.hm_book_no_month}</span>
+                          )}
+                        </td>
+                        <td className={td}>
+                          <select
+                            className="px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500"
+                            value={f.employeeId}
+                            disabled={!mes}
+                            onChange={e =>
+                              setLivroFicheiros(fs => fs!.map((x, j) => (j === i ? { ...x, employeeId: e.target.value } : x)))
+                            }
+                          >
+                            <option value="">{t.hm_book_choose}</option>
+                            {pessoas.map(([id, name]) => (
+                              <option key={id} value={String(id)}>{name}</option>
+                            ))}
+                          </select>
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            </div>
+
+            {livroErro && <p className="text-sm text-red-700" role="alert">{livroErro}</p>}
+            <div className="flex gap-3 justify-end">
+              <button type="button" onClick={() => setLivroFicheiros(null)} className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition">
+                {t.hm_cancel}
+              </button>
+              <button
+                type="button"
+                onClick={importarLivros}
+                disabled={livroGuardando || livrosParaImportar.length === 0}
+                className="px-4 py-2 bg-violet-600 text-white font-semibold rounded-lg hover:bg-violet-700 disabled:opacity-60 transition"
+              >
+                {t.hm_book_import_btn.replace('{n}', String(livrosParaImportar.length))}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Janela de correção */}
       {editing && (
