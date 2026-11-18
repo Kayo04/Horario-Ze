@@ -298,7 +298,7 @@ export default function SchedulerPrototype(): JSX.Element {
                   onClick={() => setEventType('teambuilding')}
                   className={`p-4 border-2 rounded-lg text-center transition-colors ${
                     eventType === 'teambuilding'
-                      ? 'border-blue-500 bg-blue-50 text-blue-700'
+                      ? 'border-park-500 bg-park-50 text-park-700'
                       : 'border-gray-200 bg-white text-gray-700 hover:border-gray-300'
                   }`}
                 >
@@ -330,7 +330,7 @@ export default function SchedulerPrototype(): JSX.Element {
                 type="date"
                 value={date}
                 onChange={e => setDate(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-park-500"
                 required
                 disabled={saving}
               />
@@ -345,7 +345,7 @@ export default function SchedulerPrototype(): JSX.Element {
                 <select
                   value={startTime}
                   onChange={e => setStartTime(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-park-500"
                   required
                   disabled={saving}
                 >
@@ -362,7 +362,7 @@ export default function SchedulerPrototype(): JSX.Element {
                 <select
                   value={endTime}
                   onChange={e => setEndTime(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-park-500"
                   required
                   disabled={saving}
                 >
@@ -395,7 +395,7 @@ export default function SchedulerPrototype(): JSX.Element {
                 max="100"
                 value={people}
                 onChange={e => setPeople(Number(e.target.value))}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-park-500"
                 required
                 disabled={saving}
               />
@@ -406,7 +406,7 @@ export default function SchedulerPrototype(): JSX.Element {
               <button
                 type="submit"
                 disabled={saving || startTime >= endTime}
-                className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                className="px-6 py-3 bg-park-600 text-white rounded-lg hover:bg-park-700 focus:outline-none focus:ring-2 focus:ring-park-500 font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
               >
                 {saving ? (
                   <>
@@ -494,7 +494,7 @@ export default function SchedulerPrototype(): JSX.Element {
             <h2 className="text-xl font-semibold">Atribuição de Staff</h2>
             <button
               onClick={generateSchedule}
-              className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700"
+              className="px-4 py-2 bg-park-600 text-white rounded-lg hover:bg-park-700"
               disabled={reservations.length === 0}
             >
               Gerar Horário

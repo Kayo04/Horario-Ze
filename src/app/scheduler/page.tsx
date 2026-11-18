@@ -689,7 +689,7 @@ export default function SchedulerPage(): JSX.Element {
     return (
       <div className="min-h-screen bg-gray-50 p-6 flex items-center justify-center">
         <div className="text-center">
-          <div className="w-8 h-8 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin mx-auto mb-4"></div>
+          <div className="w-8 h-8 border-4 border-park-200 border-t-park-600 rounded-full animate-spin mx-auto mb-4"></div>
           <div className="text-lg">{t.check_session}</div>
         </div>
       </div>
@@ -722,7 +722,7 @@ export default function SchedulerPage(): JSX.Element {
         <div className="max-w-4xl mx-auto">
 
           <div className="mb-6 flex justify-between items-center">
-            <Link href="/portal" className="inline-flex items-center text-sm text-indigo-600 hover:text-indigo-800 group">
+            <Link href="/portal" className="inline-flex items-center text-sm text-park-600 hover:text-park-800 group">
               <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-1 transition-transform group-hover:-translate-x-1" viewBox="0 0 20 20" fill="currentColor">
                 <path fillRule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clipRule="evenodd" />
               </svg>
@@ -768,7 +768,7 @@ export default function SchedulerPage(): JSX.Element {
                   {t.event_type} *
                 </label>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                  <button type="button" onClick={() => setEventType('teambuilding')} className={`p-4 border-2 rounded-lg text-center transition-colors ${eventType === 'teambuilding' ? 'border-blue-500 bg-blue-50 text-blue-700' : 'border-gray-200 bg-white text-gray-700 hover:border-gray-300'}`}>
+                  <button type="button" onClick={() => setEventType('teambuilding')} className={`p-4 border-2 rounded-lg text-center transition-colors ${eventType === 'teambuilding' ? 'border-park-500 bg-park-50 text-park-700' : 'border-gray-200 bg-white text-gray-700 hover:border-gray-300'}`}>
                     <div className="font-medium">{t.teambuilding}</div>
                   </button>
                   <button type="button" onClick={() => setEventType('birthday')} className={`p-4 border-2 rounded-lg text-center transition-colors ${eventType === 'birthday' ? 'border-green-500 bg-green-50 text-green-700' : 'border-gray-200 bg-white text-gray-700 hover:border-gray-300'}`}>
@@ -784,18 +784,18 @@ export default function SchedulerPage(): JSX.Element {
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">{t.date_label} *</label>
-                <input type="date" value={date} onChange={e => setDate(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" required disabled={saving || isUploading} />
+                <input type="date" value={date} onChange={e => setDate(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-park-500" required disabled={saving || isUploading} />
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">{t.start_time} *</label>
-                  <select value={startTime} onChange={e => setStartTime(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" required disabled={saving || isUploading}>
+                  <select value={startTime} onChange={e => setStartTime(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-park-500" required disabled={saving || isUploading}>
                     { workingTimeOptions.map(time => (<option key={time} value={time}>{time}</option>))}
                   </select>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">{t.end_time} *</label>
-                  <select value={endTime} onChange={e => setEndTime(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" required disabled={saving || isUploading}>
+                  <select value={endTime} onChange={e => setEndTime(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-park-500" required disabled={saving || isUploading}>
                     { workingTimeOptions.map(time => (<option key={time} value={time}>{time}</option>))}
                   </select>
                 </div>
@@ -809,7 +809,7 @@ export default function SchedulerPage(): JSX.Element {
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">{t.people_label} *</label>
-                <input type="number" min="1" max="100" value={people} onChange={e => setPeople(Number(e.target.value))} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" required disabled={saving || isUploading} />
+                <input type="number" min="1" max="100" value={people} onChange={e => setPeople(Number(e.target.value))} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-park-500" required disabled={saving || isUploading} />
               </div>
               
               <div className="flex justify-end pt-2 gap-3">
@@ -826,7 +826,7 @@ export default function SchedulerPage(): JSX.Element {
                 <button
                   type="submit"
                   disabled={saving || startTime >= endTime || isUploading}
-                  className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                  className="px-6 py-3 bg-park-600 text-white rounded-lg hover:bg-park-700 focus:outline-none focus:ring-2 focus:ring-park-500 font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
                 >
                   {saving 
                     ? (editingReservationId ? t.updating : t.saving)
@@ -872,7 +872,7 @@ export default function SchedulerPage(): JSX.Element {
                           
                           {/* Bloco da Data */}
                           <div className="flex-shrink-0 w-16 text-center border-r border-gray-200 pr-4 pt-1">
-                            <div className="text-3xl font-bold text-blue-600 leading-none">{day}</div>
+                            <div className="text-3xl font-bold text-park-600 leading-none">{day}</div>
                             <div className="text-sm font-medium text-gray-700 mt-1">{month}</div>
                             <div className="text-xs text-gray-500">{year}</div>
                           </div>
@@ -913,7 +913,7 @@ export default function SchedulerPage(): JSX.Element {
                               <div className="flex-shrink-0 ml-4">
                                 <button
                                   onClick={() => handleEditClick(reservation)}
-                                  className="px-3 py-1 bg-blue-500 text-white rounded text-sm hover:bg-blue-600 mr-2"
+                                  className="px-3 py-1 bg-park-500 text-white rounded text-sm hover:bg-park-600 mr-2"
                                   disabled={saving || isUploading}
                                 >
                                   {t.edit}
@@ -942,7 +942,7 @@ export default function SchedulerPage(): JSX.Element {
               <div className="flex gap-2"> 
                 <button
                   onClick={generateSchedule}
-                  className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700"
+                  className="px-4 py-2 bg-park-600 text-white rounded-lg hover:bg-park-700"
                   disabled={reservations.length === 0 || isUploading || saving}
                 >
                   {t.generate_schedule}

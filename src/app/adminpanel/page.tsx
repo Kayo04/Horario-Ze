@@ -396,7 +396,7 @@ export default function AdminPanelPage() {
 
         <div className="mb-6 max-w-lg">
           <label className="block text-lg font-medium text-gray-700 mb-2">{t.select_employee}</label>
-          <select value={selectedEmployeeId} onChange={handleEmployeeChange} className="w-full p-3 border border-gray-300 rounded-md shadow-sm focus:ring-2 focus:ring-indigo-500" disabled={isLoadingEmployees}>
+          <select value={selectedEmployeeId} onChange={handleEmployeeChange} className="w-full p-3 border border-gray-300 rounded-md shadow-sm focus:ring-2 focus:ring-park-500" disabled={isLoadingEmployees}>
             <option value="" disabled>{isLoadingEmployees ? t.loading : t.select_placeholder}</option>
             {employees.map(emp => <option key={emp.id} value={emp.id}>{emp.name} ({emp.email})</option>)}
           </select>
@@ -404,8 +404,8 @@ export default function AdminPanelPage() {
 
         {selectedEmployeeId && (
             <div className="flex space-x-4 mb-8 border-b border-gray-200">
-                <button onClick={() => setActiveTab('availability')} className={`py-2 px-4 font-medium text-sm border-b-2 flex items-center gap-2 ${activeTab === 'availability' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-gray-500'}`}><UserGroupIcon className="w-5 h-5"/> {t.manage_availability}</button>
-                <button onClick={() => setActiveTab('performance')} className={`py-2 px-4 font-medium text-sm border-b-2 flex items-center gap-2 ${activeTab === 'performance' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-gray-500'}`}><ChartBarIcon className="w-5 h-5"/> {t.view_performance}</button>
+                <button onClick={() => setActiveTab('availability')} className={`py-2 px-4 font-medium text-sm border-b-2 flex items-center gap-2 ${activeTab === 'availability' ? 'border-park-600 text-park-600' : 'border-transparent text-gray-500'}`}><UserGroupIcon className="w-5 h-5"/> {t.manage_availability}</button>
+                <button onClick={() => setActiveTab('performance')} className={`py-2 px-4 font-medium text-sm border-b-2 flex items-center gap-2 ${activeTab === 'performance' ? 'border-park-600 text-park-600' : 'border-transparent text-gray-500'}`}><ChartBarIcon className="w-5 h-5"/> {t.view_performance}</button>
             </div>
         )}
         
@@ -430,7 +430,7 @@ export default function AdminPanelPage() {
                   const unavailableSlots = getUnavailableSlotsForDate(dateString)
                   const isAllDay = hasAllDayUnavailability(dateString)
                   return (
-                    <button key={dateString} onClick={() => setSelectedDate(dateString)} className={`p-1 sm:p-3 rounded-lg border text-left min-h-[4.5rem] sm:min-h-20 flex flex-col justify-start transition-colors ${selectedDate === dateString ? 'border-blue-500 bg-blue-50' : 'border-gray-200'} ${isAllDay ? 'bg-red-100 border-red-300' : ''} ${unavailableSlots.length > 0 && !isAllDay ? 'bg-red-50 border-red-200' : ''} ${unavailableSlots.length === 0 && selectedDate !== dateString ? 'bg-white' : ''} ${unavailableSlots.length === 0 && selectedDate === dateString ? '' : 'hover:bg-gray-50'}`}>
+                    <button key={dateString} onClick={() => setSelectedDate(dateString)} className={`p-1 sm:p-3 rounded-lg border text-left min-h-[4.5rem] sm:min-h-20 flex flex-col justify-start transition-colors ${selectedDate === dateString ? 'border-park-500 bg-park-50' : 'border-gray-200'} ${isAllDay ? 'bg-red-100 border-red-300' : ''} ${unavailableSlots.length > 0 && !isAllDay ? 'bg-red-50 border-red-200' : ''} ${unavailableSlots.length === 0 && selectedDate !== dateString ? 'bg-white' : ''} ${unavailableSlots.length === 0 && selectedDate === dateString ? '' : 'hover:bg-gray-50'}`}>
                       <div className="font-semibold text-sm">{day.getDate()}</div>
                       {isAllDay && <div className="hidden sm:block text-[10px] sm:text-xs text-red-700 mt-0.5 font-medium">{t.unavailable_short}</div>}
                       {unavailableSlots.length > 0 && !isAllDay && <div className="hidden sm:block text-[10px] sm:text-xs text-red-600 mt-0.5">{unavailableSlots.length} {t.unavailable_count_short}</div>}
@@ -465,7 +465,7 @@ export default function AdminPanelPage() {
         {selectedEmployeeId && activeTab === 'performance' && !isLoadingPerformance && (
             <div className="space-y-8 animate-in fade-in">
                 <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                    <div className={`bg-white p-5 rounded-xl border ${selectedDate ? 'border-indigo-500 bg-indigo-50' : ''}`}>
+                    <div className={`bg-white p-5 rounded-xl border ${selectedDate ? 'border-park-500 bg-park-50' : ''}`}>
                         <div className="text-sm text-gray-500 font-bold mb-1 flex items-center gap-2"><ClockIcon className="w-4 h-4"/> {selectedDate ? t.selected_day : t.today}</div>
                         <div className="text-3xl font-bold text-gray-800">{stats.hoursToday.toFixed(1)}h</div>
                     </div>
@@ -501,11 +501,11 @@ export default function AdminPanelPage() {
                                 const isSelected = selectedDate === dStr
                                 return (
                                     <button key={dStr} onClick={() => setSelectedDate(dStr)} 
-                                        className={`h-20 sm:h-24 p-1 border rounded flex flex-col items-start justify-between transition-all ${isSelected ? 'border-indigo-500 bg-indigo-50 ring-1 ring-indigo-500' : 'hover:bg-gray-50 border-gray-100'} ${shifts.length > 0 ? 'bg-blue-50/30' : 'bg-white'}`}>
-                                        <span className={`font-bold text-sm ${isSelected ? 'text-indigo-700' : 'text-gray-700'}`}>{day.getDate()}</span>
+                                        className={`h-20 sm:h-24 p-1 border rounded flex flex-col items-start justify-between transition-all ${isSelected ? 'border-park-500 bg-park-50 ring-1 ring-park-500' : 'hover:bg-gray-50 border-gray-100'} ${shifts.length > 0 ? 'bg-park-50/30' : 'bg-white'}`}>
+                                        <span className={`font-bold text-sm ${isSelected ? 'text-park-700' : 'text-gray-700'}`}>{day.getDate()}</span>
                                         <div className="w-full flex flex-col gap-1">
                                             {shifts.map((s, i) => (
-                                                <span key={i} className="text-[10px] bg-blue-100 text-blue-800 px-1.5 py-0.5 rounded font-bold w-full text-left truncate">
+                                                <span key={i} className="text-[10px] bg-park-100 text-park-800 px-1.5 py-0.5 rounded font-bold w-full text-left truncate">
                                                   {s.startTime}-{s.endTime}
                                                 </span>
                                             ))}
@@ -538,24 +538,24 @@ export default function AdminPanelPage() {
                                 workShifts.filter(s => s.date === selectedDate).map((s, i) => {
                                     const isSelected = selectedShiftIds.includes(s._id);
                                     return (
-                                        <div key={i} className={`p-4 rounded-lg mb-3 border shadow-sm relative group transition-all cursor-pointer ${isSelected ? 'bg-blue-100 border-blue-300' : 'bg-blue-50 border-blue-100'}`} onClick={() => toggleSelectShift(s._id)}>
+                                        <div key={i} className={`p-4 rounded-lg mb-3 border shadow-sm relative group transition-all cursor-pointer ${isSelected ? 'bg-park-100 border-park-300' : 'bg-park-50 border-park-100'}`} onClick={() => toggleSelectShift(s._id)}>
                                             <div className="flex justify-between items-center mb-2">
                                                 <div className="flex items-center gap-2">
                                                     {/* CHECKBOX */}
-                                                    <div className={`w-5 h-5 rounded border flex items-center justify-center ${isSelected ? 'bg-blue-500 border-blue-500' : 'bg-white border-gray-300'}`}>
+                                                    <div className={`w-5 h-5 rounded border flex items-center justify-center ${isSelected ? 'bg-park-500 border-park-500' : 'bg-white border-gray-300'}`}>
                                                         {isSelected && <CheckCircleIcon className="w-4 h-4 text-white"/>}
                                                     </div>
-                                                    <span className="text-xs font-bold text-blue-400 uppercase tracking-wider">{t.shift}</span>
+                                                    <span className="text-xs font-bold text-park-400 uppercase tracking-wider">{t.shift}</span>
                                                 </div>
-                                                <span className="bg-white text-blue-600 text-xs font-bold px-2 py-1 rounded shadow-sm">{s.totalHours.toFixed(2)} {t.hours}</span>
+                                                <span className="bg-white text-park-600 text-xs font-bold px-2 py-1 rounded shadow-sm">{s.totalHours.toFixed(2)} {t.hours}</span>
                                             </div>
-                                            <div className="flex items-center gap-2 text-blue-900 font-bold text-lg pl-7">
+                                            <div className="flex items-center gap-2 text-park-900 font-bold text-lg pl-7">
                                               <ClockIcon className="w-5 h-5"/> 
                                               {s.startTime} - {s.endTime}
                                             </div>
                                             
-                                            <div className="mt-3 pt-2 border-t border-blue-200 flex justify-end gap-2" onClick={e => e.stopPropagation()}>
-                                                <button onClick={() => openEditModal(s)} className="p-1.5 bg-white text-blue-600 rounded hover:bg-blue-100 transition-colors" title={t.edit}>
+                                            <div className="mt-3 pt-2 border-t border-park-200 flex justify-end gap-2" onClick={e => e.stopPropagation()}>
+                                                <button onClick={() => openEditModal(s)} className="p-1.5 bg-white text-park-600 rounded hover:bg-park-100 transition-colors" title={t.edit}>
                                                   <PencilSquareIcon className="w-4 h-4"/>
                                                 </button>
                                                 <button onClick={() => handleDeleteShift(s._id)} className="p-1.5 bg-white text-red-600 rounded hover:bg-red-100 transition-colors" title={t.delete}>
@@ -616,7 +616,7 @@ export default function AdminPanelPage() {
                         <button onClick={() => setEditingShift(null)} className="flex-1 py-2.5 border rounded-lg text-gray-600 font-medium hover:bg-gray-50">
                           {t.cancel}
                         </button>
-                        <button onClick={handleSaveEdit} className="flex-1 py-2.5 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 shadow-sm">
+                        <button onClick={handleSaveEdit} className="flex-1 py-2.5 bg-park-600 text-white rounded-lg font-medium hover:bg-park-700 shadow-sm">
                           {t.save_changes}
                         </button>
                     </div>

@@ -345,7 +345,7 @@
                     className={`
                       h-9 rounded-lg text-sm font-medium transition-colors
                       ${day.isCurrentMonth ? 'text-gray-800' : 'text-gray-400'}
-                      ${day.isToday ? 'bg-blue-50 border border-blue-200' : ''}
+                      ${day.isToday ? 'bg-park-50 border border-park-200' : ''}
                       ${day.isSelected ? 'bg-pink-600 text-white' : 'hover:bg-gray-100'}
                       ${!day.isCurrentMonth ? 'opacity-50' : ''}
                     `}
@@ -1413,7 +1413,7 @@
             <p className="text-gray-600 mb-6">
               {t.access_denied_message}
             </p>
-            <Link href="/portal" className="inline-flex items-center gap-2 bg-blue-600 text-white px-6 py-3 rounded-lg font-medium hover:bg-blue-700 transition-colors">
+            <Link href="/portal" className="inline-flex items-center gap-2 bg-park-600 text-white px-6 py-3 rounded-lg font-medium hover:bg-park-700 transition-colors">
               <ArrowLeftIcon className="w-5 h-5" />
               {t.back_to_portal}
             </Link>
@@ -1429,11 +1429,11 @@
           <div className={`fixed top-4 right-4 z-50 p-4 rounded-xl shadow-2xl flex items-center gap-3 animate-in slide-in-from-right duration-300 max-w-sm border ${
               notification.type === 'success' ? 'bg-white border-green-200 text-green-800' :
               notification.type === 'error' ? 'bg-white border-red-200 text-red-800' :
-              'bg-white border-blue-200 text-blue-800'
+              'bg-white border-park-200 text-park-800'
           }`}>
               {notification.type === 'success' && <CheckCircleIcon className="w-6 h-6 text-green-500" />}
               {notification.type === 'error' && <ExclamationTriangleIcon className="w-6 h-6 text-red-500" />}
-              {notification.type === 'info' && <InformationCircleIcon className="w-6 h-6 text-blue-500" />}
+              {notification.type === 'info' && <InformationCircleIcon className="w-6 h-6 text-park-500" />}
               
               <div className="flex-1">
                   <p className="font-medium text-sm">{notification.message}</p>
@@ -1476,7 +1476,7 @@
                 <button 
                   onClick={savePrompt.onSave}
                   disabled={isSaving}
-                  className="flex items-center justify-center gap-2 px-4 py-3 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors shadow-sm flex-1"
+                  className="flex items-center justify-center gap-2 px-4 py-3 bg-park-600 text-white rounded-lg font-medium hover:bg-park-700 transition-colors shadow-sm flex-1"
                 >
                   {isSaving ? (
                     <>
@@ -1548,7 +1548,7 @@
                       className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all shadow-sm disabled:opacity-50 ${
                         hasUnsavedChanges 
                           ? 'bg-amber-500 hover:bg-amber-600 text-white ring-2 ring-amber-300 ring-offset-2' 
-                          : 'bg-indigo-600 hover:bg-indigo-700 text-white'
+                          : 'bg-park-600 hover:bg-park-700 text-white'
                       }`}
                   >
                       {isSaving ? (
@@ -1563,7 +1563,7 @@
 
                   <button 
                     onClick={startMultiSelect}
-                    className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors shadow-sm"
+                    className="flex items-center gap-2 bg-park-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-park-700 transition-colors shadow-sm"
                   >
                     <Squares2X2Icon className="w-4 h-4" /> 
                     <span className="hidden sm:inline">{t.multi_select_mode}</span>
@@ -1606,7 +1606,7 @@
         <main className="max-w-[95rem] mx-auto p-4 sm:p-6 relative">
           {loadingData && (
             <div className="flex flex-col items-center justify-center py-20">
-              <div className="w-8 h-8 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin mb-4"></div>
+              <div className="w-8 h-8 border-4 border-park-200 border-t-park-600 rounded-full animate-spin mb-4"></div>
               <p className="text-gray-500">{t.loading_data}</p>
             </div>
           )}
@@ -1653,12 +1653,12 @@
                       </button>
                     </div>
                     
-                    <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                      <div className="flex items-center gap-2 text-blue-700">
+                    <div className="mt-4 p-3 bg-park-50 border border-park-200 rounded-lg">
+                      <div className="flex items-center gap-2 text-park-700">
                         <CheckCircleIcon className="w-4 h-4" />
                         <div>
                           <p className="font-medium text-sm">{getWeekRangeText()}</p>
-                          <p className="text-xs text-blue-600 mt-1">
+                          <p className="text-xs text-park-600 mt-1">
                             {t.week_days_range.replace('{start}', weekDates[0]).replace('{end}', weekDates[6])} • {t.weekend}: {weekDates[5]} & {weekDates[6]}
                           </p>
                         </div>
@@ -1738,7 +1738,7 @@
                                       <div className="mt-2">
                                         <button 
                                           onClick={() => toggleColumn(idx)}
-                                          className="text-xs flex items-center gap-1 text-indigo-600 font-medium hover:text-indigo-800 bg-indigo-50 px-2 py-1 rounded w-full justify-center transition-colors"
+                                          className="text-xs flex items-center gap-1 text-park-600 font-medium hover:text-park-800 bg-park-50 px-2 py-1 rounded w-full justify-center transition-colors"
                                         >
                                           {dayReservations.length} {t.events}
                                           {expandedCols.includes(idx) ? <ChevronUpIcon className="w-3 h-3"/> : <ChevronDownIcon className="w-3 h-3"/>}
@@ -1765,7 +1765,7 @@
                           </thead>
                           <tbody>
                             {TIME_SLOTS.map((slot, idx) => (
-                              <tr key={slot} className={`${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'} hover:bg-blue-50 transition-colors`}>
+                              <tr key={slot} className={`${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'} hover:bg-park-50 transition-colors`}>
                                 <td className="p-2 border-r border-gray-300 border-b border-gray-200 font-mono text-xs text-gray-600 font-medium sticky left-0 bg-inherit z-10">
                                   {slot}
                                 </td>
@@ -1786,11 +1786,11 @@
                                       }}
                                       className={`p-1 border-r border-b border-gray-200 h-10 cursor-pointer transition-colors relative group ${
                                         isSelected 
-                                          ? 'bg-blue-200 ring-2 ring-blue-500' 
+                                          ? 'bg-park-200 ring-2 ring-park-500' 
                                           : hasStaff 
                                           ? '' 
                                           : 'bg-gray-50/50'
-                                      } ${!isMultiSelectMode ? 'hover:bg-blue-100' : ''}`}
+                                      } ${!isMultiSelectMode ? 'hover:bg-park-100' : ''}`}
                                     >
                                       {hasStaff ? (
                                         <div className="flex items-center justify-center gap-1">
@@ -1798,7 +1798,7 @@
                                             {staffCodes.join('+')}
                                           </span>
                                           {!isMultiSelectMode && (
-                                            <PencilSquareIcon className="w-3 h-3 text-blue-400 opacity-0 group-hover:opacity-100" />
+                                            <PencilSquareIcon className="w-3 h-3 text-park-400 opacity-0 group-hover:opacity-100" />
                                           )}
                                         </div>
                                       ) : (
@@ -1811,7 +1811,7 @@
                                       )}
                                       {isSelected && (
                                         <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                                          <div className="w-4 h-4 bg-blue-500 rounded-sm"></div>
+                                          <div className="w-4 h-4 bg-park-500 rounded-sm"></div>
                                         </div>
                                       )}
                                     </td>
@@ -1830,8 +1830,8 @@
                       <div className="bg-white p-5 rounded-2xl shadow-lg border border-gray-100 sticky top-24 max-h-[85vh] overflow-y-auto">
                         <div className="flex items-center justify-between mb-6 pb-4 border-b border-gray-100">
                           <div className="flex items-center gap-2">
-                            <div className="p-1.5 bg-blue-50 rounded-lg">
-                              <ClockIcon className="w-5 h-5 text-blue-600" />
+                            <div className="p-1.5 bg-park-50 rounded-lg">
+                              <ClockIcon className="w-5 h-5 text-park-600" />
                             </div>
                             <h3 className="text-sm font-bold text-gray-800 tracking-tight">{t.assigned_hours}</h3>
                           </div>
@@ -1844,7 +1844,7 @@
                           {employees.map(emp => {
                             const hours = stats[emp.id] || 0;
                             const progress = Math.min((hours / 40) * 100, 100);
-                            let barColor = 'bg-blue-500';
+                            let barColor = 'bg-park-500';
                             let textColor = 'text-gray-600';
                             
                             if (hours > 40) { 
@@ -1853,7 +1853,7 @@
                             }
                             
                             return (
-                              <div key={emp.id} className="group bg-white p-3 rounded-xl border border-gray-100 hover:border-blue-200 hover:shadow-sm transition-all duration-200">
+                              <div key={emp.id} className="group bg-white p-3 rounded-xl border border-gray-100 hover:border-park-200 hover:shadow-sm transition-all duration-200">
                                 <div className="flex justify-between items-start mb-2">
                                   <div>
                                     <div className="flex items-center gap-2">
@@ -1920,7 +1920,7 @@
                                     return common.filter(code => cellStaff.includes(code));
                                   }, schedule[editingCells[0].slot]?.[editingCells[0].day] || []);
                                   setEmployeesInMultipleCells(commonStaff);
-                                }} className="px-3 py-1 bg-blue-100 text-blue-700 rounded text-xs font-medium hover:bg-blue-200">
+                                }} className="px-3 py-1 bg-park-100 text-park-700 rounded text-xs font-medium hover:bg-park-200">
                                 {t.keep_common}
                               </button>
                             </div>
@@ -1943,9 +1943,9 @@
                                 const isInAllCells = editingCells.every(cell => schedule[cell.slot]?.[cell.day]?.includes(emp.code));
                                 const isInSomeCells = editingCells.some(cell => schedule[cell.slot]?.[cell.day]?.includes(emp.code));
                                 
-                                let buttonStyle = 'bg-white border-gray-200 hover:border-blue-300 hover:bg-gray-50';
-                                if (isInAllCells) { buttonStyle = 'bg-blue-50 border-blue-500 ring-2 ring-blue-500'; } 
-                                else if (isInSomeCells) { buttonStyle = 'bg-blue-50 border-blue-300 ring-1 ring-blue-300'; }
+                                let buttonStyle = 'bg-white border-gray-200 hover:border-park-300 hover:bg-gray-50';
+                                if (isInAllCells) { buttonStyle = 'bg-park-50 border-park-500 ring-2 ring-park-500'; } 
+                                else if (isInSomeCells) { buttonStyle = 'bg-park-50 border-park-300 ring-1 ring-park-300'; }
 
                                 // Texto descritivo da disponibilidade
                                 let timeRangeText = "";
@@ -1965,13 +1965,13 @@
                                     {/* Cabeçalho do Card */}
                                     <div className="flex justify-between items-center w-full mb-1">
                                       <div className="text-left">
-                                          <div className={`font-bold text-sm ${isInAllCells ? 'text-blue-700' : isInSomeCells ? 'text-blue-600' : 'text-gray-700'}`}>
+                                          <div className={`font-bold text-sm ${isInAllCells ? 'text-park-700' : isInSomeCells ? 'text-park-600' : 'text-gray-700'}`}>
                                               {emp.code}
                                           </div>
                                           <div className="text-[10px] text-gray-500 truncate w-20">{emp.name}</div>
                                       </div>
                                       <div className="flex items-center gap-1">
-                                          {isInAllCells ? <CheckCircleIcon className="w-5 h-5 text-blue-600" /> : <div className="w-5 h-5 rounded-full border-2 border-gray-300"></div>}
+                                          {isInAllCells ? <CheckCircleIcon className="w-5 h-5 text-park-600" /> : <div className="w-5 h-5 rounded-full border-2 border-gray-300"></div>}
                                       </div>
                                     </div>
 
@@ -1996,7 +1996,7 @@
                         </div>
                         <div className="p-4 border-t border-gray-100 bg-gray-50 flex justify-between items-center">
                           <span className="text-sm text-gray-500">{t.cells_selected.replace('{count}', selectedCells.length.toString())}</span>
-                          <button onClick={() => setEditingCells([])} className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-medium shadow-sm">
+                          <button onClick={() => setEditingCells([])} className="px-4 py-2 bg-park-600 text-white rounded-lg hover:bg-park-700 text-sm font-medium shadow-sm">
                             {t.finish_editing}
                           </button>
                         </div>
