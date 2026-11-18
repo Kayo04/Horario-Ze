@@ -183,7 +183,6 @@
     const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
 
     const [editingCells, setEditingCells] = useState<{slot: string; day: string}[]>([]);
-    const [isMultiSelectMode, setIsMultiSelectMode] = useState(false);
 
     const [notification, setNotification] = useState<NotificationType | null>(null);
 
@@ -412,36 +411,64 @@
     // =================================================================================
 
     // Parar o drag se o utilizador largar o rato fora da tabela
+    // Edição das células do horário:
+    //  - 1 clique marca a célula
+    //  - clicar outra vez na célula marcada (ou duplo clique) edita-a
+    //  - arrastar por várias células marca-as e, ao largar, abre o menu de editar
+    //  - Ctrl/Cmd + clique junta células à seleção; Esc limpa; Enter edita as marcadas
+    const selectedCellsRef = useRef<{slot: string; day: string}[]>([]);
+    useEffect(() => { selectedCellsRef.current = selectedCells; }, [selectedCells]);
+    const arrastou = useRef(false);            // o rato passou por outras células durante o clique
+    const cliqueNaMarcada = useRef(false);     // o clique começou na única célula já marcada
+
+    // Abre o menu de editar para estas células (ordenadas por dia e hora)
+    const abrirEdicao = useCallback((cells: {slot: string; day: string}[]) => {
+      if (cells.length === 0) return;
+      const ordenadas = [...cells].sort((a, b) => {
+        const dayDiff = WEEK_DAYS.indexOf(a.day) - WEEK_DAYS.indexOf(b.day);
+        if (dayDiff !== 0) return dayDiff;
+        return TIME_SLOTS.indexOf(a.slot) - TIME_SLOTS.indexOf(b.slot);
+      });
+      setEditingCells(ordenadas);
+      setSelectedCells([]);
+    }, [WEEK_DAYS]);
+
     useEffect(() => {
       const handleWindowMouseUp = () => {
-        if (isDragging) {
-          setIsDragging(false);
-          setDragStart(null);
-          selectionSnapshot.current = [];
+        if (!isDragging) return;
+        setIsDragging(false);
+        setDragStart(null);
+        selectionSnapshot.current = [];
+        const sel = selectedCellsRef.current;
+        if (arrastou.current && sel.length > 1) {
+          abrirEdicao(sel);            // acabou de escolher várias: abre logo o menu
+        } else if (!arrastou.current && cliqueNaMarcada.current) {
+          abrirEdicao(sel);            // segundo clique na célula marcada: editar
         }
       };
       window.addEventListener('mouseup', handleWindowMouseUp);
       return () => window.removeEventListener('mouseup', handleWindowMouseUp);
-    }, [isDragging]);
+    }, [isDragging, abrirEdicao]);
 
-    const handleCellMouseDown = (slot: string, day: string) => {
-      if (!isMultiSelectMode) {
-        setEditingCells([{ slot, day }]);
-        return;
-      }
+    const handleCellMouseDown = (slot: string, day: string, e?: React.MouseEvent) => {
+      if (e && e.button !== 0) return; // só o botão esquerdo
+      const juntar = !!e && (e.ctrlKey || e.metaKey);
+      cliqueNaMarcada.current = !juntar && selectedCells.length === 1 && selectedCells[0].slot === slot && selectedCells[0].day === day;
+      arrastou.current = false;
 
       setIsDragging(true);
       setDragStart({ slot, day });
-      selectionSnapshot.current = [...selectedCells]; // Guarda o que já estava selecionado
-
-      // Seleciona a célula inicial imediatamente se não estiver selecionada
-      if (!selectedCells.some(c => c.slot === slot && c.day === day)) {
-        setSelectedCells(prev => [...prev, { slot, day }]);
+      selectionSnapshot.current = juntar ? [...selectedCells] : [];
+      if (juntar) {
+        if (!selectedCells.some(c => c.slot === slot && c.day === day)) setSelectedCells(prev => [...prev, { slot, day }]);
+      } else {
+        setSelectedCells([{ slot, day }]);
       }
     };
 
     const handleCellMouseEnter = (currentSlot: string, currentDay: string) => {
-      if (!isDragging || !isMultiSelectMode || !dragStart) return;
+      if (!isDragging || !dragStart) return;
+      arrastou.current = true;
 
       const startSlotIdx = TIME_SLOTS.indexOf(dragStart.slot);
       const endSlotIdx = TIME_SLOTS.indexOf(currentSlot);
@@ -472,14 +499,7 @@
       setSelectedCells(combined);
     };
 
-    const startMultiSelect = useCallback(() => {
-      setIsMultiSelectMode(true);
-      setSelectedCells([]);
-      showToast(t.multi_select_active, "info");
-    }, [showToast, t]);
-
     const cancelMultiSelect = useCallback(() => {
-      setIsMultiSelectMode(false);
       setSelectedCells([]);
       setIsDragging(false);
       setDragStart(null);
@@ -490,16 +510,21 @@
         showToast(t.select_cell_edit, 'error');
         return;
       }
-      // Ordenar células para a barra visual ficar correta
-      const sortedCells = [...selectedCells].sort((a, b) => {
-        const dayDiff = WEEK_DAYS.indexOf(a.day) - WEEK_DAYS.indexOf(b.day);
-        if(dayDiff !== 0) return dayDiff;
-        return TIME_SLOTS.indexOf(a.slot) - TIME_SLOTS.indexOf(b.slot);
-      });
-      setEditingCells(sortedCells);
-      setIsMultiSelectMode(false);
-      setSelectedCells([]);
-    }, [selectedCells, showToast, t, WEEK_DAYS]);
+      abrirEdicao(selectedCells);
+    }, [selectedCells, showToast, t, abrirEdicao]);
+
+    // Teclado: Esc limpa a seleção, Enter edita as células marcadas
+    useEffect(() => {
+      if (!schedule || editingCells.length > 0) return;
+      const tecla = (e: KeyboardEvent) => {
+        const alvo = e.target as HTMLElement;
+        if (alvo && ['INPUT', 'TEXTAREA', 'SELECT'].includes(alvo.tagName)) return;
+        if (e.key === 'Escape' && selectedCellsRef.current.length) setSelectedCells([]);
+        if (e.key === 'Enter' && selectedCellsRef.current.length) { e.preventDefault(); abrirEdicao(selectedCellsRef.current); }
+      };
+      window.addEventListener('keydown', tecla);
+      return () => window.removeEventListener('keydown', tecla);
+    }, [schedule, editingCells.length, abrirEdicao]);
 
     const toggleEmployeeInMultipleCells = useCallback((code: string) => {
       if (!schedule || editingCells.length === 0) return;
@@ -1396,7 +1421,7 @@
 
             <div>
               <h1 className="text-xl font-bold text-gray-800 flex items-center gap-2">
-                <SparklesIcon className="w-5 h-5 text-pink-500" />
+                <SparklesIcon className="w-5 h-5 text-park-600" />
                 {t.generate_schedule_title}
               </h1>
               <p className="text-xs text-gray-500 hidden sm:block">
@@ -1413,7 +1438,7 @@
           )}
 
           <div className="flex items-center gap-3">
-            {schedule && !isMultiSelectMode && (
+            {schedule && (
               <>
                   <button
                       onClick={handleSaveClick}
@@ -1434,29 +1459,22 @@
                       </span>
                   </button>
 
-                  <button
-                    onClick={startMultiSelect}
-                    className="flex items-center gap-2 bg-park-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-park-700 transition-colors shadow-sm"
-                  >
-                    <Squares2X2Icon className="w-4 h-4" />
-                    <span className="hidden sm:inline">{t.multi_select_mode}</span>
-                  </button>
               </>
             )}
-            {schedule && isMultiSelectMode && (
+            {schedule && selectedCells.length > 0 && editingCells.length === 0 && (
               <div className="flex items-center gap-2">
-                <span className="text-sm text-gray-600">
+                <span className="hidden md:inline text-sm text-gray-600">
                   {t.cells_selected.replace('{count}', selectedCells.length.toString())}
                 </span>
                 <button
                   onClick={openMultiEditModal}
-                  className="flex items-center gap-2 bg-green-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-green-700 transition-colors shadow-sm"
+                  className="flex items-center gap-2 bg-park-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-park-700 transition-colors shadow-sm"
                 >
                   <PencilSquareIcon className="w-4 h-4" />
-                  {t.edit_selected.replace('{count}', '')}
+                  {t.edit_selected.replace('{count}', String(selectedCells.length))}
                 </button>
                 <button
-                  onClick={cancelMultiSelect}
+                  onClick={() => setSelectedCells([])}
                   className="flex items-center gap-2 bg-gray-500 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-gray-600 transition-colors shadow-sm"
                 >
                   <XMarkIcon className="w-4 h-4" />
@@ -1464,7 +1482,7 @@
                 </button>
               </div>
             )}
-            {schedule && !isMultiSelectMode && (
+            {schedule && (
               <button
                 onClick={handleExportExcel}
                 className="flex items-center gap-2 bg-green-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-green-700 transition-colors shadow-sm"
@@ -1592,13 +1610,13 @@
               {isGenerating && (
                 <div className="flex flex-col items-center justify-center py-32">
                   <div className="relative w-64 h-64 mb-8">
-                    <div className="absolute inset-0 border-4 border-gray-100 rounded-full"></div>
+                    <div className="absolute inset-0 border-4 border-park-100 rounded-full"></div>
                     <div
-                      className="absolute inset-0 border-4 border-pink-500 rounded-full border-t-transparent animate-spin"
+                      className="absolute inset-0 border-4 border-park-600 rounded-full border-t-transparent animate-spin"
                       style={{ animationDuration: '1s' }}
                     ></div>
                     <div className="absolute inset-0 flex items-center justify-center flex-col">
-                      <span className="text-4xl font-bold text-pink-600">{progress}%</span>
+                      <span className="text-4xl font-bold text-park-600">{progress}%</span>
                     </div>
                   </div>
                   <h3 className="text-xl font-medium text-gray-800 mb-2 animate-pulse">{loadingText}</h3>
@@ -1611,9 +1629,7 @@
                     <div>
                       <h2 className="text-2xl font-bold text-gray-900">{t.planning}: {getWeekRangeText()}</h2>
                       <p className="text-gray-500 text-sm">
-                        {isMultiSelectMode
-                          ? t.multi_select_help
-                          : t.click_to_edit}
+                        {t.click_to_edit}
                       </p>
                     </div>
                     <button
@@ -1691,41 +1707,32 @@
                                   return (
                                     <td
                                       key={day}
-                                      onMouseDown={() => handleCellMouseDown(slot, day)}
+                                      onMouseDown={(e) => handleCellMouseDown(slot, day, e)}
                                       onMouseEnter={() => handleCellMouseEnter(slot, day)}
-                                      onClick={() => {
-                                        if (!isMultiSelectMode) {
-                                          setEditingCells([{ slot, day }]);
-                                        }
-                                      }}
-                                      className={`p-1 border-r border-b border-gray-200 h-10 cursor-pointer transition-colors relative group ${
+                                      onDoubleClick={() => abrirEdicao([{ slot, day }])}
+                                      className={`p-1 border-r border-b border-gray-200 h-10 cursor-pointer select-none transition-colors relative group ${
                                         isSelected
-                                          ? 'bg-park-200 ring-2 ring-park-500'
+                                          ? 'bg-park-200 ring-2 ring-inset ring-park-500'
                                           : hasStaff
-                                          ? ''
-                                          : 'bg-gray-50/50'
-                                      } ${!isMultiSelectMode ? 'hover:bg-park-100' : ''}`}
+                                          ? 'hover:bg-park-100'
+                                          : 'bg-gray-50/50 hover:bg-park-100'
+                                      }`}
                                     >
                                       {hasStaff ? (
                                         <div className="flex items-center justify-center gap-1">
                                           <span className="font-bold text-gray-800 text-xs tracking-wide block">
                                             {staffCodes.join('+')}
                                           </span>
-                                          {!isMultiSelectMode && (
+                                          {!isSelected && (
                                             <PencilSquareIcon className="w-3 h-3 text-park-400 opacity-0 group-hover:opacity-100" />
                                           )}
                                         </div>
                                       ) : (
                                         <div className="flex items-center justify-center h-full w-full">
                                             <span className="text-gray-300 text-xs">-</span>
-                                            {!isMultiSelectMode && (
-                                              <PlusIcon className="w-3 h-3 text-green-400 opacity-0 group-hover:opacity-100 absolute" />
+                                            {!isSelected && (
+                                              <PlusIcon className="w-3 h-3 text-park-400 opacity-0 group-hover:opacity-100 absolute" />
                                             )}
-                                        </div>
-                                      )}
-                                      {isSelected && (
-                                        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                                          <div className="w-4 h-4 bg-park-500 rounded-sm"></div>
                                         </div>
                                       )}
                                     </td>
