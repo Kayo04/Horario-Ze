@@ -38,6 +38,7 @@ export async function middleware(req: NextRequest) {
 // Configuração
 export const config = { 
   matcher: [
-    '/((?!api/auth|_next/static|_next/image|favicon.ico).*)',
+    // Imagens da pasta public (ex. o logótipo no ecrã de login) não precisam de sessão
+    '/((?!api/auth|_next/static|_next/image|favicon.ico|.*\\.(?:png|jpg|jpeg|gif|svg|webp|ico)$).*)',
   ] 
 }
