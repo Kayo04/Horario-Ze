@@ -364,8 +364,11 @@ export default function GestaoHorasPage() {
     await carregar()
   }
 
+  // Diferença = relógio − livro. Com "+" (relógio tem mais horas) fica a vermelho, com "−" fica a verde.
   const corDiferenca = (diff: number) =>
-    diff === 0 ? 'text-gray-700' : Math.abs(diff) >= 15 ? 'text-red-600 font-semibold' : 'text-amber-600'
+    diff > 0 ? 'text-red-600 font-semibold' : diff < 0 ? 'text-emerald-600 font-semibold' : 'text-gray-700'
+  const fundoDiferenca = (diff: number) =>
+    diff >= 15 ? 'bg-red-50/60' : diff <= -15 ? 'bg-emerald-50/60' : ''
 
   const datasMes = mensais.map(r => r.date).sort()
   const intervalo = datasMes.length ? `${dataPT(datasMes[0])} – ${dataPT(datasMes[datasMes.length - 1])}` : ''
@@ -630,7 +633,7 @@ export default function GestaoHorasPage() {
                                     </thead>
                                     <tbody className="divide-y divide-gray-100">
                                       {diaADia(l.id, l.livro).map(d => (
-                                        <tr key={d.date} className={Math.abs(d.diff) >= 15 ? 'bg-red-50/60' : ''}>
+                                        <tr key={d.date} className={fundoDiferenca(d.diff)}>
                                           <td className={td}>{dataPT(d.date)}</td>
                                           <td className={td}>
                                             {d.marcacoes.length === 0 ? (
