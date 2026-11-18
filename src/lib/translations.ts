@@ -20,6 +20,18 @@ export const translations = {
     checkin_daily_desc: "Entradas e QR Code",
     database: "Base de Dados",
     database_desc: "Ver todos os registos",
+
+    // Portal dos admins: 3 secções
+    sec_rh: "RH",
+    sec_rh_desc: "Horários, reservas, funcionários e horas",
+    sec_finance: "Gestão Financeira",
+    sec_finance_desc: "Pagamentos e finanças",
+    sec_admin: "Administração",
+    sec_admin_desc: "Check-in, base de dados e painel de admin",
+    sec_options: "{n} opções",
+    sec_back: "Voltar",
+    sec_under_construction: "Em construção",
+    sec_under_construction_desc: "Esta área ainda está a ser preparada. Em breve vai estar disponível aqui.",
     hm_card: "Gestão de Horas",
     hm_card_desc: "Relógio de ponto e pagamentos",
 
@@ -653,6 +665,18 @@ export const translations = {
     checkin_daily_desc: "Entries and QR Code",
     database: "Database",
     database_desc: "View all records",
+
+    // Admin portal: 3 sections
+    sec_rh: "HR",
+    sec_rh_desc: "Schedules, reservations, employees and hours",
+    sec_finance: "Financial Management",
+    sec_finance_desc: "Payments and finances",
+    sec_admin: "Administration",
+    sec_admin_desc: "Check-in, database and admin panel",
+    sec_options: "{n} options",
+    sec_back: "Back",
+    sec_under_construction: "Under construction",
+    sec_under_construction_desc: "This area is still being prepared. It will be available here soon.",
     hm_card: "Hours Management",
     hm_card_desc: "Time clock and payments",
 
