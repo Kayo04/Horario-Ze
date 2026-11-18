@@ -4,6 +4,7 @@ import Link from 'next/link'
 import {
   ArrowLeftIcon,
   ArrowPathIcon,
+  ArrowUpTrayIcon,
   PencilSquareIcon,
   XMarkIcon,
 } from '@heroicons/react/24/outline'
@@ -16,6 +17,7 @@ import {
   dataPT,
   segundaFeira,
   centimosAPagar,
+  lerLinhasImportadas,
 } from '@/lib/horas/regras'
 
 type Comparacao = Record<string, Record<string, number | null>>
@@ -75,6 +77,54 @@ export default function GestaoHorasPage() {
   useEffect(() => {
     carregar()
   }, [carregar])
+
+  // --- Importar o ficheiro exportado do relógio (CSV ou Excel) ---
+  const [importing, setImporting] = useState(false)
+
+  const lerFicheiro = async (ficheiro: File): Promise<Record<string, unknown>[]> => {
+    if (/\.csv$/i.test(ficheiro.name)) {
+      const Papa = (await import('papaparse')).default
+      const texto = await ficheiro.text()
+      // O NGTeco exporta com ";" mas deixamos o papaparse detetar o separador
+      return Papa.parse<Record<string, unknown>>(texto.replace(/^﻿/, ''), { header: true, skipEmptyLines: true }).data
+    }
+    const XLSX = await import('xlsx')
+    const livro = XLSX.read(await ficheiro.arrayBuffer(), { cellDates: true })
+    const folha = livro.Sheets[livro.SheetNames[0]]
+    return XLSX.utils.sheet_to_json<Record<string, unknown>>(folha, { raw: false, defval: '', dateNF: 'yyyy-mm-dd' })
+  }
+
+  const importar = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const ficheiro = e.target.files?.[0]
+    e.target.value = '' // permite voltar a escolher o mesmo ficheiro
+    if (!ficheiro) return
+    setImporting(true)
+    setMessage('')
+    setError('')
+    try {
+      const { validas, erros } = lerLinhasImportadas(await lerFicheiro(ficheiro))
+      if (erros.length) throw new Error(t.hm_import_errors.replace('{lines}', erros.slice(0, 10).join(', ') + (erros.length > 10 ? '…' : '')))
+      if (!validas.length) throw new Error(t.hm_import_empty)
+      const res = await fetch('/api/horas/importar', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ rows: validas }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error)
+      setMessage(
+        t.hm_import_done
+          .replace('{total}', String(data.total))
+          .replace('{new}', String(data.novas))
+          .replace('{updated}', String(data.atualizadas)),
+      )
+      await carregar()
+    } catch (err: any) {
+      setError(err.message)
+    } finally {
+      setImporting(false)
+    }
+  }
 
   // --- Opções dos filtros ---
   const meses = useMemo(
@@ -234,6 +284,13 @@ export default function GestaoHorasPage() {
               <ArrowPathIcon className={`h-5 w-5 ${loading ? 'animate-spin' : ''}`} />
               {t.hm_refresh}
             </button>
+            <label
+              className={`flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition cursor-pointer ${importing ? 'opacity-60 pointer-events-none' : ''}`}
+            >
+              <ArrowUpTrayIcon className="h-5 w-5" />
+              {importing ? t.hm_importing : t.hm_import}
+              <input type="file" accept=".csv,.xlsx,.xls" className="hidden" onChange={importar} disabled={importing} />
+            </label>
             {intervalo && <span className="text-sm text-gray-500 ml-auto">{intervalo}</span>}
           </div>
           {message && <p className="mt-4 text-sm text-emerald-800 bg-emerald-50 border border-emerald-200 rounded-lg px-4 py-3">{message}</p>}
