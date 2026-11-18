@@ -178,14 +178,14 @@ export default function CheckInDashboard() {
               <div className="flex gap-2">
                 <button 
                   onClick={() => setLanguage('pt')}
-                  className={`hover:scale-110 transition-transform ${language === 'pt' ? 'opacity-100 ring-2 ring-teal-500 rounded-sm' : 'opacity-50 hover:opacity-100'}`}
+                  className={`hover:scale-110 transition-transform ${language === 'pt' ? 'opacity-100 ring-2 ring-park-500 rounded-sm' : 'opacity-50 hover:opacity-100'}`}
                   title="Português"
                 >
                   <img src="https://flagcdn.com/w40/pt.png" alt="Português" className="w-8 h-6 object-cover rounded-sm shadow-sm" />
                 </button>
                 <button 
                   onClick={() => setLanguage('en')}
-                  className={`hover:scale-110 transition-transform ${language === 'en' ? 'opacity-100 ring-2 ring-teal-500 rounded-sm' : 'opacity-50 hover:opacity-100'}`}
+                  className={`hover:scale-110 transition-transform ${language === 'en' ? 'opacity-100 ring-2 ring-park-500 rounded-sm' : 'opacity-50 hover:opacity-100'}`}
                   title="English"
                 >
                   <img src="https://flagcdn.com/w40/gb.png" alt="English" className="w-8 h-6 object-cover rounded-sm shadow-sm" />
@@ -201,7 +201,7 @@ export default function CheckInDashboard() {
 
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-4 rounded-xl shadow-sm border border-gray-200">
             <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-              <CheckBadgeIcon className="w-8 h-8 text-teal-600" />
+              <CheckBadgeIcon className="w-8 h-8 text-park-600" />
               {t.checkin_staff_title}
             </h1>
 
@@ -229,7 +229,7 @@ export default function CheckInDashboard() {
       <div className="grid gap-4 max-w-5xl mx-auto">
         {loading ? (
             <div className="text-center py-12">
-                <div className="w-8 h-8 border-4 border-teal-200 border-t-teal-600 rounded-full animate-spin mx-auto mb-4"></div>
+                <div className="w-8 h-8 border-4 border-park-200 border-t-park-600 rounded-full animate-spin mx-auto mb-4"></div>
                 <p className="text-gray-500">{t.checkin_staff_loading}</p>
             </div>
         ) : reservations.length === 0 ? (
@@ -241,7 +241,7 @@ export default function CheckInDashboard() {
             reservations.map((res) => (
             <div key={res._id} className="bg-white p-6 rounded-xl shadow-sm border border-gray-200 flex flex-col sm:flex-row justify-between items-center gap-4 transition-all hover:shadow-md">
                 <div className="flex items-center gap-6 w-full">
-                <div className="bg-teal-50 p-3 rounded-full text-teal-700 font-bold text-xl min-w-[85px] text-center border border-teal-100">
+                <div className="bg-park-50 p-3 rounded-full text-park-700 font-bold text-xl min-w-[85px] text-center border border-park-100">
                     {getDisplayTime(res)}
                 </div>
                 <div className="flex-1">
@@ -321,7 +321,7 @@ export default function CheckInDashboard() {
                   <select 
                     value={marketingSource}
                     onChange={(e) => setMarketingSource(e.target.value)}
-                    className="w-full p-4 border border-gray-300 rounded-xl outline-none focus:ring-2 focus:ring-teal-500 bg-gray-50 text-gray-900 mb-4"
+                    className="w-full p-4 border border-gray-300 rounded-xl outline-none focus:ring-2 focus:ring-park-500 bg-gray-50 text-gray-900 mb-4"
                   >
                     <option value="" disabled>{t.checkin_staff_select_opt}</option>
                     <option value="Google">Google</option>
@@ -351,7 +351,7 @@ export default function CheckInDashboard() {
                         value={notes} 
                         onChange={(e) => setNotes(e.target.value)}
                         placeholder={t.checkin_staff_other_ex}
-                        className="w-full p-4 border border-gray-300 rounded-xl outline-none focus:ring-2 focus:ring-teal-500 bg-white text-gray-900 placeholder:text-gray-400 min-h-[100px]"
+                        className="w-full p-4 border border-gray-300 rounded-xl outline-none focus:ring-2 focus:ring-park-500 bg-white text-gray-900 placeholder:text-gray-400 min-h-[100px]"
                         autoFocus
                       />
                     </div>
@@ -361,7 +361,7 @@ export default function CheckInDashboard() {
                 <button 
                   onClick={handleSourceSubmit}
                   disabled={!marketingSource.trim()}
-                  className="w-full py-4 bg-teal-600 text-white rounded-xl font-bold hover:bg-teal-700 disabled:opacity-50 transition-all shadow-lg shadow-teal-200"
+                  className="w-full py-4 bg-park-600 text-white rounded-xl font-bold hover:bg-park-700 disabled:opacity-50 transition-all shadow-lg shadow-park-200"
                 >
                   {t.checkin_staff_confirm_qr}
                 </button>
@@ -385,7 +385,7 @@ export default function CheckInDashboard() {
                 <div className="bg-gray-50 rounded-xl p-4 border border-gray-100">
                     <h3 className="font-bold text-gray-800 mb-3 flex justify-between items-center">
                         {t.checkin_staff_enrolled} 
-                        <span className="bg-teal-100 text-teal-800 text-xs px-2 py-1 rounded-full">{selectedRes.clients?.length || 0} / {getTotalPeople(selectedRes)}</span>
+                        <span className="bg-park-100 text-park-800 text-xs px-2 py-1 rounded-full">{selectedRes.clients?.length || 0} / {getTotalPeople(selectedRes)}</span>
                     </h3>
                     
                     {!selectedRes.clients || selectedRes.clients.length === 0 ? (

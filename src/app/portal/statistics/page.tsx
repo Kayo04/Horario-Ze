@@ -95,14 +95,14 @@ export default function StatisticsPage() {
           <div className="flex gap-2">
             <button 
               onClick={() => setLanguage('pt')}
-              className={`hover:scale-110 transition-transform ${language === 'pt' ? 'opacity-100 ring-2 ring-purple-500 rounded-sm' : 'opacity-50 hover:opacity-100'}`}
+              className={`hover:scale-110 transition-transform ${language === 'pt' ? 'opacity-100 ring-2 ring-park-500 rounded-sm' : 'opacity-50 hover:opacity-100'}`}
               title="Português"
             >
               <img src="https://flagcdn.com/w40/pt.png" alt="Português" className="w-8 h-6 object-cover rounded-sm shadow-sm" />
             </button>
             <button 
               onClick={() => setLanguage('en')}
-              className={`hover:scale-110 transition-transform ${language === 'en' ? 'opacity-100 ring-2 ring-purple-500 rounded-sm' : 'opacity-50 hover:opacity-100'}`}
+              className={`hover:scale-110 transition-transform ${language === 'en' ? 'opacity-100 ring-2 ring-park-500 rounded-sm' : 'opacity-50 hover:opacity-100'}`}
               title="English"
             >
               <img src="https://flagcdn.com/w40/gb.png" alt="English" className="w-8 h-6 object-cover rounded-sm shadow-sm" />
@@ -112,7 +112,7 @@ export default function StatisticsPage() {
 
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-10">
           <div className="flex items-center gap-4">
-            <div className="p-3 bg-purple-100 text-purple-600 rounded-2xl shadow-sm">
+            <div className="p-3 bg-park-100 text-park-600 rounded-2xl shadow-sm">
               <ChartBarIcon className="w-8 h-8" />
             </div>
                 <div>
@@ -136,7 +136,7 @@ export default function StatisticsPage() {
                         onClick={() => setRange(opt.id)}
                         className={`px-4 py-2 rounded-md text-sm font-medium transition-all whitespace-nowrap
                             ${range === opt.id 
-                                ? 'bg-purple-600 text-white shadow-md' 
+                                ? 'bg-park-600 text-white shadow-md' 
                                 : 'text-gray-600 hover:bg-gray-100'}`}
                     >
                         {opt.label}
@@ -148,7 +148,7 @@ export default function StatisticsPage() {
         {/* CONTEÚDO */}
         {loading ? (
             <div className="text-center py-20">
-              <div className="w-10 h-10 border-4 border-purple-200 border-t-purple-600 rounded-full animate-spin mx-auto mb-4"></div>
+              <div className="w-10 h-10 border-4 border-park-200 border-t-park-600 rounded-full animate-spin mx-auto mb-4"></div>
               <p className="text-gray-500 font-medium">{t.loading_data}</p>
             </div>
         ) : (
@@ -236,7 +236,7 @@ export default function StatisticsPage() {
               <div className="col-span-1 lg:col-span-2 mt-2">
               <div className="bg-white p-8 rounded-2xl shadow-sm border border-gray-100">
                 <div className="flex items-center gap-3 mb-8">
-                  <MapPinIcon className="w-6 h-6 text-purple-600" />
+                  <MapPinIcon className="w-6 h-6 text-park-600" />
                   <h3 className="text-lg font-bold text-gray-800">{t.stats_top_cities}</h3>
                 </div>
                 

@@ -91,14 +91,14 @@ export default function PaginaWaiverCliente() {
       <div className="absolute top-4 right-4 flex gap-2">
         <button 
           onClick={() => setLanguage('pt')}
-          className={`hover:scale-110 transition-transform ${language === 'pt' ? 'opacity-100 ring-2 ring-teal-500 rounded-sm' : 'opacity-50 hover:opacity-100'}`}
+          className={`hover:scale-110 transition-transform ${language === 'pt' ? 'opacity-100 ring-2 ring-park-500 rounded-sm' : 'opacity-50 hover:opacity-100'}`}
           title="Português"
         >
           <img src="https://flagcdn.com/w40/pt.png" alt="Português" className="w-8 h-6 object-cover rounded-sm shadow-sm" />
         </button>
         <button 
           onClick={() => setLanguage('en')}
-          className={`hover:scale-110 transition-transform ${language === 'en' ? 'opacity-100 ring-2 ring-teal-500 rounded-sm' : 'opacity-50 hover:opacity-100'}`}
+          className={`hover:scale-110 transition-transform ${language === 'en' ? 'opacity-100 ring-2 ring-park-500 rounded-sm' : 'opacity-50 hover:opacity-100'}`}
           title="English"
         >
           <img src="https://flagcdn.com/w40/gb.png" alt="English" className="w-8 h-6 object-cover rounded-sm shadow-sm" />
@@ -120,7 +120,7 @@ export default function PaginaWaiverCliente() {
               <input 
                 required 
                 type="text" 
-                className="w-full p-3 bg-gray-50 border border-gray-200 rounded-lg outline-none focus:ring-2 focus:ring-teal-500 transition-all font-medium text-gray-800"
+                className="w-full p-3 bg-gray-50 border border-gray-200 rounded-lg outline-none focus:ring-2 focus:ring-park-500 transition-all font-medium text-gray-800"
                 placeholder={t.checkin_first_name_placeholder}
                 value={formData.firstName} 
                 onChange={e => setFormData({...formData, firstName: e.target.value})} 
@@ -131,7 +131,7 @@ export default function PaginaWaiverCliente() {
               <input 
                 required 
                 type="text" 
-                className="w-full p-3 bg-gray-50 border border-gray-200 rounded-lg outline-none focus:ring-2 focus:ring-teal-500 transition-all font-medium text-gray-800"
+                className="w-full p-3 bg-gray-50 border border-gray-200 rounded-lg outline-none focus:ring-2 focus:ring-park-500 transition-all font-medium text-gray-800"
                 placeholder={t.checkin_last_name_placeholder}
                 value={formData.lastName} 
                 onChange={e => setFormData({...formData, lastName: e.target.value})} 
@@ -148,13 +148,13 @@ export default function PaginaWaiverCliente() {
                     type="tel" 
                     maxLength={2}
                     placeholder={t.checkin_day}
-                    className="w-20 p-3 bg-gray-50 border border-gray-200 rounded-lg outline-none focus:ring-2 focus:ring-teal-500 text-center font-medium text-gray-800"
+                    className="w-20 p-3 bg-gray-50 border border-gray-200 rounded-lg outline-none focus:ring-2 focus:ring-park-500 text-center font-medium text-gray-800"
                     value={day}
                     onChange={e => setDay(e.target.value.replace(/\D/g, ''))}
                 />
                 <select 
                     required
-                    className="flex-1 p-3 bg-gray-50 border border-gray-200 rounded-lg outline-none focus:ring-2 focus:ring-teal-500 font-medium text-gray-800"
+                    className="flex-1 p-3 bg-gray-50 border border-gray-200 rounded-lg outline-none focus:ring-2 focus:ring-park-500 font-medium text-gray-800"
                     value={month}
                     onChange={e => setMonth(e.target.value)}
                 >
@@ -177,7 +177,7 @@ export default function PaginaWaiverCliente() {
                     type="tel" 
                     maxLength={4}
                     placeholder={t.checkin_year}
-                    className="w-24 p-3 bg-gray-50 border border-gray-200 rounded-lg outline-none focus:ring-2 focus:ring-teal-500 text-center font-medium text-gray-800"
+                    className="w-24 p-3 bg-gray-50 border border-gray-200 rounded-lg outline-none focus:ring-2 focus:ring-park-500 text-center font-medium text-gray-800"
                     value={year}
                     onChange={e => setYear(e.target.value.replace(/\D/g, ''))}
                 />
@@ -189,7 +189,7 @@ export default function PaginaWaiverCliente() {
             <input 
               required 
               type="text" 
-              className="w-full p-3 bg-gray-50 border border-gray-200 rounded-lg outline-none focus:ring-2 focus:ring-teal-500 transition-all font-medium text-gray-800"
+              className="w-full p-3 bg-gray-50 border border-gray-200 rounded-lg outline-none focus:ring-2 focus:ring-park-500 transition-all font-medium text-gray-800"
               placeholder={t.checkin_city_placeholder}
               value={formData.city} 
               onChange={e => setFormData({...formData, city: e.target.value})} 
@@ -201,7 +201,7 @@ export default function PaginaWaiverCliente() {
             <input 
               required 
               type="email" 
-              className="w-full p-3 bg-gray-50 border border-gray-200 rounded-lg outline-none focus:ring-2 focus:ring-teal-500 transition-all font-medium text-gray-800"
+              className="w-full p-3 bg-gray-50 border border-gray-200 rounded-lg outline-none focus:ring-2 focus:ring-park-500 transition-all font-medium text-gray-800"
               placeholder={t.checkin_email_placeholder}
               value={formData.email} 
               onChange={e => setFormData({...formData, email: e.target.value})} 
@@ -213,7 +213,7 @@ export default function PaginaWaiverCliente() {
             <input 
               required 
               type="tel" 
-              className="w-full p-3 bg-gray-50 border border-gray-200 rounded-lg outline-none focus:ring-2 focus:ring-teal-500 transition-all font-medium text-gray-800"
+              className="w-full p-3 bg-gray-50 border border-gray-200 rounded-lg outline-none focus:ring-2 focus:ring-park-500 transition-all font-medium text-gray-800"
               placeholder={t.checkin_phone_placeholder}
               value={formData.phone} 
               onChange={e => setFormData({...formData, phone: e.target.value})} 
@@ -228,10 +228,10 @@ export default function PaginaWaiverCliente() {
                 required
                 checked={acceptedTerms}
                 onChange={(e) => setAcceptedTerms(e.target.checked)}
-                className="w-5 h-5 mt-0.5 text-teal-600 border-gray-300 rounded focus:ring-teal-500 cursor-pointer"
+                className="w-5 h-5 mt-0.5 text-park-600 border-gray-300 rounded focus:ring-park-500 cursor-pointer"
             />
             <label htmlFor="terms" className="text-sm text-gray-600 cursor-pointer select-none leading-relaxed">
-                {t.checkin_terms_prefix} <a href="https://theparkplayground.com/en-pt/general-terms-and-conditions" target="_blank" rel="noopener noreferrer" className="text-teal-600 font-bold underline hover:text-teal-800">{t.checkin_terms_link}</a>{t.checkin_terms_suffix}
+                {t.checkin_terms_prefix} <a href="https://theparkplayground.com/en-pt/general-terms-and-conditions" target="_blank" rel="noopener noreferrer" className="text-park-600 font-bold underline hover:text-park-800">{t.checkin_terms_link}</a>{t.checkin_terms_suffix}
             </label>
           </div>
 
