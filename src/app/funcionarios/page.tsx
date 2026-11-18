@@ -1,7 +1,8 @@
 'use client'
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
+import { useSession } from 'next-auth/react'
 import { Employee } from '@/types/employee'
-import type { Role } from '@/lib/permissoes'
+import { ROLES, GRUPOS, QUADRADOS_BASE, normalizarRole, type Role, type Quadrado, type Grupo } from '@/lib/permissoes'
 import Link from 'next/link'
 import { useLanguage } from '@/context/LanguageContext'
 import { translations } from '@/lib/translations'
@@ -9,7 +10,7 @@ import LanguageSwitcher from '@/app/components/LanguageSwitcher'
 
 export default function FuncionariosPage(): JSX.Element {
   const [employees, setEmployees] = useState<Employee[]>([])
-  
+
   // --- ESTADOS DO FORMULÁRIO ---
   const [name, setName] = useState<string>('')
   const [email, setEmail] = useState<string>('')
@@ -17,6 +18,7 @@ export default function FuncionariosPage(): JSX.Element {
   const [telefone, setTelefone] = useState<string>('')
   const [password, setPassword] = useState<string>('')
   const [role, setRole] = useState<Role>('host')
+  const [permissions, setPermissions] = useState<Quadrado[]>([]) // quadrados extra (Host/Manager)
 
   const [loading, setLoading] = useState<boolean>(true)
   const [editingId, setEditingId] = useState<string | null>(null)
@@ -25,8 +27,39 @@ export default function FuncionariosPage(): JSX.Element {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<boolean>(false)
   const [employeeToDelete, setEmployeeToDelete] = useState<Employee | null>(null)
 
-  const { language, setLanguage } = useLanguage()
+  const { language } = useLanguage()
   const t = translations[language]
+  const { data: session } = useSession()
+  // Só o admin muda roles e quadrados (o servidor também verifica)
+  const isAdmin = normalizarRole(session?.user?.role) === 'admin'
+  const formRef = useRef<HTMLDivElement>(null)
+
+  const nomeRole = (r: Role) => (r === 'admin' ? t.role_admin : r === 'manager' ? t.role_manager : t.role_host)
+  const corRole = (r: Role) =>
+    r === 'admin' ? 'bg-park-600 text-white' : r === 'manager' ? 'bg-park-100 text-park-800' : 'bg-gray-100 text-gray-700'
+  const nomeQuadrado: Record<Quadrado, string> = {
+    scheduler: t.manage_schedules,
+    reservas: t.manage_reservations,
+    checkin: t.checkin_daily,
+    funcionarios: t.manage_employees,
+    adminpanel: t.admin_panel,
+    disponibilidade: t.my_availability,
+    horario: t.horario_card,
+    clientes: t.database,
+    horas: t.hm_card,
+    criarHorarios: t.create_schedules,
+  }
+  const nomeGrupo: Record<Grupo, string> = { rh: t.sec_rh, administracao: t.sec_admin }
+
+  // Marcar/desmarcar um quadrado, ou um grupo inteiro (só os quadrados extra; os de base estão sempre)
+  const extrasDoGrupo = (g: Grupo) => GRUPOS[g].filter(q => !QUADRADOS_BASE.includes(q))
+  const alternarQuadrado = (q: Quadrado) =>
+    setPermissions(p => (p.includes(q) ? p.filter(x => x !== q) : [...p, q]))
+  const alternarGrupo = (g: Grupo) => {
+    const extras = extrasDoGrupo(g)
+    const todos = extras.every(q => permissions.includes(q))
+    setPermissions(p => (todos ? p.filter(q => !extras.includes(q)) : Array.from(new Set([...p, ...extras]))))
+  }
 
   // Carregar funcionários
   useEffect(() => {
@@ -61,14 +94,17 @@ export default function FuncionariosPage(): JSX.Element {
 
     setSaving(true)
     try {
-      const employeeData: any = { 
+      const employeeData: any = {
         name: name.trim(),
         email: email.trim().toLowerCase(),
         code: code.trim().toUpperCase(),
         telefone: telefone.trim(),
-        role: role,
       }
-      
+      if (isAdmin) {
+        employeeData.role = role
+        employeeData.permissions = role === 'admin' ? [] : permissions
+      }
+
       if (password) {
         employeeData.password = password;
       }
@@ -88,7 +124,8 @@ export default function FuncionariosPage(): JSX.Element {
         alert(editingId ? t.employee_saved : t.employee_created)
       } else {
         const errorData = await response.json()
-        alert(t.error_saving_employee + ': ' + (errorData.error || t.email_tag_exists))
+        const msg = (errorData.code && (t as any)['emp_err_' + errorData.code]) || errorData.error || t.email_tag_exists
+        alert(t.error_saving_employee + ': ' + msg)
       }
     } catch (error) {
       alert(t.error_connection)
@@ -104,6 +141,7 @@ export default function FuncionariosPage(): JSX.Element {
     setTelefone('')
     setPassword('')
     setRole('host')
+    setPermissions([])
     setEditingId(null)
   }
 
@@ -113,16 +151,20 @@ export default function FuncionariosPage(): JSX.Element {
     setEmail(emp.email)
     setCode(emp.code || '')
     setTelefone(emp.telefone || '')
-    setRole(emp.role)
+    setRole(normalizarRole(emp.role))
+    setPermissions(emp.permissions ?? [])
     setPassword('')
-    window.scrollTo(0, 0)
+    // Leva logo ao formulário de editar (que está no topo da página)
+    requestAnimationFrame(() => {
+      formRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    })
   }
-  
+
   const confirmDelete = (employee: Employee) => {
     setEmployeeToDelete(employee)
     setShowDeleteConfirm(true)
   }
-  
+
   const executeDelete = async () => {
     if (!employeeToDelete) return
     try {
@@ -133,7 +175,9 @@ export default function FuncionariosPage(): JSX.Element {
         setEmployees(employees.filter(emp => emp.id !== employeeToDelete.id))
         alert(t.employee_deleted)
       } else {
-        alert(t.error_deleting_employee)
+        const errorData = await response.json().catch(() => ({}))
+        const msg = (errorData.code && (t as any)['emp_err_' + errorData.code]) || ''
+        alert(t.error_deleting_employee + (msg ? ': ' + msg : ''))
       }
     } catch (error) {
       alert(t.error_connection)
@@ -142,12 +186,12 @@ export default function FuncionariosPage(): JSX.Element {
       setEmployeeToDelete(null)
     }
   }
-  
+
   const cancelDelete = () => {
     setShowDeleteConfirm(false)
     setEmployeeToDelete(null)
   }
-  
+
   const cancelEdit = () => {
     resetForm()
   }
@@ -164,9 +208,9 @@ export default function FuncionariosPage(): JSX.Element {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 p-6 font-sans relative">
+    <div className="min-h-screen bg-gray-50 p-4 sm:p-6 font-sans relative">
       <div className="max-w-4xl mx-auto">
-      
+
         <div className="mb-6 flex justify-between items-center">
           <Link href="/portal" passHref legacyBehavior>
             <a className="inline-flex items-center text-sm text-park-600 hover:text-park-800 group">
@@ -188,10 +232,13 @@ export default function FuncionariosPage(): JSX.Element {
         </div>
 
         {/* Formulário */}
-        <div className="bg-white rounded-xl shadow-lg p-6 mb-8">
-          <div className="flex items-center justify-between mb-5">
-            <h2 className="text-2xl font-semibold text-gray-800">
-              {editingId ? t.edit_employee : t.create_employee}
+        <div
+          ref={formRef}
+          className={`bg-white rounded-xl shadow-lg p-4 sm:p-6 mb-8 scroll-mt-4 transition-shadow ${editingId ? 'ring-2 ring-park-500' : ''}`}
+        >
+          <div className="flex items-center justify-between gap-3 mb-5">
+            <h2 className="text-xl sm:text-2xl font-semibold text-gray-800">
+              {editingId ? `${t.edit_employee}: ${name}` : t.create_employee}
             </h2>
             {editingId && (
               <button
@@ -292,17 +339,78 @@ export default function FuncionariosPage(): JSX.Element {
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   {t.role_label}
                 </label>
-                <select
-                  value={role}
-                  onChange={(e) => setRole(e.target.value as Role)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-park-500 transition"
-                  disabled={saving}
-                >
-                  <option value="host">{t.role_employee}</option>
-                  <option value="admin">{t.role_admin}</option>
-                </select>
+                {isAdmin ? (
+                  <select
+                    value={role}
+                    onChange={(e) => setRole(e.target.value as Role)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-park-500 transition"
+                    disabled={saving || (editingId !== null && editingId === session?.user?.id)}
+                  >
+                    {ROLES.map(r => (
+                      <option key={r} value={r}>{nomeRole(r)}</option>
+                    ))}
+                  </select>
+                ) : (
+                  <p className="px-3 py-2 bg-gray-50 border border-gray-200 rounded-md text-gray-700">
+                    {nomeRole(role)} <span className="text-xs text-gray-400">· {t.perm_only_admin}</span>
+                  </p>
+                )}
               </div>
             </div>
+
+            {/* Quadrados que a pessoa pode ver no portal (só o admin escolhe) */}
+            {isAdmin && (
+              <div className="border border-park-100 rounded-xl p-4 bg-park-50/40">
+                <h3 className="font-semibold text-gray-800">{t.perm_title}</h3>
+                {role === 'admin' ? (
+                  <p className="text-sm text-gray-600 mt-1">{t.perm_admin_all}</p>
+                ) : (
+                  <>
+                    <p className="text-sm text-gray-600 mt-1 mb-4">{t.perm_desc}</p>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {(Object.keys(GRUPOS) as Grupo[]).map(g => {
+                        const extras = extrasDoGrupo(g)
+                        const marcados = extras.filter(q => permissions.includes(q)).length
+                        return (
+                          <div key={g} className="bg-white border border-gray-200 rounded-lg p-3">
+                            <label className="flex items-center gap-2 font-semibold text-gray-900 cursor-pointer pb-2 mb-2 border-b border-gray-100">
+                              <input
+                                type="checkbox"
+                                className="h-4 w-4 accent-park-600"
+                                checked={marcados === extras.length}
+                                ref={el => { if (el) el.indeterminate = marcados > 0 && marcados < extras.length }}
+                                onChange={() => alternarGrupo(g)}
+                                disabled={saving}
+                              />
+                              {nomeGrupo[g]}
+                              <span className="ml-auto text-xs font-normal text-gray-500">{marcados}/{extras.length}</span>
+                            </label>
+                            <div className="space-y-1.5 pl-1">
+                              {GRUPOS[g].map(q => {
+                                const base = QUADRADOS_BASE.includes(q)
+                                return (
+                                  <label key={q} className={`flex items-center gap-2 text-sm ${base ? 'text-gray-400' : 'text-gray-700 cursor-pointer'}`}>
+                                    <input
+                                      type="checkbox"
+                                      className="h-4 w-4 accent-park-600"
+                                      checked={base || permissions.includes(q)}
+                                      disabled={base || saving}
+                                      onChange={() => alternarQuadrado(q)}
+                                    />
+                                    {nomeQuadrado[q]}
+                                    {base && <span className="text-xs">({t.perm_always})</span>}
+                                  </label>
+                                )
+                              })}
+                            </div>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
 
             <div className="flex justify-end pt-4">
               <button
@@ -324,22 +432,22 @@ export default function FuncionariosPage(): JSX.Element {
         </div>
 
         {/* Lista de funcionários */}
-        <div className="bg-white rounded-xl shadow-lg p-6">
-          <h2 className="text-2xl font-semibold mb-5 text-gray-800">
+        <div className="bg-white rounded-xl shadow-lg p-4 sm:p-6">
+          <h2 className="text-xl sm:text-2xl font-semibold mb-5 text-gray-800">
             {t.existing_employees} ({employees.length})
           </h2>
-          
+
           {employees.length === 0 ? (
             <p className="text-gray-500 text-center py-4">{t.no_employees}</p>
           ) : (
             <div className="space-y-4">
               {employees.map((employee) => (
-                <div 
-                  key={employee.id} 
+                <div
+                  key={employee.id}
                   className="border border-gray-200 rounded-xl p-4 transition-colors duration-150 hover:bg-gray-50"
                 >
                   <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-4">
-                    
+
                     {/* Informações do funcionário */}
                     <div className="flex-1">
                       <div className="flex items-center flex-wrap gap-2 sm:gap-3 mb-2">
@@ -349,15 +457,16 @@ export default function FuncionariosPage(): JSX.Element {
                             {employee.code}
                           </span>
                         )}
-                        <span className={`text-xs font-semibold px-2.5 py-0.5 rounded-full ${
-                          employee.role === 'admin' 
-                            ? 'bg-park-100 text-park-800' 
-                            : 'bg-gray-100 text-gray-700'
-                        }`}>
-                          {employee.role === 'admin' ? t.role_admin : t.role_employee}
+                        <span className={`text-xs font-semibold px-2.5 py-0.5 rounded-full ${corRole(employee.role)}`}>
+                          {nomeRole(employee.role)}
                         </span>
+                        {employee.role !== 'admin' && (employee.permissions?.length ?? 0) > 0 && (
+                          <span className="text-xs px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200">
+                            {t.perm_extra_count.replace('{n}', String(employee.permissions!.length))}
+                          </span>
+                        )}
                       </div>
-                      
+
                       <div className="space-y-1">
                         {employee.code && (
                           <div className="flex items-center gap-2 text-sm text-gray-600">
@@ -379,6 +488,7 @@ export default function FuncionariosPage(): JSX.Element {
                     </div>
 
                     {/* Botões */}
+                    {(isAdmin || employee.role !== 'admin') && (
                     <div className="grid grid-cols-2 gap-2 w-full sm:flex sm:w-auto sm:ml-4">
                       <button
                         onClick={() => editEmployee(employee)}
@@ -389,12 +499,14 @@ export default function FuncionariosPage(): JSX.Element {
                       </button>
                       <button
                         onClick={() => confirmDelete(employee)}
-                        className="px-3 py-1 bg-red-100 text-red-700 rounded-md text-sm font-medium hover:bg-red-200 transition-colors"
-                        disabled={saving}
+                        className="px-3 py-1 bg-red-100 text-red-700 rounded-md text-sm font-medium hover:bg-red-200 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                        disabled={saving || employee.id === session?.user?.id}
+                        title={employee.id === session?.user?.id ? t.emp_err_own_account : undefined}
                       >
                         {t.delete}
                       </button>
                     </div>
+                    )}
                   </div>
                 </div>
               ))}
@@ -418,7 +530,7 @@ export default function FuncionariosPage(): JSX.Element {
                 <p className="text-sm text-gray-500 mb-6">
                   {t.confirm_delete_employee.replace('{name}', employeeToDelete.name)}
                 </p>
-                
+
                 <div className="flex gap-3 justify-center">
                   <button
                     onClick={cancelDelete}
