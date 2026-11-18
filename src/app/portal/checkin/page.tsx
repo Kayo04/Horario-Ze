@@ -15,6 +15,7 @@ import {
 import { Reservation as IReservation, EventType } from '@/types/reservation';
 import { useLanguage } from '@/context/LanguageContext';
 import { translations } from '@/lib/translations';
+import LanguageSwitcher from '@/app/components/LanguageSwitcher'
 
 interface CheckInReservation {
   _id: string; 
@@ -176,20 +177,7 @@ export default function CheckInDashboard() {
             <div className="flex items-center gap-4">
               {/* LANGUAGE TOGGLE */}
               <div className="flex gap-2">
-                <button 
-                  onClick={() => setLanguage('pt')}
-                  className={`hover:scale-110 transition-transform ${language === 'pt' ? 'opacity-100 ring-2 ring-park-500 rounded-sm' : 'opacity-50 hover:opacity-100'}`}
-                  title="Português"
-                >
-                  <img src="https://flagcdn.com/w40/pt.png" alt="Português" className="w-8 h-6 object-cover rounded-sm shadow-sm" />
-                </button>
-                <button 
-                  onClick={() => setLanguage('en')}
-                  className={`hover:scale-110 transition-transform ${language === 'en' ? 'opacity-100 ring-2 ring-park-500 rounded-sm' : 'opacity-50 hover:opacity-100'}`}
-                  title="English"
-                >
-                  <img src="https://flagcdn.com/w40/gb.png" alt="English" className="w-8 h-6 object-cover rounded-sm shadow-sm" />
-                </button>
+                <LanguageSwitcher />
               </div>
 
               <Link href="/portal/statistics" className="inline-flex items-center px-4 py-2 bg-purple-100 text-purple-700 rounded-lg text-sm font-bold hover:bg-purple-200 transition-colors">

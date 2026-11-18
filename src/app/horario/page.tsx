@@ -10,6 +10,7 @@ import {
 } from '@heroicons/react/24/outline'
 import { useLanguage } from '@/context/LanguageContext'
 import { translations } from '@/lib/translations'
+import LanguageSwitcher from '@/app/components/LanguageSwitcher'
 
 // --- TYPES ---
 type ShiftRecord = {
@@ -457,20 +458,7 @@ export default function HorarioPage() {
             <div className="flex items-center gap-3 flex-wrap">
               {/* Language Toggle */}
               <div className="flex gap-2">
-                <button 
-                  onClick={() => setLanguage('pt')}
-                  className={`hover:scale-110 transition-transform ${language === 'pt' ? 'opacity-100 ring-2 ring-cyan-500 rounded-sm' : 'opacity-50 hover:opacity-100'}`}
-                  title="Português"
-                >
-                  <img src="https://flagcdn.com/w40/pt.png" alt="Português" className="w-8 h-6 object-cover rounded-sm shadow-sm" />
-                </button>
-                <button 
-                  onClick={() => setLanguage('en')}
-                  className={`hover:scale-110 transition-transform ${language === 'en' ? 'opacity-100 ring-2 ring-cyan-500 rounded-sm' : 'opacity-50 hover:opacity-100'}`}
-                  title="English"
-                >
-                  <img src="https://flagcdn.com/w40/gb.png" alt="English" className="w-8 h-6 object-cover rounded-sm shadow-sm" />
-                </button>
+                <LanguageSwitcher />
               </div>
 
               <button

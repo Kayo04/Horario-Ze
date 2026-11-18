@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useLanguage } from '@/context/LanguageContext'
 import { translations } from '@/lib/translations'
+import LanguageSwitcher from '@/app/components/LanguageSwitcher'
 
 type PlanoItem = {
   etapa: string
@@ -535,20 +536,7 @@ export default function GestaoReservaPage() {
           
           {/* Language Toggle */}
           <div className="flex space-x-2">
-            <button 
-              onClick={() => setLanguage('pt')} 
-              className={`text-2xl hover:scale-110 transition-transform ${language === 'pt' ? 'opacity-100' : 'opacity-50'}`}
-              title="Português"
-            >
-              🇵🇹
-            </button>
-            <button 
-              onClick={() => setLanguage('en')} 
-              className={`text-2xl hover:scale-110 transition-transform ${language === 'en' ? 'opacity-100' : 'opacity-50'}`}
-              title="English"
-            >
-              🇬🇧
-            </button>
+            <LanguageSwitcher />
           </div>
         </header>
 

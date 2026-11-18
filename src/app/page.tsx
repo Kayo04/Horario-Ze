@@ -6,6 +6,7 @@ import { LockClosedIcon, ArrowRightIcon } from '@heroicons/react/24/solid'
 import { useLanguage } from '@/context/LanguageContext'
 import { translations } from '@/lib/translations'
 import WelcomeAnimation from '@/app/components/WelcomeAnimation'
+import LanguageSwitcher from '@/app/components/LanguageSwitcher'
 
 export default function LoginPage() {
   const [name, setName] = useState('')
@@ -83,20 +84,7 @@ export default function LoginPage() {
       
       {/* Language Toggle */}
       <div className="absolute top-4 right-4 flex space-x-2">
-        <button 
-          onClick={() => setLanguage('pt')} 
-          className={`text-2xl hover:scale-110 transition-transform ${language === 'pt' ? 'opacity-100' : 'opacity-50'}`}
-          title="Português"
-        >
-          🇵🇹
-        </button>
-        <button 
-          onClick={() => setLanguage('en')} 
-          className={`text-2xl hover:scale-110 transition-transform ${language === 'en' ? 'opacity-100' : 'opacity-50'}`}
-          title="English"
-        >
-          🇬🇧
-        </button>
+        <LanguageSwitcher />
       </div>
 
       <div className="bg-white p-10 rounded-2xl shadow-xl w-full max-w-sm border border-gray-200">

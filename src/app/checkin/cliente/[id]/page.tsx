@@ -3,6 +3,7 @@ import React, { useState } from 'react';
 import { useParams } from 'next/navigation';
 import { useLanguage } from '@/context/LanguageContext';
 import { translations } from '@/lib/translations';
+import LanguageSwitcher from '@/app/components/LanguageSwitcher'
 
 export default function PaginaWaiverCliente() {
   const params = useParams();
@@ -89,20 +90,7 @@ export default function PaginaWaiverCliente() {
   return (
     <div className="min-h-screen bg-gray-50 p-4 font-sans flex items-center justify-center relative">
       <div className="absolute top-4 right-4 flex gap-2">
-        <button 
-          onClick={() => setLanguage('pt')}
-          className={`hover:scale-110 transition-transform ${language === 'pt' ? 'opacity-100 ring-2 ring-park-500 rounded-sm' : 'opacity-50 hover:opacity-100'}`}
-          title="Português"
-        >
-          <img src="https://flagcdn.com/w40/pt.png" alt="Português" className="w-8 h-6 object-cover rounded-sm shadow-sm" />
-        </button>
-        <button 
-          onClick={() => setLanguage('en')}
-          className={`hover:scale-110 transition-transform ${language === 'en' ? 'opacity-100 ring-2 ring-park-500 rounded-sm' : 'opacity-50 hover:opacity-100'}`}
-          title="English"
-        >
-          <img src="https://flagcdn.com/w40/gb.png" alt="English" className="w-8 h-6 object-cover rounded-sm shadow-sm" />
-        </button>
+        <LanguageSwitcher />
       </div>
 
       <div className="w-full max-w-md bg-white rounded-2xl shadow-xl overflow-hidden mt-12 md:mt-0">

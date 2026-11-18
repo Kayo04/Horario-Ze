@@ -15,6 +15,7 @@ import {
 } from '@heroicons/react/24/outline'
 import { useLanguage } from '@/context/LanguageContext'
 import { translations } from '@/lib/translations'
+import LanguageSwitcher from '@/app/components/LanguageSwitcher'
 
 // --- INTERFACES ---
 interface TimeSlot {
@@ -375,20 +376,7 @@ export default function AdminPanelPage() {
             <div className="flex gap-4 items-center">
                 {/* Language Toggle */}
                 <div className="flex space-x-2">
-                    <button 
-                    onClick={() => setLanguage('pt')} 
-                    className={`text-2xl hover:scale-110 transition-transform ${language === 'pt' ? 'opacity-100' : 'opacity-50'}`}
-                    title="Português"
-                    >
-                    🇵🇹
-                    </button>
-                    <button 
-                    onClick={() => setLanguage('en')} 
-                    className={`text-2xl hover:scale-110 transition-transform ${language === 'en' ? 'opacity-100' : 'opacity-50'}`}
-                    title="English"
-                    >
-                    🇬🇧
-                    </button>
+                    <LanguageSwitcher />
                 </div>
                 <button onClick={() => router.push('/portal')} className="px-4 py-2 bg-white border rounded shadow-sm hover:bg-gray-50">{t.back_to_portal}</button>
             </div>

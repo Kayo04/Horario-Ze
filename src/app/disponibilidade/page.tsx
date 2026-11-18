@@ -4,6 +4,7 @@ import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import { useLanguage } from '@/context/LanguageContext'
 import { translations } from '@/lib/translations'
+import LanguageSwitcher from '@/app/components/LanguageSwitcher'
 
 interface TimeSlot {
   date: string // YYYY-MM-DD
@@ -385,20 +386,7 @@ export default function DisponibilidadePage() {
           <div className="flex gap-4 items-center">
             {/* Language Toggle */}
             <div className="flex space-x-2">
-                <button 
-                onClick={() => setLanguage('pt')} 
-                className={`text-2xl hover:scale-110 transition-transform ${language === 'pt' ? 'opacity-100' : 'opacity-50'}`}
-                title="Português"
-                >
-                🇵🇹
-                </button>
-                <button 
-                onClick={() => setLanguage('en')} 
-                className={`text-2xl hover:scale-110 transition-transform ${language === 'en' ? 'opacity-100' : 'opacity-50'}`}
-                title="English"
-                >
-                🇬🇧
-                </button>
+                <LanguageSwitcher />
             </div>
             <button
                 onClick={() => router.push('/portal')}

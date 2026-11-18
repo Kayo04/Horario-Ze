@@ -17,6 +17,7 @@ import {
 } from '@heroicons/react/24/outline'
 import { useLanguage } from '@/context/LanguageContext'
 import { translations } from '@/lib/translations'
+import LanguageSwitcher from '@/app/components/LanguageSwitcher'
 
 type Chave = keyof (typeof translations)['pt']
 
@@ -67,20 +68,7 @@ export default function PortalPage() {
 
           <div className="flex items-center gap-4">
             <div className="flex gap-2">
-              <button
-                onClick={() => setLanguage('pt')}
-                className={`hover:scale-110 transition-transform ${language === 'pt' ? 'opacity-100 ring-2 ring-white rounded-sm' : 'opacity-60 hover:opacity-100'}`}
-                title="Português"
-              >
-                <img src="https://flagcdn.com/w40/pt.png" alt="Português" className="w-8 h-6 object-cover rounded-sm shadow-sm" />
-              </button>
-              <button
-                onClick={() => setLanguage('en')}
-                className={`hover:scale-110 transition-transform ${language === 'en' ? 'opacity-100 ring-2 ring-white rounded-sm' : 'opacity-60 hover:opacity-100'}`}
-                title="English"
-              >
-                <img src="https://flagcdn.com/w40/gb.png" alt="English" className="w-8 h-6 object-cover rounded-sm shadow-sm" />
-              </button>
+              <LanguageSwitcher variant="dark" />
             </div>
 
             <button

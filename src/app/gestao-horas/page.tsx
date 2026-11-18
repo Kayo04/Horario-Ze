@@ -29,6 +29,7 @@ import {
   type MesLivro,
 } from '@/lib/horas/regras'
 import { lerLivroPonto } from '@/lib/horas/livroPontoExcel'
+import LanguageSwitcher from '@/app/components/LanguageSwitcher'
 
 type Comparacao = Record<string, Record<string, number | null>>
 type Livros = Record<string, Record<string, LivroFuncionario>>
@@ -447,13 +448,16 @@ export default function GestaoHorasPage() {
             <h1 className="text-3xl font-extrabold text-gray-900">{t.hm_title}</h1>
             <p className="text-gray-600 mt-1">{t.hm_subtitle}</p>
           </div>
-          <Link
-            href="/portal"
-            className="flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition"
-          >
-            <ArrowLeftIcon className="h-5 w-5" />
-            {t.hm_back}
-          </Link>
+          <div className="flex items-center gap-3">
+            <LanguageSwitcher />
+            <Link
+              href="/portal"
+              className="flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition"
+            >
+              <ArrowLeftIcon className="h-5 w-5" />
+              {t.hm_back}
+            </Link>
+          </div>
         </header>
 
         {/* Separadores dos meses: cada mês importado tem a sua própria parte */}

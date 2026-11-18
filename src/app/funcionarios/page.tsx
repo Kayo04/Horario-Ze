@@ -4,6 +4,7 @@ import { Employee } from '@/types/employee'
 import Link from 'next/link'
 import { useLanguage } from '@/context/LanguageContext'
 import { translations } from '@/lib/translations'
+import LanguageSwitcher from '@/app/components/LanguageSwitcher'
 
 export default function FuncionariosPage(): JSX.Element {
   const [employees, setEmployees] = useState<Employee[]>([])
@@ -177,20 +178,7 @@ export default function FuncionariosPage(): JSX.Element {
 
           {/* Language Toggle */}
           <div className="flex space-x-2">
-            <button 
-              onClick={() => setLanguage('pt')} 
-              className={`text-2xl hover:scale-110 transition-transform ${language === 'pt' ? 'opacity-100' : 'opacity-50'}`}
-              title="Português"
-            >
-              🇵🇹
-            </button>
-            <button 
-              onClick={() => setLanguage('en')} 
-              className={`text-2xl hover:scale-110 transition-transform ${language === 'en' ? 'opacity-100' : 'opacity-50'}`}
-              title="English"
-            >
-              🇬🇧
-            </button>
+            <LanguageSwitcher />
           </div>
         </div>
 
