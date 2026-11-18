@@ -181,9 +181,9 @@ export default function PortalPage() {
                 className="flex flex-col items-center justify-center p-6 bg-gradient-to-br from-emerald-500 to-emerald-700 text-white rounded-xl shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-300 ease-in-out group"
               >
                 <BanknotesIcon className="h-12 w-12 mb-3 text-emerald-200 group-hover:text-white transition-colors duration-300" />
-                <span className="text-lg font-semibold">{t.hours_card}</span>
+                <span className="text-lg font-semibold">{t.hm_card}</span>
                 <span className="text-sm text-emerald-100 group-hover:text-emerald-50 mt-1">
-                  {t.hours_card_desc}
+                  {t.hm_card_desc}
                 </span>
               </Link>
             )}
