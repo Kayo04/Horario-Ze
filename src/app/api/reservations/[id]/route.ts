@@ -11,7 +11,7 @@
   ) {
     try {
       const session = await getServerSession(authOptions)
-      if (!session || !podeVer(session.user.role, session.user.permissions, 'scheduler')) {
+      if (!session || !podeVer(session.user.role, session.user.permissions, 'criarHorarios')) {
         return NextResponse.json({ error: 'Não autorizado' }, { status: 403 })
       }
 
@@ -33,7 +33,7 @@
   ) {
     try {
       const session = await getServerSession(authOptions)
-      if (!session || !podeVer(session.user.role, session.user.permissions, 'scheduler')) {
+      if (!session || !podeVer(session.user.role, session.user.permissions, 'criarHorarios')) {
         return NextResponse.json({ error: 'Não autorizado' }, { status: 403 })
       }
       
@@ -65,7 +65,7 @@
   ) {
     try {
       const session = await getServerSession(authOptions)
-      if (!session || !podeVer(session.user.role, session.user.permissions, 'scheduler')) {
+      if (!session || !podeVer(session.user.role, session.user.permissions, 'criarHorarios')) {
         return NextResponse.json({ error: 'Não autorizado' }, { status: 403 })
       }
 

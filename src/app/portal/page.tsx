@@ -4,7 +4,6 @@ import Link from 'next/link'
 import Image from 'next/image'
 import { useEffect, useRef, useState, type ComponentType, type SVGProps } from 'react'
 import {
-  CalendarDaysIcon,
   UsersIcon,
   UserGroupIcon,
   ClockIcon,
@@ -39,7 +38,6 @@ interface Cartao {
 
 // Aspeto de cada quadrado (quem pode ver o quê está em src/lib/permissoes.ts)
 const VISUAL: Record<Quadrado, { icon: Icone; title: Chave; desc: Chave }> = {
-  scheduler: { icon: CalendarDaysIcon, title: 'manage_schedules', desc: 'manage_schedules_desc' },
   reservas: { icon: UsersIcon, title: 'manage_reservations', desc: 'manage_reservations_desc' },
   checkin: { icon: CheckBadgeIcon, title: 'checkin_daily', desc: 'checkin_daily_desc' },
   funcionarios: { icon: UserGroupIcon, title: 'manage_employees', desc: 'manage_employees_desc' },

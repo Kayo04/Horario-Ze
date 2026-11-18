@@ -38,7 +38,6 @@ export default function FuncionariosPage(): JSX.Element {
   const corRole = (r: Role) =>
     r === 'admin' ? 'bg-park-600 text-white' : r === 'manager' ? 'bg-park-100 text-park-800' : 'bg-gray-100 text-gray-700'
   const nomeQuadrado: Record<Quadrado, string> = {
-    scheduler: t.manage_schedules,
     reservas: t.manage_reservations,
     checkin: t.checkin_daily,
     funcionarios: t.manage_employees,

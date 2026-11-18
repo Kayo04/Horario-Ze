@@ -12,7 +12,6 @@ export function normalizarRole(role: unknown): Role {
 
 // Todos os quadrados do portal
 export type Quadrado =
-  | 'scheduler'
   | 'reservas'
   | 'checkin'
   | 'funcionarios'
@@ -24,7 +23,6 @@ export type Quadrado =
   | 'criarHorarios'
 
 export const HREF: Record<Quadrado, string> = {
-  scheduler: '/scheduler',
   reservas: '/gestao-reserva',
   checkin: '/portal/checkin',
   funcionarios: '/funcionarios',
@@ -40,18 +38,18 @@ export const HREF: Record<Quadrado, string> = {
 export const QUADRADOS_BASE: Quadrado[] = ['reservas', 'checkin', 'disponibilidade', 'horario']
 
 // Os que o admin pode dar a mais a um Host/Manager
-export const QUADRADOS_EXTRA: Quadrado[] = ['scheduler', 'funcionarios', 'adminpanel', 'clientes', 'horas', 'criarHorarios']
+export const QUADRADOS_EXTRA: Quadrado[] = ['funcionarios', 'adminpanel', 'clientes', 'horas', 'criarHorarios']
 
 // Ordem em que aparecem no portal "simples" (Host/Manager)
 export const ORDEM_QUADRADOS: Quadrado[] = [
-  'scheduler', 'reservas', 'checkin', 'funcionarios', 'adminpanel',
+  'reservas', 'checkin', 'funcionarios', 'adminpanel',
   'disponibilidade', 'horario', 'clientes', 'horas', 'criarHorarios',
 ]
 
 // Grupos (as secções grandes do portal dos admins e do menu de permissões)
 export type Grupo = 'rh' | 'administracao'
 export const GRUPOS: Record<Grupo, Quadrado[]> = {
-  rh: ['scheduler', 'reservas', 'disponibilidade', 'horario', 'horas', 'criarHorarios'],
+  rh: ['reservas', 'disponibilidade', 'horario', 'horas', 'criarHorarios'],
   administracao: ['checkin', 'funcionarios', 'clientes', 'adminpanel'],
 }
 
