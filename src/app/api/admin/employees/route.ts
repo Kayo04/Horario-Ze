@@ -1,13 +1,14 @@
 import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth/next'
 import { authOptions } from '@/lib/auth'
+import { podeVer } from '@/lib/permissoes'
 import clientPromise from '@/lib/mongodb' // ⬅️ ALTERAÇÃO 1: Importar o clientPromise
 
 export async function GET(req: Request) {
   try {
     const session = await getServerSession(authOptions)
 
-    if (!session || session.user.role !== 'admin') {
+    if (!session || !podeVer(session.user.role, session.user.permissions, 'adminpanel')) {
       return NextResponse.json({ error: 'Não autorizado' }, { status: 403 })
     }
 
@@ -18,7 +19,8 @@ export async function GET(req: Request) {
 
     const employeesCursor = db.collection('employees').find(
       {
-        role: 'employee',
+        // Todos menos os admins ('employee' é o nome antigo de 'host')
+        role: { $in: ['employee', 'host', 'manager'] },
       },
       {
         projection: {

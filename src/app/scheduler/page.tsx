@@ -9,6 +9,7 @@ import { translations } from '@/lib/translations'
 import LanguageSwitcher from '@/app/components/LanguageSwitcher'
 // 🔥 IMPORTAÇÃO CENTRALIZADA (Isto resolve os conflitos de tipos)
 import { Reservation as IReservation, EventType } from '@/types/reservation'
+import { podeVer } from '@/lib/permissoes'
 
 /* ---------- Tipos Locais (apenas para UI) ---------- */
 
@@ -140,10 +141,10 @@ export default function SchedulerPage(): JSX.Element {
       router.replace('/')
       return
     }
-    if (status === 'authenticated' && session?.user?.role !== 'admin') {
+    if (status === 'authenticated' && !podeVer(session?.user?.role, session?.user?.permissions, 'scheduler')) {
       toast.error(t.access_denied)
       router.replace('/portal')
-    } else if (status === 'authenticated' && session?.user?.role === 'admin') {
+    } else if (status === 'authenticated' && podeVer(session?.user?.role, session?.user?.permissions, 'scheduler')) {
       loadData()
     }
   }, [status, session, router, t])
@@ -698,7 +699,7 @@ export default function SchedulerPage(): JSX.Element {
   }
 
   /* ---------- Render (Loading de Dados) ---------- */
-  if (loading && status === 'authenticated' && session?.user?.role === 'admin') {
+  if (loading && status === 'authenticated' && podeVer(session?.user?.role, session?.user?.permissions, 'scheduler')) {
     return (
       <div className="min-h-screen bg-gray-50 p-6 flex items-center justify-center">
         <div className="text-center">
@@ -709,7 +710,7 @@ export default function SchedulerPage(): JSX.Element {
   }
 
   /* ---------- Render (Conteúdo da Página - SÓ ADMIN) ---------- */
-  if (status === 'authenticated' && session?.user?.role === 'admin' && !loading) {
+  if (status === 'authenticated' && podeVer(session?.user?.role, session?.user?.permissions, 'scheduler') && !loading) {
     return (
       <div className="min-h-screen bg-gray-50 p-6">
         <input

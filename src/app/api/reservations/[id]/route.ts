@@ -2,6 +2,7 @@
   import { deleteReservation, updateReservation, getReservationById } from '@/lib/reservationService'
   import { getServerSession } from 'next-auth'
   import { authOptions } from '@/lib/auth'
+  import { podeVer } from '@/lib/permissoes'
 
   // ⬇️ NOVO: Adicionada função GET (para um evento, se precisares no futuro)
   export async function GET(
@@ -10,7 +11,7 @@
   ) {
     try {
       const session = await getServerSession(authOptions)
-      if (!session || session.user.role !== 'admin') {
+      if (!session || !podeVer(session.user.role, session.user.permissions, 'scheduler')) {
         return NextResponse.json({ error: 'Não autorizado' }, { status: 403 })
       }
 
@@ -32,7 +33,7 @@
   ) {
     try {
       const session = await getServerSession(authOptions)
-      if (!session || session.user.role !== 'admin') {
+      if (!session || !podeVer(session.user.role, session.user.permissions, 'scheduler')) {
         return NextResponse.json({ error: 'Não autorizado' }, { status: 403 })
       }
       
@@ -64,7 +65,7 @@
   ) {
     try {
       const session = await getServerSession(authOptions)
-      if (!session || session.user.role !== 'admin') {
+      if (!session || !podeVer(session.user.role, session.user.permissions, 'scheduler')) {
         return NextResponse.json({ error: 'Não autorizado' }, { status: 403 })
       }
 

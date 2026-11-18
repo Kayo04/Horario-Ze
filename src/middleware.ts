@@ -1,6 +1,7 @@
 // middleware.ts
 import { getToken } from "next-auth/jwt"
 import { NextRequest, NextResponse } from "next/server"
+import { podeVer, quadradoDaPagina } from "@/lib/permissoes"
 
 export async function middleware(req: NextRequest) {
   // 1. Obter o token
@@ -27,8 +28,10 @@ export async function middleware(req: NextRequest) {
     return NextResponse.redirect(new URL('/portal', req.url))
   }
   
-  // C: 🔥 REGRA DE ADMIN - BLOQUEAR ACESSO À PASTA CLIENTES
-  if ( (pathname.startsWith('/funcionarios') || pathname.startsWith('/portal/clientes') || pathname.startsWith('/gestao-horas')) && token?.role !== 'admin') {
+  // C: Páginas protegidas por quadrado (Gerir Horários, Funcionários, Painel de Admin, Base de Dados,
+  //    Gestão de Horas, Criar Horários): só entra o admin ou um Host/Manager a quem o admin deu esse quadrado
+  const quadrado = quadradoDaPagina(pathname)
+  if (quadrado && !podeVer(token?.role, token?.permissions, quadrado)) {
       return NextResponse.redirect(new URL('/portal?error=NaoAutorizado', req.url))
   }
 

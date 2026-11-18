@@ -74,7 +74,7 @@ export const translations = {
     hm_tab_books: "{n} livro(s)",
     // Erros da API da Gestão de Horas (a API devolve o código, ex. code: 'conflict')
     hm_err_unauthenticated: "Sessão expirada. Volta a entrar.",
-    hm_err_forbidden: "Só administradores podem gerir horas.",
+    hm_err_forbidden: "Não tens acesso à Gestão de Horas.",
     hm_err_bad_request: "Pedido inválido.",
     hm_err_no_books: "Não há livros de ponto para importar.",
     hm_err_invalid_times: "Verifica as horas e a opção Dia seguinte.",
@@ -719,7 +719,7 @@ export const translations = {
     hm_tab_books: "{n} timesheet(s)",
     // Hours Management API errors
     hm_err_unauthenticated: "Session expired. Please log in again.",
-    hm_err_forbidden: "Only administrators can manage hours.",
+    hm_err_forbidden: "You don't have access to Hours Management.",
     hm_err_bad_request: "Invalid request.",
     hm_err_no_books: "There are no timesheets to import.",
     hm_err_invalid_times: "Check the times and the Next day option.",

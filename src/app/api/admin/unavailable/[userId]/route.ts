@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth/next'
 import { authOptions } from '@/lib/auth'
 import clientPromise from '@/lib/mongodb'
 import { ObjectId } from 'mongodb'
+import { podeVer } from '@/lib/permissoes'
 
 export async function GET(
   req: Request,
@@ -13,7 +14,7 @@ export async function GET(
   try {
     const session = await getServerSession(authOptions)
 
-    if (!session || session.user.role !== 'admin') {
+    if (!session || !podeVer(session.user.role, session.user.permissions, 'adminpanel')) {
       console.log('❌ DEBUG: Falha de autenticação (Não é admin ou não há sessão)')
       return NextResponse.json({ error: 'Não autorizado' }, { status: 403 })
     }

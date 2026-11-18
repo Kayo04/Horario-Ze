@@ -16,6 +16,7 @@ import {
 import { useLanguage } from '@/context/LanguageContext'
 import { translations } from '@/lib/translations'
 import LanguageSwitcher from '@/app/components/LanguageSwitcher'
+import { podeVer } from '@/lib/permissoes'
 
 // --- INTERFACES ---
 interface TimeSlot {
@@ -144,14 +145,14 @@ export default function AdminPanelPage() {
   // 1. AUTH
   useEffect(() => {
     if (status === 'loading') return
-    if (status === 'unauthenticated' || (status === 'authenticated' && session.user.role !== 'admin')) {
+    if (status === 'unauthenticated' || (status === 'authenticated' && !podeVer(session.user.role, session.user.permissions, 'adminpanel'))) {
       router.replace('/portal')
     }
   }, [session, status, router])
 
   // 2. CARREGAR FUNCIONÁRIOS
   useEffect(() => {
-    if (status === 'authenticated' && session.user.role === 'admin') {
+    if (status === 'authenticated' && podeVer(session.user.role, session.user.permissions, 'adminpanel')) {
       const fetchEmployees = async () => {
         setIsLoadingEmployees(true)
         try {
@@ -366,7 +367,7 @@ export default function AdminPanelPage() {
     }
   }, [selectedDate, workShifts, currentMonth])
 
-  if (status === 'loading' || !session || session.user.role !== 'admin') return <div className="p-10 text-center">{t.loading}</div>
+  if (status === 'loading' || !session || !podeVer(session.user.role, session.user.permissions, 'adminpanel')) return <div className="p-10 text-center">{t.loading}</div>
 
   return (
     <div className="min-h-screen bg-gray-50 p-4 sm:p-8 font-sans text-gray-900 relative">
