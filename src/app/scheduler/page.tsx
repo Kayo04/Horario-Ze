@@ -128,7 +128,7 @@ export default function SchedulerPage(): JSX.Element {
       setIsSheetJSLoaded(true);
     };
     script.onerror = () => {
-      toast.error('Falha ao carregar o leitor de Excel. Tente recarregar a página.');
+      toast.error(t.sch_excel_reader_failed);
     };
     document.head.appendChild(script);
   }, []);
@@ -321,7 +321,7 @@ export default function SchedulerPage(): JSX.Element {
 
   const triggerFileInput = () => {
     if (!isSheetJSLoaded) {
-      toast.error('A biblioteca de importação ainda está a carregar. Tente de novo.')
+      toast.error(t.sch_import_lib_loading)
       return
     }
     fileInputRef.current?.click()
@@ -331,7 +331,7 @@ export default function SchedulerPage(): JSX.Element {
     const file = e.target.files?.[0]
     if (!file) return
     if (!file.name.endsWith('.csv') && !file.name.endsWith('.xlsx')) {
-      toast.error('Ficheiro inválido. Envie .xlsx ou .csv');
+      toast.error(t.sch_invalid_file);
       return;
     }
     setIsUploading(true)
@@ -341,7 +341,7 @@ export default function SchedulerPage(): JSX.Element {
       try {
         const data = event.target?.result;
         const XLSX = (window as any).XLSX;
-        if (!XLSX) throw new Error('Biblioteca de Excel (SheetJS) não carregada.');
+        if (!XLSX) throw new Error(t.sch_excel_lib_missing);
         const workbook = XLSX.read(data, { type: 'array' });
         const firstSheetName = workbook.SheetNames[0];
         const worksheet = workbook.Sheets[firstSheetName];
@@ -366,7 +366,7 @@ export default function SchedulerPage(): JSX.Element {
   const processParsedData = (data: any[][]) => {
     const headerIndex = data.findIndex(row => row && row.includes('Customer Email'))
     if (headerIndex === -1) {
-      toast.error('Formato inválido. Não foi possível encontrar a coluna "Customer Email".')
+      toast.error(t.sch_missing_email_col)
       setIsUploading(false)
       return
     }
@@ -387,7 +387,7 @@ export default function SchedulerPage(): JSX.Element {
     };
 
     if (colMap.date === -1 || colMap.email === -1 || colMap.time === -1) {
-      toast.error("Colunas essenciais (Date, Customer Email, Booking Time) não encontradas.");
+      toast.error(t.sch_missing_cols);
       setIsUploading(false);
       return
     }
@@ -460,7 +460,7 @@ export default function SchedulerPage(): JSX.Element {
       return !existingKeys.has(fileKey);
     });
     if (newReservationsOnly.length === 0) {
-      toast.success('O ficheiro foi lido, mas não foram encontradas novas reservas para adicionar.');
+      toast.success(t.sch_no_new_reservations);
       setIsUploading(false);
       return;
     }
@@ -623,7 +623,7 @@ export default function SchedulerPage(): JSX.Element {
       }
     }
     setSchedule(bySlot)
-    toast.success('Horário gerado com sucesso!')
+    toast.success(t.sch_schedule_generated)
   }
 
   // Funções utilitárias

@@ -318,8 +318,8 @@ export default function CheckInDashboard() {
                     <option value="Linkedin">Linkedin</option>
                     <option value="Tik Tok">Tik Tok</option>
                     <option value="Chat Gpt">Chat Gpt</option>
-                    <option value="Evento">Evento</option>
-                    <option value="Festa de Aniversário">Festa de Aniversário</option>
+                    <option value="Evento">{t.checkin_staff_event}</option>
+                    <option value="Festa de Aniversário">{t.checkin_birthday_party}</option>
                     <option value="Já visitei o The Park">{t.checkin_staff_visited_before}</option>
                     <option value="Amigos ou Família">{t.checkin_staff_friends_family}</option>
                     <option value="Vizinhos">{t.checkin_staff_neighbors}</option>

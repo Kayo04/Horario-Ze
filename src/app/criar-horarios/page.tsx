@@ -281,7 +281,7 @@
             onChange={handleDateInput}
             onClick={() => setShowPicker(true)}
             className="pl-10 w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-pink-500 outline-none transition-shadow font-medium text-gray-700 bg-white cursor-pointer"
-            placeholder="DD/MM/AAAA"
+            placeholder={t.sch_date_placeholder}
             pattern="\d{2}/\d{2}/\d{4}"
           />
           <button 
