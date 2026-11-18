@@ -3,6 +3,12 @@
 
 export const VALOR_HORA_CENTIMOS = 700 // 7 €/hora
 
+// IDs do relógio NGTeco que NUNCA entram na gestão de horas (não são pagos à hora):
+//   1 = Jose Marques (o chefe)
+//   5 = Camila Marques (filha do chefe)
+export const IDS_EXCLUIDOS: readonly number[] = [1, 5]
+export const estaExcluido = (id: number) => IDS_EXCLUIDOS.includes(id)
+
 export const ESTADOS = ['Completo', 'Por confirmar', 'Corrigido manualmente'] as const
 export type Estado = (typeof ESTADOS)[number]
 

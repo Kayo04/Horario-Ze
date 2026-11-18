@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import HorasMarcacao from '@/models/HorasMarcacao'
 import { ligarBD, exigirAdmin, semCache } from '@/lib/horas/servidor'
-import { validarLinhaImportada, chaveMarcacao } from '@/lib/horas/regras'
+import { validarLinhaImportada, chaveMarcacao, estaExcluido, IDS_EXCLUIDOS } from '@/lib/horas/regras'
 
 export const dynamic = 'force-dynamic'
 
@@ -31,8 +31,9 @@ export async function POST(req: Request) {
   for (const row of rows) {
     const linha = validarLinhaImportada(row)
     if (!linha) return NextResponse.json({ error: 'O ficheiro tem linhas inválidas.' }, { status: 400 })
-    validas.push(linha)
+    if (!estaExcluido(linha.id)) validas.push(linha) // o chefe e a filha nunca são importados
   }
+  if (validas.length === 0) return NextResponse.json({ error: 'O ficheiro não tem marcações.' }, { status: 400 })
 
   // Chave estável; se a mesma pessoa tiver duas marcações iguais no mesmo dia, acrescenta um sufixo
   const vistas = new Map<string, number>()
@@ -66,6 +67,8 @@ export async function POST(req: Request) {
   try {
     await ligarBD()
     const r = await HorasMarcacao.bulkWrite(operacoes, { ordered: false })
+    // Limpa marcações de pessoas excluídas que tenham entrado antes desta regra existir
+    await HorasMarcacao.deleteMany({ employeeId: { $in: IDS_EXCLUIDOS } })
     return NextResponse.json(
       { total: operacoes.length, novas: r.upsertedCount, atualizadas: r.modifiedCount },
       { headers: semCache },

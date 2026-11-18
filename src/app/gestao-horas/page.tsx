@@ -21,6 +21,7 @@ import {
   lerLinhasImportadas,
   lerRelatorioNGTeco,
   eRelatorioNGTeco,
+  estaExcluido,
 } from '@/lib/horas/regras'
 
 type Comparacao = Record<string, Record<string, number | null>>
@@ -110,7 +111,9 @@ export default function GestaoHorasPage() {
     setMessage('')
     setError('')
     try {
-      const { validas, erros } = await lerFicheiro(ficheiro)
+      const lido = await lerFicheiro(ficheiro)
+      const erros = lido.erros
+      const validas = lido.validas.filter(l => !estaExcluido(l.id)) // o chefe e a filha não entram
       if (erros.length) throw new Error(t.hm_import_errors.replace('{lines}', erros.slice(0, 10).join(', ') + (erros.length > 10 ? '…' : '')))
       if (!validas.length) throw new Error(t.hm_import_empty)
       const res = await fetch('/api/horas/importar', {

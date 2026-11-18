@@ -3,7 +3,7 @@ import HorasMarcacao from '@/models/HorasMarcacao'
 import HorasCorrecao from '@/models/HorasCorrecao'
 import { ligarBD, exigirAdmin, semCache } from '@/lib/horas/servidor'
 import { livroPonto } from '@/lib/horas/livroPonto'
-import type { Marcacao } from '@/lib/horas/regras'
+import { IDS_EXCLUIDOS, type Marcacao } from '@/lib/horas/regras'
 
 export const dynamic = 'force-dynamic'
 
@@ -15,7 +15,7 @@ export async function GET() {
   try {
     await ligarBD()
     const [marcacoes, correcoes] = await Promise.all([
-      HorasMarcacao.find().sort({ date: 1, start: 1 }).lean<any[]>(),
+      HorasMarcacao.find({ employeeId: { $nin: IDS_EXCLUIDOS } }).sort({ date: 1, start: 1 }).lean<any[]>(),
       HorasCorrecao.find().lean<any[]>(),
     ])
     const porChave = new Map(correcoes.map(c => [c.key, c]))
