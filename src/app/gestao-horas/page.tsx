@@ -150,6 +150,13 @@ export default function GestaoHorasPage() {
           .replace('{updated}', String(data.atualizadas)),
       )
       await carregar()
+      // Abre o separador do mês que acabou de ser importado (o mais recente do ficheiro).
+      // Só depois de carregar, para o mês novo já existir na lista de separadores.
+      const mesImportado = validas.map(l => l.date.slice(0, 7)).sort().pop()
+      if (mesImportado) {
+        setMonth(mesImportado)
+        setWeek('')
+      }
     } catch (err: any) {
       setError(err.message)
     } finally {
@@ -270,9 +277,9 @@ export default function GestaoHorasPage() {
       if (!res.ok) throw new Error(data.error)
       setLivroFicheiros(null)
       setMessage(t.hm_book_done.replace('{n}', String(data.total)).replace('{month}', nomeMes(livroMes)))
-      setMonth(livroMes)
-      setWeek('')
       await carregar()
+      setMonth(livroMes) // abre o separador do mês importado
+      setWeek('')
     } catch (err: any) {
       setLivroErro(err.message)
     } finally {
@@ -449,17 +456,36 @@ export default function GestaoHorasPage() {
           </Link>
         </header>
 
+        {/* Separadores dos meses: cada mês importado tem a sua própria parte */}
+        {meses.length > 0 && (
+          <nav className="bg-white p-2 rounded-xl shadow-lg flex gap-2 overflow-x-auto" aria-label={t.hm_month}>
+            {[...meses].reverse().map(m => {
+              const ativo = m === month
+              const temRelogio = records.some(r => r.date.startsWith(m))
+              const nLivros = Object.keys(livros[m] ?? {}).length
+              return (
+                <button
+                  key={m}
+                  onClick={() => { setMonth(m); setWeek(''); setAberto(null) }}
+                  className={`flex-shrink-0 px-4 py-2 rounded-lg text-left transition ${
+                    ativo ? 'bg-emerald-600 text-white shadow' : 'text-gray-700 hover:bg-gray-100'
+                  }`}
+                >
+                  <span className="block font-semibold capitalize">{nomeMes(m)}</span>
+                  <span className={`block text-xs ${ativo ? 'text-emerald-100' : 'text-gray-500'}`}>
+                    {[temRelogio && t.hm_tab_clock, nLivros > 0 && t.hm_tab_books.replace('{n}', String(nLivros))]
+                      .filter(Boolean)
+                      .join(' · ')}
+                  </span>
+                </button>
+              )
+            })}
+          </nav>
+        )}
+
         {/* Filtros e ações */}
         <section className="bg-white p-6 rounded-xl shadow-lg">
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <label className="text-sm font-semibold text-gray-700">
-              {t.hm_month}
-              <select className={selectClass} value={month} onChange={e => { setMonth(e.target.value); setWeek('') }}>
-                {meses.map(m => (
-                  <option key={m} value={m}>{nomeMes(m)}</option>
-                ))}
-              </select>
-            </label>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <label className="text-sm font-semibold text-gray-700">
               {t.hm_week}
               <select className={selectClass} value={week} onChange={e => setWeek(e.target.value)}>
