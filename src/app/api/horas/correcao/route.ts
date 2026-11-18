@@ -17,18 +17,18 @@ export async function POST(req: Request) {
   try {
     input = await req.json()
   } catch {
-    return NextResponse.json({ error: 'Pedido inválido.' }, { status: 400 })
+    return NextResponse.json({ error: 'Pedido inválido.', code: 'bad_request' }, { status: 400 })
   }
 
   const correcao = validarCorrecao(input)
   if (!correcao || typeof input.key !== 'string') {
-    return NextResponse.json({ error: 'Verifica as horas e a opção Dia seguinte.' }, { status: 400 })
+    return NextResponse.json({ error: 'Verifica as horas e a opção Dia seguinte.', code: 'invalid_times' }, { status: 400 })
   }
 
   try {
     await ligarBD()
     const marcacao = await HorasMarcacao.findOne({ key: input.key }).lean<any>()
-    if (!marcacao) return NextResponse.json({ error: 'Marcação desconhecida.' }, { status: 400 })
+    if (!marcacao) return NextResponse.json({ error: 'Marcação desconhecida.', code: 'unknown_entry' }, { status: 400 })
 
     const dados = { ...correcao, key: input.key, correctedBy: sessao!.user?.name ?? '' }
     let gravou = false
@@ -47,7 +47,7 @@ export async function POST(req: Request) {
 
     if (!gravou) {
       return NextResponse.json(
-        { error: 'Esta marcação foi alterada por outra pessoa. Atualiza os dados antes de voltar a guardar.' },
+        { error: 'Esta marcação foi alterada por outra pessoa. Atualiza os dados antes de voltar a guardar.', code: 'conflict' },
         { status: 409 },
       )
     }
@@ -66,6 +66,6 @@ export async function POST(req: Request) {
     )
   } catch (e) {
     console.error('Erro ao guardar correção:', e)
-    return NextResponse.json({ error: 'Não foi possível guardar. Tenta novamente.' }, { status: 500 })
+    return NextResponse.json({ error: 'Não foi possível guardar. Tenta novamente.', code: 'save_failed' }, { status: 500 })
   }
 }

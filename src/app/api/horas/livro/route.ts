@@ -18,11 +18,11 @@ export async function POST(req: Request) {
   try {
     input = await req.json()
   } catch {
-    return NextResponse.json({ error: 'Pedido inválido.' }, { status: 400 })
+    return NextResponse.json({ error: 'Pedido inválido.', code: 'bad_request' }, { status: 400 })
   }
   const livros = Array.isArray(input?.livros) ? input.livros : null
   if (!livros || livros.length === 0 || livros.length > 100) {
-    return NextResponse.json({ error: 'Não há livros de ponto para importar.' }, { status: 400 })
+    return NextResponse.json({ error: 'Não há livros de ponto para importar.', code: 'no_books' }, { status: 400 })
   }
 
   const limpos = []
@@ -30,7 +30,7 @@ export async function POST(req: Request) {
     const v = validarLivro(l)
     const employeeName = String(l?.employeeName ?? '').trim().slice(0, 100)
     if (!v || !employeeName) {
-      return NextResponse.json({ error: 'Há livros de ponto com dados inválidos ou sem funcionário escolhido.' }, { status: 400 })
+      return NextResponse.json({ error: 'Há livros de ponto com dados inválidos ou sem funcionário escolhido.', code: 'invalid_books' }, { status: 400 })
     }
     limpos.push({
       ...v,
@@ -77,7 +77,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ total: limpos.length }, { headers: semCache })
   } catch (e) {
     console.error('Erro ao importar livro de ponto:', e)
-    return NextResponse.json({ error: 'Não foi possível importar. Tenta novamente.' }, { status: 500 })
+    return NextResponse.json({ error: 'Não foi possível importar. Tenta novamente.', code: 'import_failed' }, { status: 500 })
   }
 }
 
@@ -90,7 +90,7 @@ export async function DELETE(req: Request) {
   const month = searchParams.get('month') ?? ''
   const employeeId = Number(searchParams.get('employeeId'))
   if (!/^\d{4}-\d{2}$/.test(month) || !Number.isSafeInteger(employeeId)) {
-    return NextResponse.json({ error: 'Pedido inválido.' }, { status: 400 })
+    return NextResponse.json({ error: 'Pedido inválido.', code: 'bad_request' }, { status: 400 })
   }
   try {
     await ligarBD()
@@ -98,6 +98,6 @@ export async function DELETE(req: Request) {
     return NextResponse.json({ ok: true }, { headers: semCache })
   } catch (e) {
     console.error('Erro ao apagar livro de ponto:', e)
-    return NextResponse.json({ error: 'Não foi possível apagar.' }, { status: 500 })
+    return NextResponse.json({ error: 'Não foi possível apagar.', code: 'delete_failed' }, { status: 500 })
   }
 }

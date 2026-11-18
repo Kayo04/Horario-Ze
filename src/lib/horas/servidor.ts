@@ -16,9 +16,9 @@ export async function ligarBD() {
  */
 export async function exigirAdmin() {
   const sessao = await getServerSession(authOptions)
-  if (!sessao) return { erro: NextResponse.json({ error: 'Não autenticado.' }, { status: 401 }) }
+  if (!sessao) return { erro: NextResponse.json({ error: 'Não autenticado.', code: 'unauthenticated' }, { status: 401 }) }
   if ((sessao.user as any)?.role !== 'admin') {
-    return { erro: NextResponse.json({ error: 'Só administradores podem gerir horas.' }, { status: 403 }) }
+    return { erro: NextResponse.json({ error: 'Só administradores podem gerir horas.', code: 'forbidden' }, { status: 403 }) }
   }
   return { sessao }
 }

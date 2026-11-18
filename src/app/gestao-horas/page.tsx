@@ -59,6 +59,8 @@ export default function GestaoHorasPage() {
   const locale = language === 'pt' ? 'pt-PT' : 'en-GB'
   const estadoTexto = (estado: string) => (t as any)[`hm_state_${estado}`] ?? estado
   const horas = (m: number | null) => formatarHoras(m, (t as any)['hm_state_Por confirmar'])
+  // Erro devolvido pela API -> texto na língua escolhida (a API manda um código, ex. 'conflict')
+  const erroApi = (data: any) => (data?.code && (t as any)[`hm_err_${data.code}`]) || data?.error || t.hm_err_load_failed
 
   const [records, setRecords] = useState<Marcacao[]>([])
   const [comparison, setComparison] = useState<Comparacao>({})
@@ -87,7 +89,7 @@ export default function GestaoHorasPage() {
     try {
       const res = await fetch('/api/horas', { cache: 'no-store' })
       const data = await res.json()
-      if (!res.ok) throw new Error(data.error || 'Falha ao carregar dados.')
+      if (!res.ok) throw new Error(erroApi(data))
       setRecords(data.records)
       setComparison(data.comparison)
       setLivros(data.livros ?? {})
@@ -143,7 +145,7 @@ export default function GestaoHorasPage() {
         body: JSON.stringify({ rows: validas }),
       })
       const data = await res.json()
-      if (!res.ok) throw new Error(data.error)
+      if (!res.ok) throw new Error(erroApi(data))
       setMessage(
         t.hm_import_done
           .replace('{total}', String(data.total))
@@ -275,7 +277,7 @@ export default function GestaoHorasPage() {
         }),
       })
       const data = await res.json()
-      if (!res.ok) throw new Error(data.error)
+      if (!res.ok) throw new Error(erroApi(data))
       setLivroFicheiros(null)
       setMessage(t.hm_book_done.replace('{n}', String(data.total)).replace('{month}', nomeMes(livroMes)))
       await carregar()
@@ -365,7 +367,7 @@ export default function GestaoHorasPage() {
     if (!confirm(t.hm_book_delete_confirm.replace('{name}', nome).replace('{month}', nomeMes(month)))) return
     const res = await fetch(`/api/horas/livro?month=${month}&employeeId=${id}`, { method: 'DELETE' })
     if (!res.ok) {
-      setError((await res.json()).error)
+      setError(erroApi(await res.json().catch(() => null)))
       return
     }
     setAberto(null)
@@ -385,16 +387,16 @@ export default function GestaoHorasPage() {
   const exportarExcel = async () => {
     const XLSX = await import('xlsx')
     const resumo = [
-      ['Funcionário', 'ID', 'Mês', 'Semana (início)', 'Horas', 'Horas decimais', 'Minutos', 'Turnos por confirmar', 'Valor (€)'],
+      [t.hm_xl_employee, 'ID', t.hm_xl_month, t.hm_xl_week_start, t.hm_xl_hours, t.hm_xl_hours_decimal, t.hm_xl_minutes, t.hm_xl_pending, t.hm_xl_amount],
       ...grupos.map(g => [g.name, g.id, month, week, formatarHoras(g.minutes), g.minutes / 60, g.minutes, g.missing, g.cents / 100]),
     ]
     const marcacoes = [
-      ['Funcionário', 'ID', 'Data', 'Entrada', 'Saída', 'Dia seguinte', 'Minutos', 'Estado'],
-      ...selecionadas.map(r => [r.name, r.id, r.date, r.start, r.end, r.nextDay ? 'Sim' : 'Não', r.minutes, r.state]),
+      [t.hm_xl_employee, 'ID', t.hm_col_date, t.hm_col_in, t.hm_col_out, t.hm_xl_next_day, t.hm_xl_minutes, t.hm_col_state],
+      ...selecionadas.map(r => [r.name, r.id, r.date, r.start, r.end, r.nextDay ? t.hm_xl_yes : t.hm_xl_no, r.minutes, estadoTexto(r.state)]),
     ]
     const livro = XLSX.utils.book_new()
-    XLSX.utils.book_append_sheet(livro, XLSX.utils.aoa_to_sheet(resumo), 'Resumo')
-    XLSX.utils.book_append_sheet(livro, XLSX.utils.aoa_to_sheet(marcacoes), 'Marcações')
+    XLSX.utils.book_append_sheet(livro, XLSX.utils.aoa_to_sheet(resumo), t.hm_xl_sheet_summary)
+    XLSX.utils.book_append_sheet(livro, XLSX.utils.aoa_to_sheet(marcacoes), t.hm_xl_sheet_entries)
     XLSX.writeFile(livro, `horas-funcionarios-${month}${week ? '-semana-' + week : ''}.xlsx`)
   }
 
@@ -417,7 +419,7 @@ export default function GestaoHorasPage() {
         body: JSON.stringify({ key: editing.key, revision: editing.revision, ...form }),
       })
       const data = await res.json()
-      if (!res.ok) throw new Error(data.error)
+      if (!res.ok) throw new Error(erroApi(data))
       setRecords(rs => rs.map(r => (r.key === data.row.key ? { ...r, ...data.row } : r)))
       setEditing(null)
     } catch (err: any) {

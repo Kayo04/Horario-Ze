@@ -19,21 +19,21 @@ export async function POST(req: Request) {
   try {
     input = await req.json()
   } catch {
-    return NextResponse.json({ error: 'Pedido inválido.' }, { status: 400 })
+    return NextResponse.json({ error: 'Pedido inválido.', code: 'bad_request' }, { status: 400 })
   }
 
   const rows = Array.isArray(input?.rows) ? input.rows : null
-  if (!rows || rows.length === 0) return NextResponse.json({ error: 'O ficheiro não tem marcações.' }, { status: 400 })
-  if (rows.length > MAX_LINHAS) return NextResponse.json({ error: `Máximo de ${MAX_LINHAS} linhas por importação.` }, { status: 400 })
+  if (!rows || rows.length === 0) return NextResponse.json({ error: 'O ficheiro não tem marcações.', code: 'no_entries' }, { status: 400 })
+  if (rows.length > MAX_LINHAS) return NextResponse.json({ error: `Máximo de ${MAX_LINHAS} linhas por importação.`, code: 'too_many_rows' }, { status: 400 })
 
   // Validar outra vez no servidor (nunca confiar só no browser)
   const validas = []
   for (const row of rows) {
     const linha = validarLinhaImportada(row)
-    if (!linha) return NextResponse.json({ error: 'O ficheiro tem linhas inválidas.' }, { status: 400 })
+    if (!linha) return NextResponse.json({ error: 'O ficheiro tem linhas inválidas.', code: 'invalid_rows' }, { status: 400 })
     if (!estaExcluido(linha.id)) validas.push(linha) // o chefe e a filha nunca são importados
   }
-  if (validas.length === 0) return NextResponse.json({ error: 'O ficheiro não tem marcações.' }, { status: 400 })
+  if (validas.length === 0) return NextResponse.json({ error: 'O ficheiro não tem marcações.', code: 'no_entries' }, { status: 400 })
 
   // Chave estável; se a mesma pessoa tiver duas marcações iguais no mesmo dia, acrescenta um sufixo
   const vistas = new Map<string, number>()
@@ -75,6 +75,6 @@ export async function POST(req: Request) {
     )
   } catch (e) {
     console.error('Erro ao importar horas:', e)
-    return NextResponse.json({ error: 'Não foi possível importar. Tenta novamente.' }, { status: 500 })
+    return NextResponse.json({ error: 'Não foi possível importar. Tenta novamente.', code: 'import_failed' }, { status: 500 })
   }
 }

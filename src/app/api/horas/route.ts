@@ -62,6 +62,6 @@ export async function GET() {
     return NextResponse.json({ records, comparison: livroPonto, livros, nomesLivro }, { headers: semCache })
   } catch (e) {
     console.error('Erro ao carregar horas:', e)
-    return NextResponse.json({ error: 'Não foi possível carregar as horas.' }, { status: 500 })
+    return NextResponse.json({ error: 'Não foi possível carregar as horas.', code: 'load_failed' }, { status: 500 })
   }
 }
