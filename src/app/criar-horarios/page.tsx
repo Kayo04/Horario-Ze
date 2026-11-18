@@ -1,29 +1,32 @@
   'use client'
   import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
-  import { 
-    ArrowLeftIcon, 
-    SparklesIcon, 
-    ArrowDownTrayIcon, 
-    ArrowPathIcon, 
-    CalendarDaysIcon, 
-    CheckCircleIcon, 
-    PencilSquareIcon, 
-    XMarkIcon, 
-    PlusIcon, 
-    Squares2X2Icon, 
-    ShieldExclamationIcon, 
-    ExclamationTriangleIcon, 
-    InformationCircleIcon, 
-    DocumentArrowDownIcon, 
-    DocumentArrowUpIcon, 
-    XCircleIcon, 
-    ChevronLeftIcon, 
-    ChevronRightIcon, 
-    ChevronDownIcon, 
+  import {
+    ArrowLeftIcon,
+    SparklesIcon,
+    ArrowDownTrayIcon,
+    ArrowPathIcon,
+    CalendarDaysIcon,
+    CheckCircleIcon,
+    PencilSquareIcon,
+    XMarkIcon,
+    PlusIcon,
+    Squares2X2Icon,
+    ShieldExclamationIcon,
+    ExclamationTriangleIcon,
+    InformationCircleIcon,
+    DocumentArrowDownIcon,
+    DocumentArrowUpIcon,
+    XCircleIcon,
+    ChevronLeftIcon,
+    ChevronRightIcon,
+    ChevronDownIcon,
     ChevronUpIcon,
     ClockIcon,
-    UserGroupIcon    
+    UserGroupIcon,
+    ArrowUpTrayIcon
   } from '@heroicons/react/24/outline';
+  import SeletorSemanas, { numeroSemana, intervaloSemana } from '@/app/components/SeletorSemanas';
+  import { lerReservas, chaveReserva } from '@/lib/importarReservas';
   import { useLanguage } from '@/context/LanguageContext';
   import { translations } from '@/lib/translations';
 
@@ -55,7 +58,7 @@
     startTime: string;
     endTime: string;
     people: number;
-    eventType: string; 
+    eventType: string;
   };
 
   type Schedule = Record<string, Record<string, string[]>>;
@@ -131,11 +134,11 @@
   };
 
   // --- COMPONENTE SELETOR DE DATA LOCALIZADO ---
-  const LocalizedDatePicker = ({ 
-    selectedDate, 
-    onDateChange 
-  }: { 
-    selectedDate: string; 
+  const LocalizedDatePicker = ({
+    selectedDate,
+    onDateChange
+  }: {
+    selectedDate: string;
     onDateChange: (date: string) => void;
   }) => {
     const [showPicker, setShowPicker] = useState(false);
@@ -144,16 +147,16 @@
     const t = translations[language];
     const locale = language === 'pt' ? 'pt-PT' : 'en-US';
 
-    const selectedDateObj = useMemo(() => 
+    const selectedDateObj = useMemo(() =>
       selectedDate ? new Date(selectedDate) : new Date()
     , [selectedDate]);
-    
+
     const daysInMonth = useMemo(() => {
       const year = currentMonth.getFullYear();
       const month = currentMonth.getMonth();
       return new Date(year, month + 1, 0).getDate();
     }, [currentMonth]);
-    
+
     const firstDayOfMonth = useMemo(() => {
       const year = currentMonth.getFullYear();
       const month = currentMonth.getMonth();
@@ -163,25 +166,25 @@
       else day -= 1;
       return day;
     }, [currentMonth]);
-    
+
     const monthNames = useMemo(() => {
       const formatter = new Intl.DateTimeFormat(locale, { month: 'long' });
       return Array.from({ length: 12 }, (_, i) => formatter.format(new Date(2024, i, 1)));
     }, [locale]);
-    
+
     const dayNames = useMemo(() => {
       const formatter = new Intl.DateTimeFormat(locale, { weekday: 'short' });
       return Array.from({ length: 7 }, (_, i) => formatter.format(new Date(2024, 0, i + 1)).replace('.', ''));
     }, [locale]);
-    
+
     const generateDays = () => {
       const days = [];
       const today = new Date();
       today.setHours(0, 0, 0, 0);
-      
+
       const prevMonth = new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1, 1);
       const daysInPrevMonth = new Date(prevMonth.getFullYear(), prevMonth.getMonth() + 1, 0).getDate();
-      
+
       for (let i = firstDayOfMonth - 1; i >= 0; i--) {
         const date = new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1, daysInPrevMonth - i);
         date.setHours(0, 0, 0, 0);
@@ -192,7 +195,7 @@
           isSelected: date.toISOString().split('T')[0] === selectedDate
         });
       }
-      
+
       for (let i = 1; i <= daysInMonth; i++) {
         const date = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), i);
         date.setHours(0, 0, 0, 0);
@@ -203,10 +206,10 @@
           isSelected: date.toISOString().split('T')[0] === selectedDate
         });
       }
-      
+
       const totalCells = 42;
       const nextMonthDays = totalCells - days.length;
-      
+
       for (let i = 1; i <= nextMonthDays; i++) {
         const date = new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, i);
         date.setHours(0, 0, 0, 0);
@@ -217,10 +220,10 @@
           isSelected: date.toISOString().split('T')[0] === selectedDate
         });
       }
-      
+
       return days;
     };
-    
+
     const handleDayClick = (date: Date) => {
       const day = date.getDay();
       const diff = date.getDate() - day + (day === 0 ? -6 : 1);
@@ -229,15 +232,15 @@
       onDateChange(formatDateToInput(monday));
       setShowPicker(false);
     };
-    
+
     const goToPreviousMonth = () => {
       setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1, 1));
     };
-    
+
     const goToNextMonth = () => {
       setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 1));
     };
-    
+
     const goToToday = () => {
       const today = new Date();
       const day = today.getDay();
@@ -256,7 +259,7 @@
         const day = parseInt(parts[0], 10);
         const month = parseInt(parts[1], 10) - 1;
         const year = parseInt(parts[2], 10);
-        
+
         if (!isNaN(day) && !isNaN(month) && !isNaN(year)) {
           const date = new Date(year, month, day);
           if (!isNaN(date.getTime())) {
@@ -275,7 +278,7 @@
       <div className="relative">
         <div className="relative">
           <CalendarDaysIcon className="absolute left-3 top-3 w-5 h-5 text-gray-400" />
-          <input 
+          <input
             type="text"
             value={selectedDate ? formatDateToEuropean(selectedDateObj) : ''}
             onChange={handleDateInput}
@@ -284,29 +287,29 @@
             placeholder={t.sch_date_placeholder}
             pattern="\d{2}/\d{2}/\d{4}"
           />
-          <button 
+          <button
             onClick={() => setShowPicker(!showPicker)}
             className="absolute right-3 top-3"
           >
             <CalendarDaysIcon className="w-5 h-5 text-gray-500" />
           </button>
         </div>
-        
+
         {showPicker && (
           <>
-            <div 
-              className="fixed inset-0 z-40" 
+            <div
+              className="fixed inset-0 z-40"
               onClick={() => setShowPicker(false)}
             />
             <div className="absolute top-full left-0 mt-2 z-50 bg-white rounded-lg shadow-xl border border-gray-200 p-4 w-80 max-w-[calc(100vw-2rem)]">
               <div className="flex items-center justify-between mb-4">
-                <button 
+                <button
                   onClick={goToPreviousMonth}
                   className="p-2 hover:bg-gray-100 rounded-lg"
                 >
                   <ChevronLeftIcon className="w-5 h-5 text-gray-600" />
                 </button>
-                
+
                 <div className="text-center">
                   <div className="font-bold text-lg text-gray-800 capitalize">
                     {monthNames[currentMonth.getMonth()]} {currentMonth.getFullYear()}
@@ -315,18 +318,18 @@
                     {dayNames[0]}: {formatDateToEuropean(selectedDateObj)}
                   </div>
                 </div>
-                
-                <button 
+
+                <button
                   onClick={goToNextMonth}
                   className="p-2 hover:bg-gray-100 rounded-lg"
                 >
                   <ChevronRightIcon className="w-5 h-5 text-gray-600" />
                 </button>
               </div>
-              
+
               <div className="grid grid-cols-7 gap-1 mb-2">
                 {dayNames.map((day, idx) => {
-                  const letter = language === 'pt' 
+                  const letter = language === 'pt'
                     ? ['S', 'T', 'Q', 'Q', 'S', 'S', 'D'][idx]
                     : ['M', 'T', 'W', 'T', 'F', 'S', 'S'][idx];
                   return (
@@ -336,7 +339,7 @@
                   );
                 })}
               </div>
-              
+
               <div className="grid grid-cols-7 gap-1">
                 {generateDays().map((day, index) => (
                   <button
@@ -354,7 +357,7 @@
                   </button>
                 ))}
               </div>
-              
+
               <div className="mt-4 pt-4 border-t border-gray-100">
                 <button
                   onClick={goToToday}
@@ -371,14 +374,14 @@
   };
 
   export default function GeradorHorariosPage() {
-    const { language } = useLanguage(); 
+    const { language } = useLanguage();
     const t = translations[language];
-    
+
     const locale = language === 'pt' ? 'pt-PT' : 'en-US';
     const WEEK_DAYS = useMemo(() => {
       const formatter = new Intl.DateTimeFormat(locale, { weekday: 'long' });
       return Array.from({ length: 7 }, (_, i) => {
-          const d = new Date(2024, 0, i + 1); 
+          const d = new Date(2024, 0, i + 1);
           const dayName = formatter.format(d);
           return dayName.charAt(0).toUpperCase() + dayName.slice(1);
       });
@@ -390,7 +393,7 @@
     const [isSheetJSLoaded, setIsSheetJSLoaded] = useState(false);
     const [currentUser, setCurrentUser] = useState<Employee | null>(null);
     const [accessDenied, setAccessDenied] = useState(false);
-    
+
     // ✅ Estados para seleção e Drag-and-Drop
     const [expandedCols, setExpandedCols] = useState<number[]>([]);
     const [selectedCells, setSelectedCells] = useState<{slot: string; day: string}[]>([]);
@@ -411,7 +414,7 @@
     const [isGenerating, setIsGenerating] = useState(false);
     const [progress, setProgress] = useState(0);
     const [loadingText, setLoadingText] = useState('');
-    
+
     const [schedule, setSchedule] = useState<Schedule | null>(null);
     const [weekDates, setWeekDates] = useState<string[]>([]);
 
@@ -423,6 +426,26 @@
     const [isMultiSelectMode, setIsMultiSelectMode] = useState(false);
 
     const [notification, setNotification] = useState<NotificationType | null>(null);
+
+    // Horários guardados (semanas com turnos na base de dados) e importação de reservas
+    const [semanasGuardadas, setSemanasGuardadas] = useState<{ weekStart: string; shifts: number; employees: number }[]>([]);
+    const [verTodasGuardadas, setVerTodasGuardadas] = useState(false);
+    const [abrirSemana, setAbrirSemana] = useState(false); // abrir o horário guardado depois de mudar de semana
+    const [aImportar, setAImportar] = useState(false);
+    const inputReservasRef = useRef<HTMLInputElement>(null);
+
+    const carregarSemanasGuardadas = useCallback(async () => {
+      try {
+        const res = await fetch('/api/admin/schedule-weeks', { cache: 'no-store' });
+        if (res.ok) setSemanasGuardadas((await res.json()).weeks || []);
+      } catch {
+        // sem lista: o resto da página continua a funcionar
+      }
+    }, []);
+
+    useEffect(() => {
+      carregarSemanasGuardadas();
+    }, [carregarSemanasGuardadas]);
     const [savePrompt, setSavePrompt] = useState<SavePromptType | null>(null);
 
     useEffect(() => {
@@ -449,7 +472,7 @@
 
     // ✅ Função para abrir/fechar a lista de eventos
     const toggleColumn = (idx: number) => {
-      setExpandedCols(prev => 
+      setExpandedCols(prev =>
           prev.includes(idx) ? prev.filter(i => i !== idx) : [...prev, idx]
       );
     };
@@ -478,9 +501,9 @@
       if (emp.role === 'admin' && emp.code !== 'TR') return false;
 
       const dayIndex = WEEK_DAYS.indexOf(cell.day);
-      const dayOfWeekJS = (dayIndex + 1) % 7; 
+      const dayOfWeekJS = (dayIndex + 1) % 7;
       const d = new Date(selectedDate);
-      d.setDate(d.getDate() + dayIndex); 
+      d.setDate(d.getDate() + dayIndex);
       const dateString = d.toISOString().split('T')[0];
 
       const [startStr, endStr] = cell.slot.split(' - ');
@@ -564,7 +587,7 @@
             if (resEmp.ok) {
               const data = await resEmp.json();
               const filteredData = data.filter((emp: any) => {
-                const isBoss = emp.name.toLowerCase().includes('jose marques') || 
+                const isBoss = emp.name.toLowerCase().includes('jose marques') ||
                               emp.name.toLowerCase().includes('josé marques');
                 if (emp.code === 'TR') return true;
                 const isAdmin = emp.role === 'admin';
@@ -601,7 +624,7 @@
       fetchData();
     }, [currentUser, showToast, t]);
 
-    const getInitials = (name: string) => 
+    const getInitials = (name: string) =>
       name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
 
     useEffect(() => {
@@ -622,7 +645,7 @@
     // =================================================================================
     // 🖱️ LÓGICA DE DRAG AND DROP SELECTION
     // =================================================================================
-    
+
     // Parar o drag se o utilizador largar o rato fora da tabela
     useEffect(() => {
       const handleWindowMouseUp = () => {
@@ -641,7 +664,7 @@
         setEditingCells([{ slot, day }]);
         return;
       }
-      
+
       setIsDragging(true);
       setDragStart({ slot, day });
       selectionSnapshot.current = [...selectedCells]; // Guarda o que já estava selecionado
@@ -718,9 +741,9 @@
 
       setHasUnsavedChanges(true);
       const newSchedule = { ...schedule };
-      
+
       // Verifica se está em TODOS os selecionados
-      const isInAllCells = editingCells.every(cell => 
+      const isInAllCells = editingCells.every(cell =>
         newSchedule[cell.slot]?.[cell.day]?.includes(code)
       );
 
@@ -734,7 +757,7 @@
         editingCells.forEach(cell => {
           if (!newSchedule[cell.slot]) newSchedule[cell.slot] = {};
           if (!newSchedule[cell.slot][cell.day]) newSchedule[cell.slot][cell.day] = [];
-          
+
           const emp = employees.find(e => e.code === code);
           if (emp && checkSpecificSlotAvailability(emp, cell)) {
               const currentStaff = [...newSchedule[cell.slot][cell.day]];
@@ -811,13 +834,13 @@
 
     const handleSaveToDatabase = useCallback(async (onSuccess?: () => void) => {
       if (!schedule) return;
-      
+
       setIsSaving(true);
 
       try {
         const shiftsToSave: any[] = [];
         const allStaffCodes = new Set<string>();
-        
+
         Object.values(schedule).forEach(daySlots => {
           Object.values(daySlots).forEach(staffList => {
             staffList.forEach(code => allStaffCodes.add(code));
@@ -827,17 +850,17 @@
         allStaffCodes.forEach(code => {
           WEEK_DAYS.forEach((dayName, dayIndex) => {
             const dateStr = addDaysUTC(selectedDate, dayIndex);
-            
+
             const workedSlotsIndices: number[] = [];
             TIME_SLOTS.forEach((slot, slotIndex) => {
               if (schedule[slot]?.[dayName]?.includes(code)) {
                 workedSlotsIndices.push(slotIndex);
               }
             });
-            
+
             if (workedSlotsIndices.length === 0) return;
             workedSlotsIndices.sort((a, b) => a - b);
-            
+
             let currentBlockStart = workedSlotsIndices[0];
             let previousSlot = workedSlotsIndices[0];
 
@@ -877,6 +900,7 @@
         if (response.ok) {
           setHasUnsavedChanges(false);
           showToast(t.schedule_saved.replace('{count}', shiftsToSave.length.toString()), "success");
+          carregarSemanasGuardadas();
           if (onSuccess) onSuccess();
           setSavePrompt(null);
         } else {
@@ -889,7 +913,7 @@
       } finally {
         setIsSaving(false);
       }
-    }, [schedule, selectedDate, showToast, t, WEEK_DAYS]);
+    }, [schedule, selectedDate, showToast, t, WEEK_DAYS, carregarSemanasGuardadas]);
 
     const loadScheduleFromDatabase = useCallback(async () => {
       setIsLoadingSchedule(true);
@@ -901,7 +925,7 @@
 
         const res = await fetch(`/api/admin/get-weekly-schedule?start=${startDateStr}&end=${endDateStr}`);
         if (!res.ok) throw new Error(`Erro na API: ${res.status}`);
-        
+
         const data = await res.json();
         const shifts = data.shifts || [];
 
@@ -943,8 +967,8 @@
                 }
               }
             });
-          } catch (error) { 
-            console.error("Erro ao processar turno:", error, shift); 
+          } catch (error) {
+            console.error("Erro ao processar turno:", error, shift);
           }
         });
 
@@ -996,6 +1020,67 @@
       executeLoadSchedule();
     }, [executeLoadSchedule]);
 
+    // Clicar num horário guardado: muda para essa semana e abre-o
+    const abrirHorarioGuardado = (segunda: string) => {
+      setSelectedDate(segunda);
+      setAbrirSemana(true);
+    };
+    useEffect(() => {
+      if (!abrirSemana) return;
+      setAbrirSemana(false);
+      executeLoadSchedule();
+    }, [abrirSemana, executeLoadSchedule]);
+
+    const semanaTemHorario = semanasGuardadas.some(s => s.weekStart === selectedDate);
+    const reservasDaSemana = useMemo(() => {
+      const fimSemana = addDaysUTC(selectedDate, 6);
+      return reservations.filter((r: any) => r.date >= selectedDate && r.date <= fimSemana).length;
+    }, [reservations, selectedDate]);
+
+    // Importar o Excel/CSV de reservas (antes estava na página Gerir Horários)
+    const importarReservas = async (e: React.ChangeEvent<HTMLInputElement>) => {
+      const ficheiro = e.target.files?.[0];
+      e.target.value = '';
+      if (!ficheiro) return;
+      setAImportar(true);
+      try {
+        const XLSX = await import('xlsx');
+        const { reservas, erro } = lerReservas(XLSX, await ficheiro.arrayBuffer());
+        if (erro) {
+          const msg = erro === 'missing_email_col' ? t.sch_missing_email_col : erro === 'missing_cols' ? t.sch_missing_cols : t.file_no_valid_reservations;
+          showToast(msg, 'error');
+          return;
+        }
+        // Não importar outra vez reservas que já existem
+        const existentes = new Set(reservations.map((r: any) => chaveReserva(r)));
+        const novas = reservas.filter(r => !existentes.has(chaveReserva(r)));
+        if (novas.length === 0) {
+          showToast(t.sch_no_new_reservations, 'info');
+          return;
+        }
+        const resultados = await Promise.all(novas.map(r =>
+          fetch('/api/reservations', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(r) })
+            .then(res => res.ok)
+            .catch(() => false)
+        ));
+        const ok = resultados.filter(Boolean).length;
+        const falhas = resultados.length - ok;
+        // Recarregar as reservas (contam para gerar o horário)
+        const resRes = await fetch('/api/reservations');
+        if (resRes.ok) setReservations(await resRes.json());
+        showToast(
+          falhas > 0
+            ? t.cs_import_partial.replace('{ok}', String(ok)).replace('{fail}', String(falhas))
+            : t.cs_import_done.replace('{n}', String(ok)),
+          falhas > 0 ? 'error' : 'success'
+        );
+      } catch (err: any) {
+        showToast(`${t.file_read_error}: ${err?.message || ''}`, 'error');
+      } finally {
+        setAImportar(false);
+      }
+    };
+
     const handleDiscardAndRegenerate = useCallback(() => {
       if (hasUnsavedChanges) {
         setSavePrompt({
@@ -1046,7 +1131,7 @@
 
     const handleSaveClick = useCallback(() => {
       if (!schedule) return;
-      
+
       if (hasUnsavedChanges) {
         handleSaveToDatabase();
       } else {
@@ -1059,7 +1144,7 @@
         showToast(t.no_employees_generate, "error");
         return;
       }
-      
+
       setIsGenerating(true);
       setSchedule(null);
       setHasUnsavedChanges(true);
@@ -1123,7 +1208,7 @@
               const [sStart] = slot.split(' - ');
               const slotStartMin = timeToMin(sStart);
               const WEEKEND_LIMIT_MIN = 20 * 60; // 20:00
-              
+
               // Only apply default staff (2) from 10:00 onwards
               if (slotStartMin >= WEEKEND_DEFAULT_START_MIN && slotStartMin < WEEKEND_LIMIT_MIN) {
                 demandMap[dateString][i] = 2;
@@ -1136,21 +1221,21 @@
             const rawEnd = timeToMin(res.endTime) + 30;
 
             // 🔥 CORREÇÃO: Limpar string "24p" -> 24
-            const cleanPeopleString = String(res.people || '0').replace(/\D/g, ''); 
+            const cleanPeopleString = String(res.people || '0').replace(/\D/g, '');
             const peopleCount = parseInt(cleanPeopleString, 10) || 0;
 
-            let staffNeeded = 2; 
+            let staffNeeded = 2;
             if (peopleCount >= 12) staffNeeded = 3;
             if (peopleCount >= 17) staffNeeded = 4;
             if (peopleCount >= 20) staffNeeded = 5;
-            if (peopleCount >= 24) staffNeeded = 6; 
+            if (peopleCount >= 24) staffNeeded = 6;
             if (peopleCount >= 30) staffNeeded = 7;
 
             TIME_SLOTS.forEach((slot, i) => {
               const [sStart, sEnd] = slot.split(' - ');
               const slotStartMin = timeToMin(sStart);
               const slotEndMin = timeToMin(sEnd);
-              
+
               if (slotStartMin < rawEnd && slotEndMin > rawStart) {
                 demandMap[dateString][i] = Math.max(demandMap[dateString][i], staffNeeded);
               }
@@ -1179,15 +1264,15 @@
           currentDate.setDate(startOfWeek.getDate() + dayIdx);
           const dateString = currentDate.toISOString().split('T')[0];
           const jsDay = (dayIdx + 1) % 7;
-          
+
           const demandArr = demandMap[dateString];
           const maxDemand = Math.max(...demandArr);
-          
+
           const dailyHours: Record<string, number> = {};
           employees.forEach(emp => dailyHours[emp.id] = 0);
-          
+
           const isWeekend = dayIdx === 5 || dayIdx === 6;
-          
+
           // 🔥 Lógica de Preferência do TR ao Fim de Semana
           let trPrefersMorning = true;
           if (isWeekend) {
@@ -1203,9 +1288,9 @@
                }
             }
             // TR appears where there are LESS reservations (less demand)
-            trPrefersMorning = morningDemand <= afternoonDemand; 
+            trPrefersMorning = morningDemand <= afternoonDemand;
           }
-          
+
           // 🛑 ROTAÇÃO NO FIM DE SEMANA
           // Limite "suave" de 5h (10 slots). Se passar disso, tenta mudar de pessoa.
           const rotationThreshold = isWeekend ? 10 : 12;
@@ -1214,7 +1299,7 @@
             let inShift = false;
             let startIdx = -1;
             const shiftRequests: {start: number; end: number}[] = [];
-            
+
             for (let i = 0; i < TIME_SLOTS.length; i++) {
               if (demandArr[i] >= level) {
                 if (!inShift) {
@@ -1254,7 +1339,7 @@
 
               // Dividir turno se for muito longo para rotação (especialmente FDS)
               const shiftsToFill: {s: number; e: number}[] = [];
-              
+
               if (duration > rotationThreshold) {
                   let s = currentStart;
                   while(s < currentEnd) {
@@ -1286,9 +1371,9 @@
 
                 const candidates = employees.filter(emp => {
                   if (emp.role === 'admin' && emp.code !== 'TR') return false;
-                  
+
                   // Permitir voltar no mesmo dia (Split Shift) - Limite 13h por segurança
-                  if (dailyHours[emp.id] >= 13) return false; 
+                  if (dailyHours[emp.id] >= 13) return false;
 
                   // Impedir duplicação no mesmo slot
                   let isBusyNow = false;
@@ -1301,7 +1386,7 @@
                   if (isBusyNow) return false;
 
                   if (!emp.unavailable) return true;
-                  
+
                   const specific = emp.unavailable.specificDates?.find(s => s.date === dateString);
                   if (specific) {
                     if (specific.allDay) return false;
@@ -1311,15 +1396,15 @@
                       if (shiftStartMin < uEnd && shiftEndMin >= uStart) return false;
                     }
                   }
-                  
+
                   const weekdayUn = emp.unavailable.weekdays?.find(w => w.day === jsDay);
                   if (weekdayUn) {
                     if (weekdayUn.start && weekdayUn.end) {
                       const wStart = timeToMin(weekdayUn.start);
                       const wEnd = timeToMin(weekdayUn.end);
                       if (shiftStartMin < wEnd && shiftEndMin >= wStart) return false;
-                    } else { 
-                      return false; 
+                    } else {
+                      return false;
                     }
                   }
 
@@ -1330,7 +1415,7 @@
 
                 finalCandidates.sort((a, b) => {
                   const currentStaffInSlot = newSchedule[TIME_SLOTS[shift.s]]?.[dayName] || [];
-                  
+
                   let hoursA = employeeHours[a.id];
                   let hoursB = employeeHours[b.id];
 
@@ -1368,7 +1453,7 @@
                   if (Math.abs(hoursA - hoursB) > 2) {
                     return hoursA - hoursB;
                   }
-                  
+
                   return 0.5 - Math.random();
                 });
 
@@ -1424,7 +1509,7 @@
 
     return (
       <div className="min-h-screen bg-gray-50 font-sans text-gray-900 pb-20">
-        
+
         {notification?.show && (
           <div className={`fixed top-4 right-4 z-50 p-4 rounded-xl shadow-2xl flex items-center gap-3 animate-in slide-in-from-right duration-300 max-w-sm border ${
               notification.type === 'success' ? 'bg-white border-green-200 text-green-800' :
@@ -1434,7 +1519,7 @@
               {notification.type === 'success' && <CheckCircleIcon className="w-6 h-6 text-green-500" />}
               {notification.type === 'error' && <ExclamationTriangleIcon className="w-6 h-6 text-red-500" />}
               {notification.type === 'info' && <InformationCircleIcon className="w-6 h-6 text-park-500" />}
-              
+
               <div className="flex-1">
                   <p className="font-medium text-sm">{notification.message}</p>
               </div>
@@ -1454,14 +1539,14 @@
                   </div>
                   <h3 className="text-lg font-semibold text-gray-900">{savePrompt.title}</h3>
                 </div>
-                <button 
+                <button
                   onClick={savePrompt.onCancel}
                   className="p-1 hover:bg-gray-100 rounded-full transition-colors"
                 >
                   <XMarkIcon className="w-5 h-5 text-gray-500" />
                 </button>
               </div>
-              
+
               <div className="p-6">
                 <p className="text-gray-600 mb-2">{savePrompt.message}</p>
                 <div className="mt-4 p-3 bg-gray-50 rounded-lg border border-gray-200">
@@ -1471,9 +1556,9 @@
                   </div>
                 </div>
               </div>
-              
+
               <div className="flex flex-col sm:flex-row gap-2 p-4 border-t border-gray-100 bg-gray-50/50">
-                <button 
+                <button
                   onClick={savePrompt.onSave}
                   disabled={isSaving}
                   className="flex items-center justify-center gap-2 px-4 py-3 bg-park-600 text-white rounded-lg font-medium hover:bg-park-700 transition-colors shadow-sm flex-1"
@@ -1490,16 +1575,16 @@
                     </>
                   )}
                 </button>
-                
-                <button 
+
+                <button
                   onClick={savePrompt.onDiscard}
                   className="flex items-center justify-center gap-2 px-4 py-3 bg-white border border-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-50 transition-colors flex-1"
                 >
                   <XCircleIcon className="w-5 h-5" />
                   <span>{t.exit_without_saving}</span>
                 </button>
-                
-                <button 
+
+                <button
                   onClick={savePrompt.onCancel}
                   className="flex items-center justify-center gap-2 px-4 py-3 bg-white border border-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-50 transition-colors flex-1"
                 >
@@ -1513,14 +1598,14 @@
 
         <div className="bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between sticky top-0 z-20 shadow-sm">
           <div className="flex items-center gap-4">
-            <button 
+            <button
               onClick={handleExit}
               className="p-2 hover:bg-gray-100 rounded-full transition-colors text-gray-600"
               title={t.back_to_portal}
             >
               <ArrowLeftIcon className="w-6 h-6" />
             </button>
-            
+
             <div>
               <h1 className="text-xl font-bold text-gray-800 flex items-center gap-2">
                 <SparklesIcon className="w-5 h-5 text-pink-500" />
@@ -1531,23 +1616,23 @@
               </p>
             </div>
           </div>
-          
+
           {hasUnsavedChanges && (
             <div className="absolute top-4 left-1/2 transform -translate-x-1/2 flex items-center gap-2 px-3 py-1 bg-amber-50 border border-amber-200 rounded-full">
               <div className="w-2 h-2 bg-amber-500 rounded-full animate-pulse"></div>
               <span className="text-sm font-medium text-amber-700">{t.unsaved_changes}</span>
             </div>
           )}
-          
+
           <div className="flex items-center gap-3">
             {schedule && !isMultiSelectMode && (
               <>
-                  <button 
+                  <button
                       onClick={handleSaveClick}
                       disabled={isSaving}
                       className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all shadow-sm disabled:opacity-50 ${
-                        hasUnsavedChanges 
-                          ? 'bg-amber-500 hover:bg-amber-600 text-white ring-2 ring-amber-300 ring-offset-2' 
+                        hasUnsavedChanges
+                          ? 'bg-amber-500 hover:bg-amber-600 text-white ring-2 ring-amber-300 ring-offset-2'
                           : 'bg-park-600 hover:bg-park-700 text-white'
                       }`}
                   >
@@ -1561,11 +1646,11 @@
                       </span>
                   </button>
 
-                  <button 
+                  <button
                     onClick={startMultiSelect}
                     className="flex items-center gap-2 bg-park-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-park-700 transition-colors shadow-sm"
                   >
-                    <Squares2X2Icon className="w-4 h-4" /> 
+                    <Squares2X2Icon className="w-4 h-4" />
                     <span className="hidden sm:inline">{t.multi_select_mode}</span>
                   </button>
               </>
@@ -1575,28 +1660,28 @@
                 <span className="text-sm text-gray-600">
                   {t.cells_selected.replace('{count}', selectedCells.length.toString())}
                 </span>
-                <button 
+                <button
                   onClick={openMultiEditModal}
                   className="flex items-center gap-2 bg-green-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-green-700 transition-colors shadow-sm"
                 >
-                  <PencilSquareIcon className="w-4 h-4" /> 
+                  <PencilSquareIcon className="w-4 h-4" />
                   {t.edit_selected.replace('{count}', '')}
                 </button>
-                <button 
+                <button
                   onClick={cancelMultiSelect}
                   className="flex items-center gap-2 bg-gray-500 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-gray-600 transition-colors shadow-sm"
                 >
-                  <XMarkIcon className="w-4 h-4" /> 
+                  <XMarkIcon className="w-4 h-4" />
                   {t.cancel_selection}
                 </button>
               </div>
             )}
             {schedule && !isMultiSelectMode && (
-              <button 
+              <button
                 onClick={handleExportExcel}
                 className="flex items-center gap-2 bg-green-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-green-700 transition-colors shadow-sm"
               >
-                <ArrowDownTrayIcon className="w-4 h-4" /> 
+                <ArrowDownTrayIcon className="w-4 h-4" />
                 <span className="hidden sm:inline">{t.export_excel}</span>
               </button>
             )}
@@ -1614,64 +1699,125 @@
           {!loadingData && (
             <>
               {!schedule && !isGenerating && (
-                <div className="max-w-2xl mx-auto mt-8 bg-white p-8 rounded-2xl shadow-lg border border-gray-100 text-center">
-                  <div className="bg-pink-50 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6">
-                    <ArrowPathIcon className="w-10 h-10 text-pink-600" />
-                  </div>
-                  <h2 className="text-2xl font-bold mb-2">{t.generate_weekly_schedule}</h2>
-                  <p className="text-gray-500 mb-8 whitespace-pre-line">
-                    {t.generate_desc}
-                  </p>
-                  <div className="bg-gray-50 p-5 rounded-xl mb-8 inline-block text-left w-full max-w-md border border-gray-200">
-                    <label className="block text-sm font-bold text-gray-700 mb-2">{t.choose_week}</label>
-                    
-                    <div className="mb-4">
-                      <LocalizedDatePicker 
-                        selectedDate={selectedDate}
-                        onDateChange={(date) => setSelectedDate(date)}
-                      />
+                <div className="max-w-6xl mx-auto mt-2 sm:mt-6 grid grid-cols-1 lg:grid-cols-5 gap-6">
+                  {/* 1. Criar horário: escolher a semana e gerar */}
+                  <section className="lg:col-span-3 bg-white p-5 sm:p-8 rounded-2xl shadow-lg border border-gray-100">
+                    <h2 className="text-xl sm:text-2xl font-bold text-gray-900 flex items-center gap-2">
+                      <SparklesIcon className="w-6 h-6 text-park-600" />
+                      {t.generate_weekly_schedule}
+                    </h2>
+                    <p className="text-sm text-gray-500 mt-1 mb-6">{t.cs_choose_week_hint}</p>
+
+                    <SeletorSemanas
+                      value={selectedDate}
+                      onChange={setSelectedDate}
+                      locale={locale}
+                      semanasGuardadas={new Set(semanasGuardadas.map(s => s.weekStart))}
+                      textos={{ week: t.cs_week, saved: t.cs_saved, today: t.cs_this_week, prevMonth: t.cs_prev_month, nextMonth: t.cs_next_month }}
+                    />
+
+                    <div className="mt-6 p-4 bg-park-50 border border-park-100 rounded-xl text-sm text-park-800">
+                      <p className="font-semibold">
+                        {t.cs_week} {numeroSemana(selectedDate)} · {intervaloSemana(selectedDate, locale)}
+                      </p>
+                      <p className="text-park-700 mt-1">
+                        {t.cs_reservations_in_week.replace('{n}', String(reservasDaSemana))}
+                      </p>
                     </div>
-                    
-                    <div className="flex items-center gap-2">
-                      <button 
-                        onClick={handleLoadClick}
-                        disabled={isLoadingSchedule}
-                        className="flex-1 flex items-center justify-center gap-2 p-3 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 text-gray-700 transition-colors shadow-sm"
-                        title={t.view_saved_schedule}
+
+                    <div className="mt-6 flex flex-col sm:flex-row gap-3">
+                      <button
+                        onClick={handleGenerate}
+                        className="flex-1 py-3.5 bg-park-600 hover:bg-park-700 text-white rounded-xl font-bold shadow-md transition-colors flex items-center justify-center gap-2"
                       >
-                        {isLoadingSchedule ? (
-                          <>
-                            <div className="w-4 h-4 border-2 border-gray-500 border-t-transparent rounded-full animate-spin"></div>
-                            <span>{t.verifying_session}</span>
-                          </>
-                        ) : (
-                          <>
-                            <DocumentArrowUpIcon className="w-5 h-5" />
-                            <span>{t.load_schedule}</span>
-                          </>
-                        )}
+                        <SparklesIcon className="w-5 h-5" />
+                        {t.generate_now}
                       </button>
+                      {semanaTemHorario && (
+                        <button
+                          onClick={handleLoadClick}
+                          disabled={isLoadingSchedule}
+                          className="flex-1 py-3.5 bg-white border-2 border-park-600 text-park-700 hover:bg-park-50 rounded-xl font-bold transition-colors flex items-center justify-center gap-2 disabled:opacity-60"
+                        >
+                          {isLoadingSchedule ? (
+                            <div className="w-4 h-4 border-2 border-park-600 border-t-transparent rounded-full animate-spin"></div>
+                          ) : (
+                            <DocumentArrowUpIcon className="w-5 h-5" />
+                          )}
+                          {t.cs_open_saved}
+                        </button>
+                      )}
                     </div>
-                    
-                    <div className="mt-4 p-3 bg-park-50 border border-park-200 rounded-lg">
-                      <div className="flex items-center gap-2 text-park-700">
-                        <CheckCircleIcon className="w-4 h-4" />
-                        <div>
-                          <p className="font-medium text-sm">{getWeekRangeText()}</p>
-                          <p className="text-xs text-park-600 mt-1">
-                            {t.week_days_range.replace('{start}', weekDates[0]).replace('{end}', weekDates[6])} • {t.weekend}: {weekDates[5]} & {weekDates[6]}
-                          </p>
-                        </div>
-                      </div>
-                    </div>
+                  </section>
+
+                  <div className="lg:col-span-2 space-y-6">
+                    {/* 2. Importar reservas (antes estava na página Gerir Horários) */}
+                    <section className="bg-white p-5 sm:p-6 rounded-2xl shadow-lg border border-gray-100">
+                      <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2">
+                        <ArrowUpTrayIcon className="w-5 h-5 text-park-600" />
+                        {t.cs_import_title}
+                      </h2>
+                      <p className="text-sm text-gray-500 mt-1 mb-4">{t.cs_import_hint}</p>
+                      <input ref={inputReservasRef} type="file" accept=".xlsx,.xls,.csv" className="hidden" onChange={importarReservas} />
+                      <button
+                        onClick={() => inputReservasRef.current?.click()}
+                        disabled={aImportar}
+                        className="w-full py-3 bg-park-800 hover:bg-park-900 text-white rounded-xl font-semibold transition-colors flex items-center justify-center gap-2 disabled:opacity-60"
+                      >
+                        {aImportar ? (
+                          <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                        ) : (
+                          <ArrowUpTrayIcon className="w-5 h-5" />
+                        )}
+                        {aImportar ? t.cs_importing : t.cs_import_button}
+                      </button>
+                    </section>
+
+                    {/* 3. Horários guardados (antigos) */}
+                    <section className="bg-white p-5 sm:p-6 rounded-2xl shadow-lg border border-gray-100">
+                      <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2">
+                        <ClockIcon className="w-5 h-5 text-park-600" />
+                        {t.cs_saved_title}
+                      </h2>
+                      <p className="text-sm text-gray-500 mt-1 mb-4">{t.cs_saved_hint}</p>
+                      {semanasGuardadas.length === 0 ? (
+                        <p className="text-sm text-gray-400 italic">{t.cs_saved_empty}</p>
+                      ) : (
+                        <>
+                          <ul className="divide-y divide-gray-100 border border-gray-100 rounded-xl overflow-hidden">
+                            {(verTodasGuardadas ? semanasGuardadas : semanasGuardadas.slice(0, 6)).map(s => (
+                              <li key={s.weekStart}>
+                                <button
+                                  onClick={() => abrirHorarioGuardado(s.weekStart)}
+                                  className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-park-50 transition-colors"
+                                >
+                                  <div className="min-w-0">
+                                    <p className="font-semibold text-gray-900">
+                                      {t.cs_week} {numeroSemana(s.weekStart)}{' '}
+                                      <span className="font-normal text-gray-400">{s.weekStart.slice(0, 4)}</span>
+                                    </p>
+                                    <p className="text-sm text-gray-500">{intervaloSemana(s.weekStart, locale)}</p>
+                                  </div>
+                                  <span className="ml-auto text-xs text-gray-500 text-right shrink-0">
+                                    {t.cs_staff_count.replace('{n}', String(s.employees))}
+                                  </span>
+                                  <ChevronRightIcon className="w-4 h-4 text-gray-400 shrink-0" />
+                                </button>
+                              </li>
+                            ))}
+                          </ul>
+                          {semanasGuardadas.length > 6 && (
+                            <button
+                              onClick={() => setVerTodasGuardadas(v => !v)}
+                              className="mt-3 text-sm font-medium text-park-700 hover:text-park-900"
+                            >
+                              {verTodasGuardadas ? t.cs_show_less : t.cs_show_all.replace('{n}', String(semanasGuardadas.length))}
+                            </button>
+                          )}
+                        </>
+                      )}
+                    </section>
                   </div>
-                  <button 
-                    onClick={handleGenerate}
-                    className="w-full py-4 bg-gradient-to-r from-pink-600 to-purple-600 text-white rounded-xl font-bold text-lg shadow-lg hover:shadow-xl hover:scale-[1.01] transition-all flex items-center justify-center gap-3"
-                  >
-                    <SparklesIcon className="w-6 h-6" />
-                    {t.generate_now}
-                  </button>
                 </div>
               )}
 
@@ -1679,7 +1825,7 @@
                 <div className="flex flex-col items-center justify-center py-32">
                   <div className="relative w-64 h-64 mb-8">
                     <div className="absolute inset-0 border-4 border-gray-100 rounded-full"></div>
-                    <div 
+                    <div
                       className="absolute inset-0 border-4 border-pink-500 rounded-full border-t-transparent animate-spin"
                       style={{ animationDuration: '1s' }}
                     ></div>
@@ -1697,12 +1843,12 @@
                     <div>
                       <h2 className="text-2xl font-bold text-gray-900">{t.planning}: {getWeekRangeText()}</h2>
                       <p className="text-gray-500 text-sm">
-                        {isMultiSelectMode 
+                        {isMultiSelectMode
                           ? t.multi_select_help
                           : t.click_to_edit}
                       </p>
                     </div>
-                    <button 
+                    <button
                       onClick={handleDiscardAndRegenerate}
                       className="text-sm text-gray-500 hover:text-red-600 underline"
                     >
@@ -1714,7 +1860,7 @@
                   {/* 🚀 LAYOUT FLEX PARA TER O DASHBOARD LADO A LADO */}
                   {/* ========================================================================================= */}
                   <div className="flex flex-col 2xl:flex-row gap-6 items-start">
-                    
+
                     {/* --- TABELA DE HORÁRIOS (ESQUERDA) --- */}
                     <div className="flex-1 w-full min-w-0 bg-white border border-gray-300 shadow-xl overflow-hidden rounded-lg relative select-none">
                       <div className="overflow-x-auto">
@@ -1736,7 +1882,7 @@
                                     </div>
                                     {dayReservations.length > 0 && (
                                       <div className="mt-2">
-                                        <button 
+                                        <button
                                           onClick={() => toggleColumn(idx)}
                                           className="text-xs flex items-center gap-1 text-park-600 font-medium hover:text-park-800 bg-park-50 px-2 py-1 rounded w-full justify-center transition-colors"
                                         >
@@ -1746,8 +1892,8 @@
                                         {expandedCols.includes(idx) && (
                                           <div className="flex flex-col gap-1 mt-2 animate-in fade-in zoom-in-95 duration-200">
                                             {dayReservations.map(res => (
-                                              <div 
-                                                key={res.id} 
+                                              <div
+                                                key={res.id}
                                                 className={`text-[10px] p-1 rounded border text-left leading-tight ${getEventColor(res.eventType)}`}
                                               >
                                                 <div className="font-bold">{res.startTime}-{res.endTime}</div>
@@ -1773,10 +1919,10 @@
                                   const staffCodes = schedule[slot]?.[day] || [];
                                   const hasStaff = staffCodes.length > 0;
                                   const isSelected = selectedCells.some(c => c.slot === slot && c.day === day);
-                                  
+
                                   return (
-                                    <td 
-                                      key={day} 
+                                    <td
+                                      key={day}
                                       onMouseDown={() => handleCellMouseDown(slot, day)}
                                       onMouseEnter={() => handleCellMouseEnter(slot, day)}
                                       onClick={() => {
@@ -1785,10 +1931,10 @@
                                         }
                                       }}
                                       className={`p-1 border-r border-b border-gray-200 h-10 cursor-pointer transition-colors relative group ${
-                                        isSelected 
-                                          ? 'bg-park-200 ring-2 ring-park-500' 
-                                          : hasStaff 
-                                          ? '' 
+                                        isSelected
+                                          ? 'bg-park-200 ring-2 ring-park-500'
+                                          : hasStaff
+                                          ? ''
                                           : 'bg-gray-50/50'
                                       } ${!isMultiSelectMode ? 'hover:bg-park-100' : ''}`}
                                     >
@@ -1839,19 +1985,19 @@
                             <UserGroupIcon className="w-3 h-3"/> {employees.length}
                           </span>
                         </div>
-                        
+
                         <div className="space-y-3">
                           {employees.map(emp => {
                             const hours = stats[emp.id] || 0;
                             const progress = Math.min((hours / 40) * 100, 100);
                             let barColor = 'bg-park-500';
                             let textColor = 'text-gray-600';
-                            
-                            if (hours > 40) { 
-                                barColor = 'bg-red-500'; 
-                                textColor = 'text-red-600 font-bold'; 
+
+                            if (hours > 40) {
+                                barColor = 'bg-red-500';
+                                textColor = 'text-red-600 font-bold';
                             }
-                            
+
                             return (
                               <div key={emp.id} className="group bg-white p-3 rounded-xl border border-gray-100 hover:border-park-200 hover:shadow-sm transition-all duration-200">
                                 <div className="flex justify-between items-start mb-2">
@@ -1863,10 +2009,10 @@
                                   </div>
                                   <span className={`text-xs ${textColor}`}>{hours}h</span>
                                 </div>
-                                
+
                                 <div className="w-full bg-gray-100 h-1.5 rounded-full overflow-hidden">
-                                  <div 
-                                    className={`h-full rounded-full ${barColor} transition-all duration-500 ease-out group-hover:opacity-90`} 
+                                  <div
+                                    className={`h-full rounded-full ${barColor} transition-all duration-500 ease-out group-hover:opacity-90`}
                                     style={{ width: `${progress}%` }}
                                   ></div>
                                 </div>
@@ -1885,13 +2031,13 @@
                         <div className="bg-gray-800 text-white p-4 flex justify-between items-center">
                           <div>
                             <h3 className="font-bold text-lg">
-                              {editingCells.length === 1 
+                              {editingCells.length === 1
                                 ? t.edit_single_title.replace('{day}', editingCells[0].day).replace('{slot}', editingCells[0].slot)
                                 : t.edit_selection_title.replace('{count}', editingCells.length.toString())
                               }
                             </h3>
                             <p className="text-xs text-gray-300">
-                              {editingCells.length > 1 && 
+                              {editingCells.length > 1 &&
                                 editingCells.map((cell, idx) => (
                                   <span key={`${cell.slot}-${cell.day}`}>
                                     {cell.day} {cell.slot}{idx < editingCells.length - 1 ? ', ' : ''}
@@ -1904,7 +2050,7 @@
                             <XMarkIcon className="w-6 h-6" />
                           </button>
                         </div>
-                        
+
                         <div className="p-4 max-h-[60vh] overflow-y-auto">
                           <div className="mb-4">
                             <p className="text-sm font-medium text-gray-500 mb-2">
@@ -1925,7 +2071,7 @@
                               </button>
                             </div>
                           </div>
-                          
+
                           <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
                             {employees.map(emp => {
                                 // 🔥 LÓGICA DE BARRA VISUAL (MINI-TIMELINE)
@@ -1942,9 +2088,9 @@
 
                                 const isInAllCells = editingCells.every(cell => schedule[cell.slot]?.[cell.day]?.includes(emp.code));
                                 const isInSomeCells = editingCells.some(cell => schedule[cell.slot]?.[cell.day]?.includes(emp.code));
-                                
+
                                 let buttonStyle = 'bg-white border-gray-200 hover:border-park-300 hover:bg-gray-50';
-                                if (isInAllCells) { buttonStyle = 'bg-park-50 border-park-500 ring-2 ring-park-500'; } 
+                                if (isInAllCells) { buttonStyle = 'bg-park-50 border-park-500 ring-2 ring-park-500'; }
                                 else if (isInSomeCells) { buttonStyle = 'bg-park-50 border-park-300 ring-1 ring-park-300'; }
 
                                 // Texto descritivo da disponibilidade
@@ -1961,7 +2107,7 @@
 
                                 return (
                                   <button key={emp.id} onClick={() => toggleEmployeeInMultipleCells(emp.code)} className={`flex flex-col p-2 rounded-lg border transition-all ${buttonStyle}`}>
-                                    
+
                                     {/* Cabeçalho do Card */}
                                     <div className="flex justify-between items-center w-full mb-1">
                                       <div className="text-left">
@@ -1992,7 +2138,7 @@
                                   </button>
                                 );
                               })}
-                          </div>  
+                          </div>
                         </div>
                         <div className="p-4 border-t border-gray-100 bg-gray-50 flex justify-between items-center">
                           <span className="text-sm text-gray-500">{t.cells_selected.replace('{count}', selectedCells.length.toString())}</span>
