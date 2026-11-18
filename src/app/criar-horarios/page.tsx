@@ -298,7 +298,7 @@
               className="fixed inset-0 z-40" 
               onClick={() => setShowPicker(false)}
             />
-            <div className="absolute top-full left-0 mt-2 z-50 bg-white rounded-lg shadow-xl border border-gray-200 p-4 w-80">
+            <div className="absolute top-full left-0 mt-2 z-50 bg-white rounded-lg shadow-xl border border-gray-200 p-4 w-80 max-w-[calc(100vw-2rem)]">
               <div className="flex items-center justify-between mb-4">
                 <button 
                   onClick={goToPreviousMonth}

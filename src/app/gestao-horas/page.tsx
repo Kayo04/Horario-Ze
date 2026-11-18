@@ -554,7 +554,7 @@ export default function GestaoHorasPage() {
             <div className="w-10 h-10 border-4 border-park-200 border-t-park-600 rounded-full animate-spin" />
           </div>
         ) : records.length === 0 && Object.keys(livros).length === 0 ? (
-          <div className="bg-white p-10 rounded-xl shadow-lg text-center text-gray-600">{t.hm_empty}</div>
+          <div className="bg-white p-6 sm:p-10 rounded-xl shadow-lg text-center text-gray-600">{t.hm_empty}</div>
         ) : (
           <>
             {/* KPIs */}

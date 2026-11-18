@@ -471,7 +471,7 @@ export default function HorarioPage() {
           </div>
 
           {/* Week Navigation */}
-          <div className="mt-6 flex items-center justify-center gap-3">
+          <div className="mt-6 flex items-center justify-center gap-2 sm:gap-3">
             <button
               onClick={goToPreviousWeek}
               className="p-2.5 rounded-xl bg-gray-100 hover:bg-cyan-100 hover:text-cyan-700 transition-all duration-200"
@@ -479,8 +479,8 @@ export default function HorarioPage() {
               <ChevronLeftIcon className="w-5 h-5" />
             </button>
 
-            <div className="flex items-center gap-3">
-              <span className="text-lg font-bold text-gray-800 min-w-[200px] text-center">
+            <div className="flex items-center gap-2 sm:gap-3">
+              <span className="text-sm sm:text-lg font-bold text-gray-800 sm:min-w-[200px] text-center">
                 {weekDates.length > 0 && `${weekDates[0]} — ${weekDates[6]}`}
               </span>
               <button
