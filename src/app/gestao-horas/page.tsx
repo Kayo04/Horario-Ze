@@ -5,6 +5,7 @@ import {
   ArrowLeftIcon,
   ArrowPathIcon,
   ArrowUpTrayIcon,
+  ArrowDownTrayIcon,
   PencilSquareIcon,
   XMarkIcon,
 } from '@heroicons/react/24/outline'
@@ -186,6 +187,23 @@ export default function GestaoHorasPage() {
   const datasMes = mensais.map(r => r.date).sort()
   const intervalo = datasMes.length ? `${dataPT(datasMes[0])} – ${dataPT(datasMes[datasMes.length - 1])}` : ''
 
+  // --- Exportar Excel (folhas Resumo e Marcações, como no site antigo) ---
+  const exportarExcel = async () => {
+    const XLSX = await import('xlsx')
+    const resumo = [
+      ['Funcionário', 'ID', 'Mês', 'Semana (início)', 'Horas', 'Horas decimais', 'Minutos', 'Turnos por confirmar', 'Valor (€)'],
+      ...grupos.map(g => [g.name, g.id, month, week, formatarHoras(g.minutes), g.minutes / 60, g.minutes, g.missing, g.cents / 100]),
+    ]
+    const marcacoes = [
+      ['Funcionário', 'ID', 'Data', 'Entrada', 'Saída', 'Dia seguinte', 'Minutos', 'Estado'],
+      ...selecionadas.map(r => [r.name, r.id, r.date, r.start, r.end, r.nextDay ? 'Sim' : 'Não', r.minutes, r.state]),
+    ]
+    const livro = XLSX.utils.book_new()
+    XLSX.utils.book_append_sheet(livro, XLSX.utils.aoa_to_sheet(resumo), 'Resumo')
+    XLSX.utils.book_append_sheet(livro, XLSX.utils.aoa_to_sheet(marcacoes), 'Marcações')
+    XLSX.writeFile(livro, `horas-funcionarios-${month}${week ? '-semana-' + week : ''}.xlsx`)
+  }
+
   // --- Correção de marcações ---
   const abrirCorrecao = (r: Marcacao) => {
     setEditing(r)
@@ -291,6 +309,14 @@ export default function GestaoHorasPage() {
               {importing ? t.hm_importing : t.hm_import}
               <input type="file" accept=".csv,.xlsx,.xls" className="hidden" onChange={importar} disabled={importing} />
             </label>
+            <button
+              onClick={exportarExcel}
+              disabled={!selecionadas.length}
+              className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-60 transition"
+            >
+              <ArrowDownTrayIcon className="h-5 w-5" />
+              {t.hm_export}
+            </button>
             {intervalo && <span className="text-sm text-gray-500 ml-auto">{intervalo}</span>}
           </div>
           {message && <p className="mt-4 text-sm text-emerald-800 bg-emerald-50 border border-emerald-200 rounded-lg px-4 py-3">{message}</p>}
