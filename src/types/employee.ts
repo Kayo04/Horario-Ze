@@ -1,4 +1,5 @@
 // types/employee.ts
+import type { Role, Quadrado } from '@/lib/permissoes'
 export interface UnavailableSlot {
   date: string // YYYY-MM-DD
   startTime: string
@@ -19,7 +20,8 @@ export interface Employee {
   email: string
   code?: string
   telefone?: string
-  role: 'admin' | 'employee'
+  role: Role
+  permissions?: Quadrado[] // quadrados extra que um Host/Manager pode ver (admin vê tudo)
   unavailable: {
     weekdays: UnavailableWeekday[]
     specificDates: UnavailableSlot[] // <-- MUDADO para incluir horários específicos

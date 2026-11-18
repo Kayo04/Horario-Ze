@@ -51,8 +51,8 @@ export const ORDEM_QUADRADOS: Quadrado[] = [
 // Grupos (as secções grandes do portal dos admins e do menu de permissões)
 export type Grupo = 'rh' | 'administracao'
 export const GRUPOS: Record<Grupo, Quadrado[]> = {
-  rh: ['scheduler', 'reservas', 'funcionarios', 'disponibilidade', 'horario', 'horas', 'criarHorarios'],
-  administracao: ['checkin', 'clientes', 'adminpanel'],
+  rh: ['scheduler', 'reservas', 'disponibilidade', 'horario', 'horas', 'criarHorarios'],
+  administracao: ['checkin', 'funcionarios', 'clientes', 'adminpanel'],
 }
 
 /** Limpa a lista vinda do browser/base de dados: só quadrados extra válidos, sem repetidos. */

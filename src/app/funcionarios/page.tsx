@@ -1,6 +1,7 @@
 'use client'
 import React, { useState, useEffect } from 'react'
 import { Employee } from '@/types/employee'
+import type { Role } from '@/lib/permissoes'
 import Link from 'next/link'
 import { useLanguage } from '@/context/LanguageContext'
 import { translations } from '@/lib/translations'
@@ -15,7 +16,7 @@ export default function FuncionariosPage(): JSX.Element {
   const [code, setCode] = useState<string>('')
   const [telefone, setTelefone] = useState<string>('')
   const [password, setPassword] = useState<string>('')
-  const [role, setRole] = useState<'admin' | 'employee'>('employee')
+  const [role, setRole] = useState<Role>('host')
 
   const [loading, setLoading] = useState<boolean>(true)
   const [editingId, setEditingId] = useState<string | null>(null)
@@ -102,7 +103,7 @@ export default function FuncionariosPage(): JSX.Element {
     setCode('')
     setTelefone('')
     setPassword('')
-    setRole('employee')
+    setRole('host')
     setEditingId(null)
   }
 
@@ -293,11 +294,11 @@ export default function FuncionariosPage(): JSX.Element {
                 </label>
                 <select
                   value={role}
-                  onChange={(e) => setRole(e.target.value as 'admin' | 'employee')}
+                  onChange={(e) => setRole(e.target.value as Role)}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-park-500 transition"
                   disabled={saving}
                 >
-                  <option value="employee">{t.role_employee}</option>
+                  <option value="host">{t.role_employee}</option>
                   <option value="admin">{t.role_admin}</option>
                 </select>
               </div>

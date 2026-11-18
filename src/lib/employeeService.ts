@@ -3,6 +3,7 @@ import { ObjectId } from 'mongodb'
 import clientPromise from './mongodb'
 import { Employee, EmployeeWithPassword, UnavailableSlot } from '@/types/employee'
 import bcrypt from 'bcryptjs'
+import { normalizarRole, normalizarPermissoes } from '@/lib/permissoes'
 
 const DB_NAME = 'horaios'
 const COLLECTION = 'employees'
@@ -37,7 +38,8 @@ export async function getEmployees(): Promise<Employee[]> {
       email: emp.email,
       code: emp.code || '',
       telefone: emp.telefone || '',
-      role: emp.role,
+      role: normalizarRole(emp.role),
+      permissions: normalizarPermissoes(emp.permissions),
       unavailable: emp.unavailable || { weekdays: [], specificDates: [] }
     })) as Employee[]
   } catch (error) {
@@ -62,7 +64,8 @@ export async function getEmployeeById(id: string): Promise<Employee | null> {
       email: emp.email,
       code: emp.code || '',
       telefone: emp.telefone || '',
-      role: emp.role,
+      role: normalizarRole(emp.role),
+      permissions: normalizarPermissoes(emp.permissions),
       unavailable: emp.unavailable || { weekdays: [], specificDates: [] }
     } as Employee
   } catch (error) {
@@ -86,7 +89,8 @@ export async function createEmployee(employee: EmployeeWithPassword): Promise<st
       email: employee.email,
       code: employee.code || null,
       telefone: employee.telefone || null,
-      role: employee.role,
+      role: normalizarRole(employee.role),
+      permissions: normalizarRole(employee.role) === 'admin' ? [] : normalizarPermissoes(employee.permissions),
       unavailable: employee.unavailable || { weekdays: [], specificDates: [] },
       password: hashedPassword,
       createdAt: new Date(),

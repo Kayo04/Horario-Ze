@@ -1,6 +1,6 @@
 // types/next-auth.d.ts
-import NextAuth, { DefaultSession } from "next-auth"
-import { JWT } from "next-auth/jwt"
+import { DefaultSession } from "next-auth"
+import type { Role, Quadrado } from "@/lib/permissoes"
 
 declare module "next-auth" {
   /**
@@ -9,7 +9,8 @@ declare module "next-auth" {
   interface Session {
     user: {
       id: string;
-      role: 'admin' | 'employee';
+      role: Role;
+      permissions: Quadrado[]; // quadrados extra que um Host/Manager pode ver
     } & DefaultSession["user"]
   }
 
@@ -18,7 +19,8 @@ declare module "next-auth" {
    */
   interface User {
     id: string;
-    role: 'admin' | 'employee';
+    role: Role;
+    permissions: Quadrado[];
   }
 }
 
@@ -26,6 +28,8 @@ declare module "next-auth/jwt" {
   /** O que é guardado no token JWT */
   interface JWT {
     id: string;
-    role: 'admin' | 'employee';
+    role: Role;
+    permissions: Quadrado[];
+    atualizadoEm?: number; // quando a role/quadrados foram lidos da base de dados
   }
 }
