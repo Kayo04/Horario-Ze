@@ -38,3 +38,5 @@ next-env.d.ts
 # ficheiros exportados do relógio de ponto (dados pessoais)
 *.zip
 *.csv
+*.xlsx
+*.xls
