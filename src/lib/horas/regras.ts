@@ -259,6 +259,76 @@ export function lerRelatorioNGTeco(texto: string): ResultadoRelatorio {
 }
 
 // ---------------------------------------------------------------------------
+// Livro de ponto (Excel escrito pelos funcionários) - para comparar com o relógio
+// ---------------------------------------------------------------------------
+
+export interface DiaLivro {
+  date: string                 // "2026-10-04"
+  periods: [string, string][]  // [["15:00","19:05"]]
+  minutes: number
+}
+
+export interface MesLivro {
+  month: string                // "2026-10"
+  name: string                 // nome escrito no livro
+  days: DiaLivro[]
+  total: number                // minutos
+}
+
+/** Horas do livro de ponto de um funcionário, como a API as devolve. */
+export interface LivroFuncionario {
+  employeeName: string
+  livroName: string
+  total: number
+  days: DiaLivro[]
+}
+
+/** Normaliza um nome para comparar ("Inês  Paquete" -> "ines paquete"). */
+export const normalizarNome = (s: string) => semAcentos(s).replace(/\s+/g, ' ')
+
+/**
+ * Sugere o funcionário do relógio para um nome do livro de ponto.
+ * Os livros usam nomes completos ("Miguel Marques Santos") e o relógio nomes curtos
+ * ("Miguel Santos"): é o mesmo se todas as palavras do nome do relógio estiverem no do livro.
+ */
+export function sugerirFuncionario(livroName: string, pessoas: [number, string][]): number | null {
+  const palavrasLivro = new Set(normalizarNome(livroName).split(' '))
+  const candidatos = pessoas.filter(([, nome]) => {
+    const palavras = normalizarNome(nome).split(' ').filter(Boolean)
+    return palavras.length > 0 && palavras.every(p => palavrasLivro.has(p))
+  })
+  return candidatos.length === 1 ? candidatos[0][0] : null
+}
+
+/** Valida o pedido de importação de um livro de ponto (no servidor). Devolve os dias limpos ou null. */
+export function validarLivro(input: any): { month: string; employeeId: number; days: DiaLivro[]; total: number } | null {
+  if (!input || typeof input.month !== 'string' || !/^\d{4}-(0[1-9]|1[0-2])$/.test(input.month)) return null
+  const employeeId = Number(input.employeeId)
+  if (!Number.isSafeInteger(employeeId) || employeeId < 0 || estaExcluido(employeeId)) return null
+  if (!Array.isArray(input.days) || input.days.length > 31) return null
+
+  const days: DiaLivro[] = []
+  const vistos = new Set<string>()
+  for (const d of input.days) {
+    if (!d || typeof d.date !== 'string' || !DATA.test(d.date) || !d.date.startsWith(input.month) || vistos.has(d.date)) return null
+    if (!Array.isArray(d.periods) || d.periods.length === 0 || d.periods.length > 4) return null
+    vistos.add(d.date)
+    let minutes = 0
+    const periods: [string, string][] = []
+    for (const p of d.periods) {
+      if (!Array.isArray(p) || !RELOGIO.test(p[0]) || !RELOGIO.test(p[1])) return null
+      const duracao = paraMinutos(p[1]) - paraMinutos(p[0])
+      if (duracao <= 0) return null
+      periods.push([p[0], p[1]])
+      minutes += duracao // recalculado no servidor, não confiar no browser
+    }
+    days.push({ date: d.date, periods, minutes })
+  }
+  days.sort((a, b) => a.date.localeCompare(b.date))
+  return { month: input.month, employeeId, days, total: days.reduce((n, d) => n + d.minutes, 0) }
+}
+
+// ---------------------------------------------------------------------------
 // Formatação
 // ---------------------------------------------------------------------------
 
