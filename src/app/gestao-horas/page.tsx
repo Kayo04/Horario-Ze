@@ -1,5 +1,5 @@
 'use client'
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { Fragment, useCallback, useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import {
   ArrowLeftIcon,
@@ -72,6 +72,7 @@ export default function GestaoHorasPage() {
   const [week, setWeek] = useState('')
   const [person, setPerson] = useState('')
   const [status, setStatus] = useState('')
+  const [aberto, setAberto] = useState<number | null>(null) // funcionário com o dia a dia aberto na conferência
 
   // Correção
   const [editing, setEditing] = useState<Marcacao | null>(null)
@@ -157,9 +158,10 @@ export default function GestaoHorasPage() {
   }
 
   // --- Opções dos filtros ---
+  // Todos os meses com marcações do relógio OU livros de ponto (para ver e mexer em meses antigos)
   const meses = useMemo(
-    () => Array.from(new Set(records.map(r => r.date.slice(0, 7)))).sort().reverse(),
-    [records],
+    () => Array.from(new Set([...records.map(r => r.date.slice(0, 7)), ...Object.keys(livros)])).sort().reverse(),
+    [records, livros],
   )
 
   // Escolher automaticamente o mês mais recente
@@ -170,10 +172,13 @@ export default function GestaoHorasPage() {
     }
   }, [meses, month])
 
-  const semanas = useMemo(
-    () => Array.from(new Set(records.filter(r => r.date.startsWith(month)).map(r => segundaFeira(r.date)))).sort(),
-    [records, month],
-  )
+  const semanas = useMemo(() => {
+    const datas = [
+      ...records.filter(r => r.date.startsWith(month)).map(r => r.date),
+      ...Object.values(livros[month] ?? {}).flatMap(l => l.days.map(d => d.date)),
+    ]
+    return Array.from(new Set(datas.map(segundaFeira))).sort()
+  }, [records, livros, month])
 
   const pessoas = useMemo(
     () =>
@@ -305,7 +310,62 @@ export default function GestaoHorasPage() {
   const totalMinutos = grupos.reduce((n, g) => n + g.minutes, 0)
   const totalCentimos = grupos.reduce((n, g) => n + g.cents, 0)
   const totalPendentes = grupos.reduce((n, g) => n + g.missing, 0)
-  const conferencia = !week ? comparison[month] : undefined
+  // --- Conferência relógio vs. livro de ponto ---
+  // Usa os livros importados (dia a dia, por isso funciona também por semana).
+  // Se não houver livro importado, usa os totais antigos do site do chefe (só mês inteiro).
+  const naSemana = (date: string) => !week || segundaFeira(date) === week
+  const livrosMes = livros[month] ?? {}
+  const legado = !week ? comparison[month] ?? {} : {}
+
+  const idsConferencia = new Set<number>(grupos.map(g => g.id))
+  for (const id of Object.keys(livrosMes)) if (!person || id === person) idsConferencia.add(Number(id))
+  const linhasConferencia = Array.from(idsConferencia)
+      .map(id => {
+        const g = grupos.find(x => x.id === id)
+        const livro = livrosMes[String(id)]
+        const book = livro
+          ? livro.days.filter(d => naSemana(d.date)).reduce((n, d) => n + d.minutes, 0)
+          : legado[String(id)] !== undefined ? legado[String(id)] : null
+        return { id, name: g?.name ?? livro?.employeeName ?? String(id), clock: g?.minutes ?? 0, missing: g?.missing ?? 0, book, livro }
+      })
+    .sort((a, b) => a.name.localeCompare(b.name, 'pt'))
+
+  const temConferencia = linhasConferencia.some(l => l.book != null)
+
+  /** Dia a dia de um funcionário: o que o relógio registou vs. o que escreveu no livro. */
+  const diaADia = (id: number, livro?: LivroFuncionario) => {
+    const doRelogio = selecionadas.filter(r => r.id === id)
+    const diasLivro = (livro?.days ?? []).filter(d => naSemana(d.date))
+    const datas = Array.from(new Set([...doRelogio.map(r => r.date), ...diasLivro.map(d => d.date)])).sort()
+    return datas.map(date => {
+      const marcacoes = doRelogio.filter(r => r.date === date)
+      const dia = diasLivro.find(d => d.date === date)
+      const relogio = marcacoes.reduce((n, r) => n + (r.minutes ?? 0), 0)
+      const escrito = dia?.minutes ?? 0
+      return {
+        date,
+        marcacoes,
+        porConfirmar: marcacoes.some(r => r.minutes == null),
+        relogio,
+        dia,
+        diff: relogio - escrito,
+      }
+    })
+  }
+
+  const apagarLivro = async (id: number, nome: string) => {
+    if (!confirm(t.hm_book_delete_confirm.replace('{name}', nome).replace('{month}', nomeMes(month)))) return
+    const res = await fetch(`/api/horas/livro?month=${month}&employeeId=${id}`, { method: 'DELETE' })
+    if (!res.ok) {
+      setError((await res.json()).error)
+      return
+    }
+    setAberto(null)
+    await carregar()
+  }
+
+  const corDiferenca = (diff: number) =>
+    diff === 0 ? 'text-gray-700' : Math.abs(diff) >= 15 ? 'text-red-600 font-semibold' : 'text-amber-600'
 
   const datasMes = mensais.map(r => r.date).sort()
   const intervalo = datasMes.length ? `${dataPT(datasMes[0])} – ${dataPT(datasMes[datasMes.length - 1])}` : ''
@@ -458,7 +518,7 @@ export default function GestaoHorasPage() {
           <div className="flex justify-center py-16">
             <div className="w-10 h-10 border-4 border-emerald-200 border-t-emerald-600 rounded-full animate-spin" />
           </div>
-        ) : records.length === 0 ? (
+        ) : records.length === 0 && Object.keys(livros).length === 0 ? (
           <div className="bg-white p-10 rounded-xl shadow-lg text-center text-gray-600">{t.hm_empty}</div>
         ) : (
           <>
@@ -504,12 +564,15 @@ export default function GestaoHorasPage() {
             </section>
 
             {/* Conferência com o livro de ponto */}
-            {conferencia && (
-              <section className="bg-white rounded-xl shadow-lg overflow-hidden">
-                <div className="px-6 pt-6 pb-4">
-                  <h2 className="text-xl font-bold text-gray-800">{t.hm_comparison}</h2>
-                  <p className="text-sm text-gray-500 mt-1">{t.hm_comparison_desc}</p>
-                </div>
+            <section className="bg-white rounded-xl shadow-lg overflow-hidden">
+              <div className="px-6 pt-6 pb-4">
+                <h2 className="text-xl font-bold text-gray-800">
+                  {t.hm_comparison} · <span className="capitalize">{month && nomeMes(month)}</span>
+                  {week && <span className="text-gray-500 font-normal text-base"> · {t.hm_week_of.replace('{date}', dataPT(week))}</span>}
+                </h2>
+                <p className="text-sm text-gray-500 mt-1">{temConferencia ? t.hm_comparison_desc : t.hm_comparison_empty}</p>
+              </div>
+              {temConferencia && (
                 <div className="overflow-x-auto">
                   <table className="w-full text-sm">
                     <thead className="bg-gray-50">
@@ -521,26 +584,95 @@ export default function GestaoHorasPage() {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-100">
-                      {grupos.map(g => {
-                        const livro = conferencia[String(g.id)]
-                        const parcial = g.missing ? ` · ${t.hm_partial}` : ''
-                        const diff = livro == null ? null : g.minutes - livro
+                      {linhasConferencia.map(l => {
+                        const parcial = l.missing ? ` · ${t.hm_partial}` : ''
+                        const diff = l.book == null ? null : l.clock - l.book
+                        const estaAberto = aberto === l.id && !!l.livro
                         return (
-                          <tr key={g.id} className="hover:bg-gray-50">
-                            <td className={`${td} font-medium text-gray-900`}>{g.name}</td>
-                            <td className={td}>{horas(g.minutes) + parcial}</td>
-                            <td className={td}>{livro == null ? t.hm_not_filled : horas(livro)}</td>
-                            <td className={`${td} ${diff == null ? '' : diff < 0 ? 'text-red-600' : diff > 0 ? 'text-emerald-700' : ''}`}>
-                              {diff == null ? '—' : horas(diff) + parcial}
-                            </td>
-                          </tr>
+                          <Fragment key={l.id}>
+                            <tr
+                              className={`${l.livro ? 'cursor-pointer' : ''} ${estaAberto ? 'bg-violet-50' : 'hover:bg-gray-50'}`}
+                              onClick={() => l.livro && setAberto(estaAberto ? null : l.id)}
+                            >
+                              <td className={`${td} font-medium text-gray-900`}>
+                                {l.livro && <span className="inline-block w-4 text-gray-400">{estaAberto ? '▾' : '▸'}</span>}
+                                {l.name}
+                              </td>
+                              <td className={td}>{horas(l.clock) + parcial}</td>
+                              <td className={td}>{l.book == null ? t.hm_not_filled : horas(l.book)}</td>
+                              <td className={`${td} ${diff == null ? '' : corDiferenca(diff)}`}>
+                                {diff == null ? '—' : (diff > 0 ? '+' : '') + horas(diff) + parcial}
+                              </td>
+                            </tr>
+                            {estaAberto && (
+                              <tr>
+                                <td colSpan={4} className="bg-violet-50/50 px-4 pb-4">
+                                  <div className="flex justify-between items-center py-2">
+                                    <p className="text-sm font-semibold text-gray-700">
+                                      {t.hm_day_detail}
+                                      {l.livro!.livroName && <span className="font-normal text-gray-500"> · {t.hm_book_name}: {l.livro!.livroName}</span>}
+                                    </p>
+                                    <button
+                                      onClick={() => apagarLivro(l.id, l.name)}
+                                      className="text-xs text-red-600 hover:bg-red-50 px-2 py-1 rounded"
+                                    >
+                                      {t.hm_book_delete}
+                                    </button>
+                                  </div>
+                                  <table className="w-full text-sm bg-white rounded-lg overflow-hidden">
+                                    <thead className="bg-gray-50">
+                                      <tr>
+                                        <th className={th}>{t.hm_col_date}</th>
+                                        <th className={th}>{t.hm_col_clock_short}</th>
+                                        <th className={th}>{t.hm_col_book}</th>
+                                        <th className={th}>{t.hm_col_diff}</th>
+                                      </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-gray-100">
+                                      {diaADia(l.id, l.livro).map(d => (
+                                        <tr key={d.date} className={Math.abs(d.diff) >= 15 ? 'bg-red-50/60' : ''}>
+                                          <td className={td}>{dataPT(d.date)}</td>
+                                          <td className={td}>
+                                            {d.marcacoes.length === 0 ? (
+                                              <span className="text-gray-400">—</span>
+                                            ) : (
+                                              <>
+                                                <span className="text-gray-500">
+                                                  {d.marcacoes.map(r => `${r.start || '?'}–${r.end || '?'}`).join(', ')}
+                                                </span>{' '}
+                                                <b>{horas(d.relogio)}</b>
+                                                {d.porConfirmar && <span className="text-amber-600"> · {t.hm_partial}</span>}
+                                              </>
+                                            )}
+                                          </td>
+                                          <td className={td}>
+                                            {d.dia ? (
+                                              <>
+                                                <span className="text-gray-500">{d.dia.periods.map(p => p.join('–')).join(', ')}</span>{' '}
+                                                <b>{horas(d.dia.minutes)}</b>
+                                              </>
+                                            ) : (
+                                              <span className="text-gray-400">—</span>
+                                            )}
+                                          </td>
+                                          <td className={`${td} ${corDiferenca(d.diff)}`}>
+                                            {d.diff === 0 ? '✓' : (d.diff > 0 ? '+' : '') + horas(d.diff)}
+                                          </td>
+                                        </tr>
+                                      ))}
+                                    </tbody>
+                                  </table>
+                                </td>
+                              </tr>
+                            )}
+                          </Fragment>
                         )
                       })}
                     </tbody>
                   </table>
                 </div>
-              </section>
-            )}
+              )}
+            </section>
 
             {/* Entradas e saídas */}
             <section className="bg-white rounded-xl shadow-lg overflow-hidden">
