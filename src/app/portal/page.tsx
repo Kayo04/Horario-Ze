@@ -74,7 +74,6 @@ export default function PortalPage() {
               <h1 className="text-2xl sm:text-4xl font-extrabold leading-tight mt-1 break-words">
                 {t.welcome.replace('{name}', session?.user?.name || '')}
               </h1>
-              <p className="text-base sm:text-lg text-park-50/90 mt-1">{t.dashboard_subtitle}</p>
             </div>
           </div>
 

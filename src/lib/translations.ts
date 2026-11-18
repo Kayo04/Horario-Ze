@@ -2,7 +2,6 @@ export const translations = {
   pt: {
     // Portal
     welcome: "Bem-vindo, {name}!",
-    dashboard_subtitle: "O seu painel de controlo está aqui.",
     logout: "Sair",
     quick_actions: "Ações Rápidas",
     manage_schedules: "Gerir Horários",
@@ -223,10 +222,6 @@ export const translations = {
     login_loading: "A entrar...",
     login_error: "Nome ou password inválidos.",
     login_error_generic: "Erro ao tentar fazer login. Tente novamente.",
-    welcome_morning: "Bom dia",
-    welcome_afternoon: "Boa tarde",
-    welcome_night: "Boa noite",
-    welcome_subtitle: "A preparar o teu portal...",
 
     // Common
     back_to_portal: "Voltar ao Portal",
@@ -640,7 +635,6 @@ export const translations = {
   en: {
     // Portal
     welcome: "Welcome, {name}!",
-    dashboard_subtitle: "Your dashboard is here.",
     logout: "Logout",
     quick_actions: "Quick Actions",
     manage_schedules: "Manage Schedules",
@@ -861,10 +855,6 @@ export const translations = {
     login_loading: "Logging in...",
     login_error: "Invalid name or password.",
     login_error_generic: "Error trying to login. Please try again.",
-    welcome_morning: "Good morning",
-    welcome_afternoon: "Good afternoon",
-    welcome_night: "Good evening",
-    welcome_subtitle: "Getting your portal ready...",
 
     // Common
     back_to_portal: "Back to Portal",
