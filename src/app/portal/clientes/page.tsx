@@ -110,7 +110,7 @@ export default function ClientesDatabase() {
         
         {/* HEADER */}
         <div className="mb-8">
-            <Link href="/portal" className="inline-flex items-center text-sm text-indigo-600 hover:text-indigo-800 font-medium transition-colors mb-4">
+            <Link href="/portal" className="inline-flex items-center text-sm text-park-600 hover:text-park-800 font-medium transition-colors mb-4">
               <ArrowLeftIcon className="h-4 w-4 mr-2" />
               Voltar ao Portal
             </Link>
@@ -118,7 +118,7 @@ export default function ClientesDatabase() {
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div>
                     <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-3">
-                    <UserGroupIcon className="h-8 w-8 text-indigo-600" />
+                    <UserGroupIcon className="h-8 w-8 text-park-600" />
                     Base de Dados
                     </h1>
                     <p className="text-gray-500 mt-1">Gerir todos os registos de clientes.</p>
@@ -132,7 +132,7 @@ export default function ClientesDatabase() {
                     onClick={() => setActiveTab('database')}
                     className={`px-4 py-2 text-sm font-medium rounded-t-lg transition-colors border-b-2 
                     ${activeTab === 'database' 
-                        ? 'border-indigo-600 text-indigo-700 bg-indigo-50/50' 
+                        ? 'border-park-600 text-park-700 bg-park-50/50' 
                         : 'border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-50'}`}
                 >
                    Base de Dados
@@ -155,7 +155,7 @@ export default function ClientesDatabase() {
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
                 <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-200">
                     <p className="text-xs font-bold text-gray-500 uppercase tracking-wide">Últimos 7 Dias</p>
-                    <p className="text-2xl font-bold text-indigo-600 mt-1">+{stats.count7d}</p>
+                    <p className="text-2xl font-bold text-park-600 mt-1">+{stats.count7d}</p>
                 </div>
                 <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-200">
                     <p className="text-xs font-bold text-gray-500 uppercase tracking-wide">Último Mês</p>
@@ -181,7 +181,7 @@ export default function ClientesDatabase() {
                     placeholder="Pesquisar cliente..." 
                     value={searchTerm}
                     onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }} // Reset página ao pesquisar
-                    className="w-full pl-10 pr-4 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm"
+                    className="w-full pl-10 pr-4 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-park-500 text-sm"
                     />
                 </div>
     
@@ -191,7 +191,7 @@ export default function ClientesDatabase() {
                     <select 
                         value={itemsPerPage}
                         onChange={(e) => { setItemsPerPage(Number(e.target.value)); setCurrentPage(1); }}
-                        className="border border-gray-300 rounded-lg p-2 focus:ring-2 focus:ring-indigo-500 outline-none bg-gray-50 font-bold"
+                        className="border border-gray-300 rounded-lg p-2 focus:ring-2 focus:ring-park-500 outline-none bg-gray-50 font-bold"
                     >
                         <option value={10}>10</option>
                         <option value={25}>25</option>
@@ -236,7 +236,7 @@ export default function ClientesDatabase() {
                             </td>
                             <td className="px-6 py-4 text-gray-600 text-sm">{client.dob}</td>
                             <td className="px-6 py-4">
-                                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-indigo-50 text-indigo-700 border border-indigo-100">
+                                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-park-50 text-park-700 border border-park-100">
                                     <CalendarDaysIcon className="w-3 h-3 mr-1"/>
                                     {client.visitDate}
                                 </span>
@@ -308,17 +308,17 @@ function TopPromoters() {
 
     if (loading) return (
       <div className="flex justify-center items-center h-64">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-park-600"></div>
       </div>
     );
 
     return (
         <div className="space-y-6">
             {/* Header Section */}
-            <div className="bg-gradient-to-r from-indigo-900 to-indigo-700 rounded-2xl p-8 text-white shadow-xl relative overflow-hidden">
+            <div className="bg-gradient-to-r from-park-900 to-park-700 rounded-2xl p-8 text-white shadow-xl relative overflow-hidden">
                 <div className="relative z-10">
                     <h3 className="text-2xl font-bold mb-2">Ranking de Clientes</h3>
-                    <p className="text-indigo-100 max-w-xl text-lg">
+                    <p className="text-park-100 max-w-xl text-lg">
                         Descubra quem são os clientes que trazem mais amigos. Este ranking baseia-se no número de pessoas únicas que cada cliente trouxe ao parque.
                     </p>
                 </div>
@@ -345,7 +345,7 @@ function TopPromoters() {
                                     </div>
                                     
                                     <div>
-                                        <h4 className={`text-lg font-bold ${idx < 3 ? 'text-gray-900' : 'text-gray-700'} group-hover:text-indigo-600 transition-colors`}>
+                                        <h4 className={`text-lg font-bold ${idx < 3 ? 'text-gray-900' : 'text-gray-700'} group-hover:text-park-600 transition-colors`}>
                                             {p.name || 'Cliente Sem Nome'}
                                         </h4>
                                         <p className="text-xs text-gray-400 font-medium mt-1">
@@ -355,7 +355,7 @@ function TopPromoters() {
                                 </div>
 
                                 <div className="flex flex-col items-end">
-                                    <span className="text-3xl font-black text-indigo-600 leading-none">
+                                    <span className="text-3xl font-black text-park-600 leading-none">
                                         {p.totalBrought}
                                     </span>
                                     <span className="text-[10px] uppercase font-bold text-gray-400 tracking-wider mt-1">

@@ -154,7 +154,7 @@ export default function FuncionariosPage(): JSX.Element {
     return (
       <div className="min-h-screen bg-gray-50 p-6 flex items-center justify-center font-sans">
         <div className="flex items-center gap-3 text-lg text-gray-700">
-          <div className="w-6 h-6 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin"></div>
+          <div className="w-6 h-6 border-4 border-park-200 border-t-park-600 rounded-full animate-spin"></div>
           {t.loading}
         </div>
       </div>
@@ -167,7 +167,7 @@ export default function FuncionariosPage(): JSX.Element {
       
         <div className="mb-6 flex justify-between items-center">
           <Link href="/portal" passHref legacyBehavior>
-            <a className="inline-flex items-center text-sm text-indigo-600 hover:text-indigo-800 group">
+            <a className="inline-flex items-center text-sm text-park-600 hover:text-park-800 group">
               <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-1 transition-transform group-hover:-translate-x-1" viewBox="0 0 20 20" fill="currentColor">
                 <path fillRule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clipRule="evenodd" />
               </svg>
@@ -225,7 +225,7 @@ export default function FuncionariosPage(): JSX.Element {
                   type="text"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 transition"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-park-500 transition"
                   placeholder={t.login_name_placeholder}
                   disabled={saving}
                 />
@@ -239,7 +239,7 @@ export default function FuncionariosPage(): JSX.Element {
                   type="text"
                   value={code}
                   onChange={(e) => setCode(e.target.value.toUpperCase())}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 transition"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-park-500 transition"
                   placeholder={t.tag_placeholder}
                   disabled={saving}
                   maxLength={5}
@@ -257,7 +257,7 @@ export default function FuncionariosPage(): JSX.Element {
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 transition"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-park-500 transition"
                   placeholder="funcionario@email.com"
                   disabled={saving}
                 />
@@ -271,7 +271,7 @@ export default function FuncionariosPage(): JSX.Element {
                   type="tel"
                   value={telefone}
                   onChange={(e) => setTelefone(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 transition"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-park-500 transition"
                   placeholder={t.phone_placeholder}
                   disabled={saving}
                 />
@@ -288,7 +288,7 @@ export default function FuncionariosPage(): JSX.Element {
                   type="password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 transition"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-park-500 transition"
                   placeholder={editingId ? t.password_placeholder_edit : t.password_placeholder_create}
                   disabled={saving}
                 />
@@ -306,7 +306,7 @@ export default function FuncionariosPage(): JSX.Element {
                 <select
                   value={role}
                   onChange={(e) => setRole(e.target.value as 'admin' | 'employee')}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 transition"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-park-500 transition"
                   disabled={saving}
                 >
                   <option value="employee">{t.role_employee}</option>
@@ -356,13 +356,13 @@ export default function FuncionariosPage(): JSX.Element {
                       <div className="flex items-center flex-wrap gap-2 sm:gap-3 mb-2">
                         <h3 className="font-semibold text-lg text-gray-900">{employee.name}</h3>
                         {employee.code && (
-                          <span className="text-xs bg-blue-100 text-blue-800 px-2 py-0.5 rounded-full font-medium">
+                          <span className="text-xs bg-park-100 text-park-800 px-2 py-0.5 rounded-full font-medium">
                             {employee.code}
                           </span>
                         )}
                         <span className={`text-xs font-semibold px-2.5 py-0.5 rounded-full ${
                           employee.role === 'admin' 
-                            ? 'bg-indigo-100 text-indigo-800' 
+                            ? 'bg-park-100 text-park-800' 
                             : 'bg-gray-100 text-gray-700'
                         }`}>
                           {employee.role === 'admin' ? t.role_admin : t.role_employee}
@@ -393,7 +393,7 @@ export default function FuncionariosPage(): JSX.Element {
                     <div className="grid grid-cols-2 gap-2 w-full sm:flex sm:w-auto sm:ml-4">
                       <button
                         onClick={() => editEmployee(employee)}
-                        className="px-3 py-1 bg-indigo-100 text-indigo-700 rounded-md text-sm font-medium hover:bg-indigo-200 transition-colors"
+                        className="px-3 py-1 bg-park-100 text-park-700 rounded-md text-sm font-medium hover:bg-park-200 transition-colors"
                         disabled={saving}
                       >
                         {t.edit}

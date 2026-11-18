@@ -89,7 +89,7 @@ export default function EstatisticasPage() {
     <div className="min-h-screen bg-gray-50 font-sans text-gray-900 p-6 flex flex-col items-center">
       
       <div className="w-full max-w-4xl mb-8 flex justify-start">
-        <Link href="/portal" className="inline-flex items-center gap-2 text-gray-600 hover:text-blue-600 transition-colors font-medium">
+        <Link href="/portal" className="inline-flex items-center gap-2 text-gray-600 hover:text-park-600 transition-colors font-medium">
            <ArrowLeftIcon className="w-4 h-4" />
            Voltar ao Portal
         </Link>
@@ -99,7 +99,7 @@ export default function EstatisticasPage() {
         
         <div className="text-center mb-12">
           <h1 className="text-4xl font-bold text-gray-900 mb-4 flex items-center justify-center gap-3">
-            <ChartBarIcon className="w-10 h-10 text-blue-600" />
+            <ChartBarIcon className="w-10 h-10 text-park-600" />
             Estatísticas Globais
           </h1>
           <p className="text-gray-500">Monitorização de tráfego em tempo real.</p>
@@ -110,8 +110,8 @@ export default function EstatisticasPage() {
           
           {/* Card 1: Data Lançamento */}
           <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-200 flex flex-col items-center justify-center hover:shadow-md transition-shadow">
-            <div className="p-3 bg-blue-50 rounded-full mb-4">
-              <CalendarDaysIcon className="w-8 h-8 text-blue-600" />
+            <div className="p-3 bg-park-50 rounded-full mb-4">
+              <CalendarDaysIcon className="w-8 h-8 text-park-600" />
             </div>
             <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wider">Online Desde</h3>
             <p className="text-2xl font-bold text-gray-900 mt-2">27 Nov</p>
@@ -142,7 +142,7 @@ export default function EstatisticasPage() {
 
         </div>
 
-        <div className="bg-gradient-to-br from-blue-900 to-indigo-900 rounded-3xl p-8 sm:p-12 text-center text-white shadow-2xl relative overflow-hidden">
+        <div className="bg-gradient-to-br from-park-900 to-park-900 rounded-3xl p-8 sm:p-12 text-center text-white shadow-2xl relative overflow-hidden">
           <div className="absolute top-0 left-0 w-full h-full opacity-10 pointer-events-none">
              <div className="absolute top-10 left-10 w-32 h-32 bg-white rounded-full blur-3xl"></div>
              <div className="absolute bottom-10 right-10 w-40 h-40 bg-pink-500 rounded-full blur-3xl"></div>
@@ -157,7 +157,7 @@ export default function EstatisticasPage() {
               Live Counter! 
             </div>
 
-            <h2 className="text-lg sm:text-xl text-blue-200 font-medium mb-4">Total Global de Visitas</h2>
+            <h2 className="text-lg sm:text-xl text-park-200 font-medium mb-4">Total Global de Visitas</h2>
             
             <div className="text-6xl sm:text-8xl font-black tracking-tight mb-4 tabular-nums">
               {isLoaded ? (
@@ -169,7 +169,7 @@ export default function EstatisticasPage() {
               )}
             </div>
             
-            <p className="text-blue-200 max-w-lg mx-auto text-sm sm:text-base">
+            <p className="text-park-200 max-w-lg mx-auto text-sm sm:text-base">
               Contagem sincronizada em todos os dispositivos.
             </p>
           </div>
@@ -211,7 +211,7 @@ function MarketingStats() {
   return (
     <div className="mt-12 bg-white rounded-3xl p-8 shadow-lg border border-gray-100">
       <h2 className="text-2xl font-bold text-gray-900 mb-6 flex items-center gap-2">
-        <GlobeAltIcon className="w-6 h-6 text-indigo-600" />
+        <GlobeAltIcon className="w-6 h-6 text-park-600" />
         Origem dos Clientes
       </h2>
 
@@ -222,12 +222,12 @@ function MarketingStats() {
           {data.map((item: any, idx: number) => (
             <div key={idx} className="flex items-center justify-between p-4 bg-gray-50 rounded-xl border border-gray-100">
               <div className="flex items-center gap-3">
-                <span className="w-8 h-8 flex items-center justify-center bg-indigo-100 text-indigo-700 font-bold rounded-full text-sm">
+                <span className="w-8 h-8 flex items-center justify-center bg-park-100 text-park-700 font-bold rounded-full text-sm">
                   {idx + 1}
                 </span>
                 <span className="font-semibold text-gray-800">{item._id}</span>
               </div>
-              <span className="text-xl font-black text-indigo-600">{item.count}</span>
+              <span className="text-xl font-black text-park-600">{item.count}</span>
             </div>
           ))}
         </div>
@@ -243,7 +243,7 @@ function MarketingStats() {
           ) : (
             <ul className="space-y-3">
               {data.flatMap((d: any) => d.notes || []).map((note: string, idx: number) => (
-                <li key={idx} className="text-sm text-gray-600 border-l-2 border-indigo-300 pl-3 italic">
+                <li key={idx} className="text-sm text-gray-600 border-l-2 border-park-300 pl-3 italic">
                   "{note}"
                 </li>
               ))}

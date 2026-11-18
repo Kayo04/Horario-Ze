@@ -82,7 +82,7 @@ export default function TestAPI() {
         <button 
           onClick={testGetEmployees}
           disabled={loading}
-          className="px-4 py-2 bg-blue-500 text-white rounded"
+          className="px-4 py-2 bg-park-500 text-white rounded"
         >
           Testar GET /api/employees
         </button>

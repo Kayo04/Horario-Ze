@@ -519,7 +519,7 @@ export default function GestaoReservaPage() {
         <header className="mb-8 flex justify-between items-start">
           <div className="flex flex-col">
             <div className="mb-4">
-              <Link href="/portal" className="inline-flex items-center text-sm text-indigo-600 hover:text-indigo-800 group">
+              <Link href="/portal" className="inline-flex items-center text-sm text-park-600 hover:text-park-800 group">
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-1 transition-transform group-hover:-translate-x-1" viewBox="0 0 20 20" fill="currentColor">
                   <path fillRule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clipRule="evenodd" />
                 </svg>
@@ -562,7 +562,7 @@ export default function GestaoReservaPage() {
                 min={1}
                 value={people}
                 onChange={(e) => setPeople(e.target.value ? Number(e.target.value) : '')}
-                className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-indigo-400 outline-none"
+                className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-park-400 outline-none"
                 placeholder="Ex: 50"
               />
             </div>
@@ -572,7 +572,7 @@ export default function GestaoReservaPage() {
               <select
                 value={startTime}
                 onChange={(e) => setStartTime(e.target.value)}
-                className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-indigo-400 outline-none"
+                className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-park-400 outline-none"
               >
                 {generateFifteenMinuteOptions().map(h => (
                   <option key={h} value={h}>{h}</option>
@@ -585,7 +585,7 @@ export default function GestaoReservaPage() {
               <select
                 value={carnival ? 'sim' : 'nao'}
                 onChange={(e) => setCarnival(e.target.value === 'sim')}
-                className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-indigo-400 outline-none"
+                className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-park-400 outline-none"
               >
                 <option value="nao">{t.no}</option>
                 <option value="sim">{t.yes}</option>
@@ -596,7 +596,7 @@ export default function GestaoReservaPage() {
               <button
                 onClick={handleGenerate}
                 disabled={loading}
-                className="w-full px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-md shadow-sm disabled:opacity-60 transition-colors"
+                className="w-full px-5 py-2 bg-park-600 hover:bg-park-700 text-white rounded-md shadow-sm disabled:opacity-60 transition-colors"
               >
                 {loading ? t.calculating : t.generate_plan}
               </button>
@@ -607,7 +607,7 @@ export default function GestaoReservaPage() {
             <div className="mt-4">
               <div className="h-3 w-full bg-gray-200 rounded-full overflow-hidden">
                 <div
-                  className="h-3 bg-gradient-to-r from-indigo-400 via-indigo-600 to-indigo-400 transition-all"
+                  className="h-3 bg-gradient-to-r from-park-400 via-park-600 to-park-400 transition-all"
                   style={{ width: `${progress}%` }}
                 />
               </div>
@@ -619,7 +619,7 @@ export default function GestaoReservaPage() {
         {/* Sumário */}
         {showResult && summary && (
           <div className={`bg-white shadow-md rounded-lg p-6 mb-8 transform transition-all duration-500 ${showResult ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
-            <h2 className="text-xl font-semibold mb-4 text-indigo-700">{t.summary_title}</h2>
+            <h2 className="text-xl font-semibold mb-4 text-park-700">{t.summary_title}</h2>
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-6">
               <div>
                 <div className="text-sm font-medium text-gray-500">{t.start}</div>
@@ -735,9 +735,9 @@ export default function GestaoReservaPage() {
                 <p className="text-gray-500">{t.no_plan}</p>
               ) : (
                 <>
-                  <div className="mb-4 p-3 bg-indigo-50 rounded-lg">
+                  <div className="mb-4 p-3 bg-park-50 rounded-lg">
                     <p className="text-gray-700 font-medium">
-                      {t.total_groups}: <span className="text-indigo-600 font-semibold">{groups.length}</span>
+                      {t.total_groups}: <span className="text-park-600 font-semibold">{groups.length}</span>
                     </p>
                   </div>
                   

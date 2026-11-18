@@ -168,7 +168,7 @@ export default function CheckInDashboard() {
       {/* HEADER */}
       <div className="max-w-5xl mx-auto mb-8">
         <div className="mb-6 flex justify-between items-center">
-            <Link href="/portal" className="inline-flex items-center text-sm text-indigo-600 hover:text-indigo-800 font-medium transition-colors">
+            <Link href="/portal" className="inline-flex items-center text-sm text-park-600 hover:text-park-800 font-medium transition-colors">
               <ArrowLeftIcon className="h-4 w-4 mr-2" />
               {t.checkin_staff_back}
             </Link>

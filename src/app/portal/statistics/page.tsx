@@ -87,7 +87,7 @@ export default function StatisticsPage() {
     <div className="min-h-screen bg-gray-50 p-6 md:p-12 font-sans">
       <div className="max-w-6xl mx-auto">
         <div className="flex justify-between items-center mb-6">
-          <Link href="/portal/checkin" className="inline-flex items-center text-sm text-indigo-600 hover:text-indigo-800 font-medium transition-colors">
+          <Link href="/portal/checkin" className="inline-flex items-center text-sm text-park-600 hover:text-park-800 font-medium transition-colors">
             <ArrowLeftIcon className="h-4 w-4 mr-2" />
             {t.stats_back_checkin}
           </Link>
