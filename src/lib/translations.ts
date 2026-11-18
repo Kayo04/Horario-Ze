@@ -23,11 +23,11 @@ export const translations = {
 
     // Portal dos admins: 3 secções
     sec_rh: "RH",
-    sec_rh_desc: "Horários, reservas, funcionários e horas",
+    sec_rh_desc: "Horários, reservas, disponibilidade e horas",
     sec_finance: "Gestão Financeira",
     sec_finance_desc: "Pagamentos e finanças",
     sec_admin: "Administração",
-    sec_admin_desc: "Check-in, base de dados e painel de admin",
+    sec_admin_desc: "Check-in, funcionários, base de dados e painel de admin",
     sec_options: "{n} opções",
     sec_back: "Voltar",
     sec_under_construction: "Em construção",
@@ -668,11 +668,11 @@ export const translations = {
 
     // Admin portal: 3 sections
     sec_rh: "HR",
-    sec_rh_desc: "Schedules, reservations, employees and hours",
+    sec_rh_desc: "Schedules, reservations, availability and hours",
     sec_finance: "Financial Management",
     sec_finance_desc: "Payments and finances",
     sec_admin: "Administration",
-    sec_admin_desc: "Check-in, database and admin panel",
+    sec_admin_desc: "Check-in, employees, database and admin panel",
     sec_options: "{n} options",
     sec_back: "Back",
     sec_under_construction: "Under construction",

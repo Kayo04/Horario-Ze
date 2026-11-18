@@ -25,6 +25,7 @@ import {
 import { useLanguage } from '@/context/LanguageContext'
 import { translations } from '@/lib/translations'
 import LanguageSwitcher from '@/app/components/LanguageSwitcher'
+import { HREF, GRUPOS, quadradosVisiveis, normalizarRole, type Quadrado } from '@/lib/permissoes'
 
 type Chave = keyof (typeof translations)['pt']
 type Icone = ComponentType<SVGProps<SVGSVGElement>>
@@ -34,26 +35,22 @@ interface Cartao {
   icon: Icone
   title: Chave
   desc: Chave
-  adminOnly?: boolean
 }
 
-// Todos os botões do portal.
-// adminOnly = só aparece a administradores (o middleware também bloqueia as páginas).
-const C = {
-  scheduler: { href: '/scheduler', icon: CalendarDaysIcon, title: 'manage_schedules', desc: 'manage_schedules_desc', adminOnly: true },
-  reservas: { href: '/gestao-reserva', icon: UsersIcon, title: 'manage_reservations', desc: 'manage_reservations_desc' },
-  checkin: { href: '/portal/checkin', icon: CheckBadgeIcon, title: 'checkin_daily', desc: 'checkin_daily_desc' },
-  funcionarios: { href: '/funcionarios', icon: UserGroupIcon, title: 'manage_employees', desc: 'manage_employees_desc', adminOnly: true },
-  adminpanel: { href: '/adminpanel', icon: ChartBarSquareIcon, title: 'admin_panel', desc: 'admin_panel_desc', adminOnly: true },
-  disponibilidade: { href: '/disponibilidade', icon: ClockIcon, title: 'my_availability', desc: 'my_availability_desc' },
-  horario: { href: '/horario', icon: TableCellsIcon, title: 'horario_card', desc: 'horario_card_desc' },
-  clientes: { href: '/portal/clientes', icon: CircleStackIcon, title: 'database', desc: 'database_desc', adminOnly: true },
-  horas: { href: '/gestao-horas', icon: BanknotesIcon, title: 'hm_card', desc: 'hm_card_desc', adminOnly: true },
-  criarHorarios: { href: '/criar-horarios', icon: PlusCircleIcon, title: 'create_schedules', desc: 'create_schedules_desc', adminOnly: true },
-} satisfies Record<string, Cartao>
-
-// Funcionários normais: lista simples, como sempre foi
-const CARTOES_FUNCIONARIO: Cartao[] = [C.reservas, C.checkin, C.disponibilidade, C.horario]
+// Aspeto de cada quadrado (quem pode ver o quê está em src/lib/permissoes.ts)
+const VISUAL: Record<Quadrado, { icon: Icone; title: Chave; desc: Chave }> = {
+  scheduler: { icon: CalendarDaysIcon, title: 'manage_schedules', desc: 'manage_schedules_desc' },
+  reservas: { icon: UsersIcon, title: 'manage_reservations', desc: 'manage_reservations_desc' },
+  checkin: { icon: CheckBadgeIcon, title: 'checkin_daily', desc: 'checkin_daily_desc' },
+  funcionarios: { icon: UserGroupIcon, title: 'manage_employees', desc: 'manage_employees_desc' },
+  adminpanel: { icon: ChartBarSquareIcon, title: 'admin_panel', desc: 'admin_panel_desc' },
+  disponibilidade: { icon: ClockIcon, title: 'my_availability', desc: 'my_availability_desc' },
+  horario: { icon: TableCellsIcon, title: 'horario_card', desc: 'horario_card_desc' },
+  clientes: { icon: CircleStackIcon, title: 'database', desc: 'database_desc' },
+  horas: { icon: BanknotesIcon, title: 'hm_card', desc: 'hm_card_desc' },
+  criarHorarios: { icon: PlusCircleIcon, title: 'create_schedules', desc: 'create_schedules_desc' },
+}
+const cartao = (q: Quadrado): Cartao => ({ href: HREF[q], ...VISUAL[q] })
 
 // Admins: 3 secções grandes, cada uma com os seus botões
 type Secao = 'rh' | 'financeira' | 'administracao'
@@ -63,7 +60,7 @@ const SECOES: { id: Secao; icon: Icone; title: Chave; desc: Chave; cartoes: Cart
     icon: BriefcaseIcon,
     title: 'sec_rh',
     desc: 'sec_rh_desc',
-    cartoes: [C.scheduler, C.reservas, C.funcionarios, C.disponibilidade, C.horario, C.horas, C.criarHorarios],
+    cartoes: GRUPOS.rh.map(cartao),
   },
   { id: 'financeira', icon: CurrencyEuroIcon, title: 'sec_finance', desc: 'sec_finance_desc', cartoes: [] }, // em construção
   {
@@ -71,7 +68,7 @@ const SECOES: { id: Secao; icon: Icone; title: Chave; desc: Chave; cartoes: Cart
     icon: ShieldCheckIcon,
     title: 'sec_admin',
     desc: 'sec_admin_desc',
-    cartoes: [C.checkin, C.clientes, C.adminpanel],
+    cartoes: GRUPOS.administracao.map(cartao),
   },
 ]
 
@@ -80,8 +77,9 @@ export default function PortalPage() {
   const { language } = useLanguage()
   const t = translations[language]
 
-  // O uso de 'any' evita erros de TypeScript se o campo role não estiver definido no tipo
-  const isAdmin = (session?.user as any)?.role === 'admin'
+  const isAdmin = normalizarRole(session?.user?.role) === 'admin'
+  // Host/Manager: os 4 de sempre + os quadrados extra que o admin lhes deu
+  const cartoesFuncionario = quadradosVisiveis(session?.user?.role, session?.user?.permissions).map(cartao)
 
   // Secção aberta (só admins). Fica no endereço (#rh, #financeira, #administracao) para o
   // botão "voltar" do browser/telemóvel fechar a secção em vez de sair do portal.
@@ -161,10 +159,10 @@ export default function PortalPage() {
 
         <div className="bg-white p-4 sm:p-8 rounded-2xl shadow-lg">
           {!isAdmin ? (
-            // ---------- Funcionários normais: igual ao que já era ----------
+            // ---------- Host/Manager: lista simples, como antes (+ quadrados extra) ----------
             <>
               <h2 className="text-xl sm:text-2xl font-bold text-gray-800 mb-6 sm:mb-8 border-b border-park-100 pb-4">{t.quick_actions}</h2>
-              <GrelhaCartoes cartoes={CARTOES_FUNCIONARIO} t={t} />
+              <GrelhaCartoes cartoes={cartoesFuncionario} t={t} />
             </>
           ) : !secao ? (
             // ---------- Admins: os 3 botões grandes ----------
