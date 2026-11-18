@@ -28,7 +28,7 @@ export async function middleware(req: NextRequest) {
   }
   
   // C: 🔥 REGRA DE ADMIN - BLOQUEAR ACESSO À PASTA CLIENTES
-  if ( (pathname.startsWith('/funcionarios') || pathname.startsWith('/portal/clientes')) && token?.role !== 'admin') {
+  if ( (pathname.startsWith('/funcionarios') || pathname.startsWith('/portal/clientes') || pathname.startsWith('/gestao-horas')) && token?.role !== 'admin') {
       return NextResponse.redirect(new URL('/portal?error=NaoAutorizado', req.url))
   }
 
