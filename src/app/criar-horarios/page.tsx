@@ -157,8 +157,6 @@
     // ✅ Estados para seleção e Drag-and-Drop
     const [expandedCols, setExpandedCols] = useState<number[]>([]);
     const [selectedCells, setSelectedCells] = useState<{slot: string; day: string}[]>([]);
-    const [isDragging, setIsDragging] = useState(false);
-    const [dragStart, setDragStart] = useState<{slot: string; day: string} | null>(null);
     // Snapshot para guardar a seleção antes do drag começar, permitindo adicionar ao que já existe
     const selectionSnapshot = useRef<{slot: string; day: string}[]>([]);
 
@@ -411,18 +409,31 @@
     // =================================================================================
 
     // Parar o drag se o utilizador largar o rato fora da tabela
-    // Edição das células do horário:
-    //  - 1 clique marca a célula
-    //  - clicar outra vez na célula marcada (ou duplo clique) edita-a
-    //  - arrastar por várias células marca-as e, ao largar, abre o menu de editar
-    //  - Ctrl/Cmd + clique junta células à seleção; Esc limpa; Enter edita as marcadas
-    const selectedCellsRef = useRef<{slot: string; day: string}[]>([]);
+    // Edição das células do horário (funciona com rato e com o dedo):
+    //  - 1 clique/toque marca a célula; clicar/tocar outra vez na célula marcada (ou duplo clique) edita-a
+    //  - computador: arrastar por várias células marca-as e, ao largar, abre logo o menu de editar
+    //  - telemóvel: tocar e MANTER o dedo (~1/3 s, vibra) e depois arrastar; ao levantar abre o menu.
+    //    Um toque normal com arrasto continua a fazer scroll à página.
+    //  - Ctrl/Cmd + clique junta células; Esc limpa a seleção; Enter edita as marcadas
+    type Celula = { slot: string; day: string };
+    const selectedCellsRef = useRef<Celula[]>([]);
     useEffect(() => { selectedCellsRef.current = selectedCells; }, [selectedCells]);
-    const arrastou = useRef(false);            // o rato passou por outras células durante o clique
-    const cliqueNaMarcada = useRef(false);     // o clique começou na única célula já marcada
+    const grelhaRef = useRef<HTMLDivElement>(null);
+    const gesto = useRef({
+      ativo: false,          // há um dedo/rato em baixo numa célula
+      arrastar: false,       // a seleção por arrasto está ligada
+      arrastou: false,       // passou por outras células
+      cliqueNaMarcada: false,// começou na única célula já marcada (=> editar)
+      juntar: false,         // Ctrl/Cmd: juntar à seleção
+      toque: false,          // é um dedo (não rato)
+      inicio: null as Celula | null,
+      x: 0,
+      y: 0,
+      timer: null as number | null,
+    });
 
     // Abre o menu de editar para estas células (ordenadas por dia e hora)
-    const abrirEdicao = useCallback((cells: {slot: string; day: string}[]) => {
+    const abrirEdicao = useCallback((cells: Celula[]) => {
       if (cells.length === 0) return;
       const ordenadas = [...cells].sort((a, b) => {
         const dayDiff = WEEK_DAYS.indexOf(a.day) - WEEK_DAYS.indexOf(b.day);
@@ -433,85 +444,123 @@
       setSelectedCells([]);
     }, [WEEK_DAYS]);
 
+    // Célula que está debaixo do dedo/rato (as células têm data-slot e data-day)
+    const celulaNoPonto = useCallback((x: number, y: number): Celula | null => {
+      const el = document.elementFromPoint(x, y) as HTMLElement | null;
+      const td = el?.closest('[data-slot]') as HTMLElement | null;
+      if (!td || !grelhaRef.current?.contains(td) || !td.dataset.slot || !td.dataset.day) return null;
+      return { slot: td.dataset.slot, day: td.dataset.day };
+    }, []);
+
+    // Marca o retângulo entre a célula inicial e esta (mais o que já estava marcado com Ctrl)
+    const marcarAte = useCallback((fimCel: Celula) => {
+      const inicio = gesto.current.inicio;
+      if (!inicio) return;
+      const s1 = TIME_SLOTS.indexOf(inicio.slot), s2 = TIME_SLOTS.indexOf(fimCel.slot);
+      const d1 = WEEK_DAYS.indexOf(inicio.day), d2 = WEEK_DAYS.indexOf(fimCel.day);
+      const juntas = [...selectionSnapshot.current];
+      for (let s = Math.min(s1, s2); s <= Math.max(s1, s2); s++) {
+        for (let d = Math.min(d1, d2); d <= Math.max(d1, d2); d++) {
+          const c = { slot: TIME_SLOTS[s], day: WEEK_DAYS[d] };
+          if (!juntas.some(x => x.slot === c.slot && x.day === c.day)) juntas.push(c);
+        }
+      }
+      setSelectedCells(juntas);
+    }, [WEEK_DAYS]);
+
+    const marcarSo = (c: Celula, juntar: boolean) => {
+      const sel = selectedCellsRef.current;
+      if (!juntar) setSelectedCells([c]);
+      else if (!sel.some(x => x.slot === c.slot && x.day === c.day)) setSelectedCells([...sel, c]);
+    };
+
+    const handleCellPointerDown = (e: React.PointerEvent, slot: string, day: string) => {
+      if (e.pointerType === 'mouse' && e.button !== 0) return; // só o botão esquerdo
+      const g = gesto.current;
+      const sel = selectedCellsRef.current;
+      const c = { slot, day };
+      g.juntar = e.ctrlKey || e.metaKey;
+      g.cliqueNaMarcada = !g.juntar && sel.length === 1 && sel[0].slot === slot && sel[0].day === day;
+      g.ativo = true;
+      g.arrastou = false;
+      g.inicio = c;
+      g.x = e.clientX;
+      g.y = e.clientY;
+      g.toque = e.pointerType !== 'mouse';
+      selectionSnapshot.current = g.juntar ? [...sel] : [];
+      if (g.timer) { clearTimeout(g.timer); g.timer = null; }
+
+      if (!g.toque) {
+        // Rato: a seleção por arrasto começa logo
+        e.preventDefault(); // não selecionar texto
+        g.arrastar = true;
+        marcarSo(c, g.juntar);
+        return;
+      }
+      // Dedo: só começa a seleção por arrasto depois de manter o dedo parado
+      g.arrastar = false;
+      g.timer = window.setTimeout(() => {
+        g.timer = null;
+        if (!g.ativo) return;
+        g.arrastar = true;
+        g.cliqueNaMarcada = false;
+        marcarSo(c, g.juntar);
+        try { navigator.vibrate?.(15); } catch {}
+      }, 350);
+    };
+
     useEffect(() => {
-      const handleWindowMouseUp = () => {
-        if (!isDragging) return;
-        setIsDragging(false);
-        setDragStart(null);
+      const g = gesto.current;
+      const parar = () => {
+        if (g.timer) { clearTimeout(g.timer); g.timer = null; }
+        g.ativo = false;
+        g.arrastar = false;
+      };
+      const mover = (e: PointerEvent) => {
+        if (!g.ativo) return;
+        if (!g.arrastar) {
+          // Dedo a mexer antes de completar o "manter": é scroll, não é seleção
+          if (g.toque && Math.hypot(e.clientX - g.x, e.clientY - g.y) > 10) parar();
+          return;
+        }
+        const c = celulaNoPonto(e.clientX, e.clientY);
+        if (!c) return;
+        if (c.slot !== g.inicio?.slot || c.day !== g.inicio?.day) g.arrastou = true;
+        marcarAte(c);
+      };
+      const largar = () => {
+        if (!g.ativo) return;
+        const toqueRapido = g.toque && !g.arrastar; // toque sem manter o dedo
+        const { arrastou, cliqueNaMarcada, juntar, inicio } = g;
+        parar();
         selectionSnapshot.current = [];
         const sel = selectedCellsRef.current;
-        if (arrastou.current && sel.length > 1) {
-          abrirEdicao(sel);            // acabou de escolher várias: abre logo o menu
-        } else if (!arrastou.current && cliqueNaMarcada.current) {
-          abrirEdicao(sel);            // segundo clique na célula marcada: editar
+        if (toqueRapido) {
+          if (cliqueNaMarcada) abrirEdicao(sel);   // 2.º toque na célula marcada: editar
+          else if (inicio) marcarSo(inicio, juntar); // 1.º toque: marcar
+          return;
         }
+        if (arrastou && sel.length > 1) abrirEdicao(sel);     // escolheu várias: abre logo o menu
+        else if (!arrastou && cliqueNaMarcada) abrirEdicao(sel); // 2.º clique na célula marcada: editar
       };
-      window.addEventListener('mouseup', handleWindowMouseUp);
-      return () => window.removeEventListener('mouseup', handleWindowMouseUp);
-    }, [isDragging, abrirEdicao]);
+      // Enquanto se escolhe células com o dedo, a página não pode fazer scroll
+      const semScroll = (e: TouchEvent) => { if (g.ativo && g.arrastar && e.cancelable) e.preventDefault(); };
 
-    const handleCellMouseDown = (slot: string, day: string, e?: React.MouseEvent) => {
-      if (e && e.button !== 0) return; // só o botão esquerdo
-      const juntar = !!e && (e.ctrlKey || e.metaKey);
-      cliqueNaMarcada.current = !juntar && selectedCells.length === 1 && selectedCells[0].slot === slot && selectedCells[0].day === day;
-      arrastou.current = false;
-
-      setIsDragging(true);
-      setDragStart({ slot, day });
-      selectionSnapshot.current = juntar ? [...selectedCells] : [];
-      if (juntar) {
-        if (!selectedCells.some(c => c.slot === slot && c.day === day)) setSelectedCells(prev => [...prev, { slot, day }]);
-      } else {
-        setSelectedCells([{ slot, day }]);
-      }
-    };
-
-    const handleCellMouseEnter = (currentSlot: string, currentDay: string) => {
-      if (!isDragging || !dragStart) return;
-      arrastou.current = true;
-
-      const startSlotIdx = TIME_SLOTS.indexOf(dragStart.slot);
-      const endSlotIdx = TIME_SLOTS.indexOf(currentSlot);
-      const startDayIdx = WEEK_DAYS.indexOf(dragStart.day);
-      const endDayIdx = WEEK_DAYS.indexOf(currentDay);
-
-      const minSlot = Math.min(startSlotIdx, endSlotIdx);
-      const maxSlot = Math.max(startSlotIdx, endSlotIdx);
-      const minDay = Math.min(startDayIdx, endDayIdx);
-      const maxDay = Math.max(startDayIdx, endDayIdx);
-
-      const newRangeCells: {slot: string, day: string}[] = [];
-
-      for (let s = minSlot; s <= maxSlot; s++) {
-        for (let d = minDay; d <= maxDay; d++) {
-          newRangeCells.push({ slot: TIME_SLOTS[s], day: WEEK_DAYS[d] });
-        }
-      }
-
-      // Combina o snapshot original com o novo range (evitando duplicados)
-      const combined = [...selectionSnapshot.current];
-      newRangeCells.forEach(newCell => {
-          if (!combined.some(existing => existing.slot === newCell.slot && existing.day === newCell.day)) {
-              combined.push(newCell);
-          }
-      });
-
-      setSelectedCells(combined);
-    };
+      window.addEventListener('pointermove', mover);
+      window.addEventListener('pointerup', largar);
+      window.addEventListener('pointercancel', parar);
+      document.addEventListener('touchmove', semScroll, { passive: false });
+      return () => {
+        window.removeEventListener('pointermove', mover);
+        window.removeEventListener('pointerup', largar);
+        window.removeEventListener('pointercancel', parar);
+        document.removeEventListener('touchmove', semScroll);
+      };
+    }, [abrirEdicao, celulaNoPonto, marcarAte]);
 
     const cancelMultiSelect = useCallback(() => {
       setSelectedCells([]);
-      setIsDragging(false);
-      setDragStart(null);
     }, []);
-
-    const openMultiEditModal = useCallback(() => {
-      if (selectedCells.length === 0) {
-        showToast(t.select_cell_edit, 'error');
-        return;
-      }
-      abrirEdicao(selectedCells);
-    }, [selectedCells, showToast, t, abrirEdicao]);
 
     // Teclado: Esc limpa a seleção, Enter edita as células marcadas
     useEffect(() => {
@@ -1461,27 +1510,6 @@
 
               </>
             )}
-            {schedule && selectedCells.length > 0 && editingCells.length === 0 && (
-              <div className="flex items-center gap-2">
-                <span className="hidden md:inline text-sm text-gray-600">
-                  {t.cells_selected.replace('{count}', selectedCells.length.toString())}
-                </span>
-                <button
-                  onClick={openMultiEditModal}
-                  className="flex items-center gap-2 bg-park-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-park-700 transition-colors shadow-sm"
-                >
-                  <PencilSquareIcon className="w-4 h-4" />
-                  {t.edit_selected.replace('{count}', String(selectedCells.length))}
-                </button>
-                <button
-                  onClick={() => setSelectedCells([])}
-                  className="flex items-center gap-2 bg-gray-500 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-gray-600 transition-colors shadow-sm"
-                >
-                  <XMarkIcon className="w-4 h-4" />
-                  {t.cancel_selection}
-                </button>
-              </div>
-            )}
             {schedule && (
               <button
                 onClick={handleExportExcel}
@@ -1647,7 +1675,7 @@
 
                     {/* --- TABELA DE HORÁRIOS (ESQUERDA) --- */}
                     <div className="flex-1 w-full min-w-0 bg-white border border-gray-300 shadow-xl overflow-hidden rounded-lg relative select-none">
-                      <div className="overflow-x-auto">
+                      <div ref={grelhaRef} className="overflow-x-auto">
                         <table className="w-full text-sm text-center border-collapse">
                           <thead>
                             <tr className="bg-gray-800 text-white">
@@ -1707,10 +1735,12 @@
                                   return (
                                     <td
                                       key={day}
-                                      onMouseDown={(e) => handleCellMouseDown(slot, day, e)}
-                                      onMouseEnter={() => handleCellMouseEnter(slot, day)}
+                                      data-slot={slot}
+                                      data-day={day}
+                                      onPointerDown={(e) => handleCellPointerDown(e, slot, day)}
                                       onDoubleClick={() => abrirEdicao([{ slot, day }])}
-                                      className={`p-1 border-r border-b border-gray-200 h-10 cursor-pointer select-none transition-colors relative group ${
+                                      onContextMenu={(e) => e.preventDefault()}
+                                      className={`p-1 border-r border-b border-gray-200 h-10 cursor-pointer select-none [-webkit-touch-callout:none] transition-colors relative group ${
                                         isSelected
                                           ? 'bg-park-200 ring-2 ring-inset ring-park-500'
                                           : hasStaff
