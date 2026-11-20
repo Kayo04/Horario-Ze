@@ -925,28 +925,32 @@
       }
     };
 
+    // "Descartar e gerar novamente": gera logo outra vez a mesma semana.
+    // (Antes só limpava o horário e voltava ao ecrã inicial, onde havia o botão Gerar, que foi removido.)
+    // O gerar corre através de acaoSemana, que é tratado depois do handleGenerate.
     const handleDiscardAndRegenerate = useCallback(() => {
+      const regenerar = () => {
+        setSavePrompt(null);
+        setSelectedCells([]);
+        setEditingCells([]);
+        setHasUnsavedChanges(false);
+        setAcaoSemana('gerar');
+      };
       if (hasUnsavedChanges) {
         setSavePrompt({
           show: true,
           title: t.discard_changes_title,
           message: t.discard_changes_message,
           onSave: () => {
-            handleSaveToDatabase(() => {
-              setSchedule(null);
-              setHasUnsavedChanges(false);
-            });
+            handleSaveToDatabase(regenerar);
           },
-          onDiscard: () => {
-            setSchedule(null);
-            setHasUnsavedChanges(false);
-          },
+          onDiscard: regenerar,
           onCancel: () => {
             setSavePrompt(null);
           }
         });
       } else {
-        setSchedule(null);
+        regenerar();
       }
     }, [hasUnsavedChanges, handleSaveToDatabase, t]);
 
